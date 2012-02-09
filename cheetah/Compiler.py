@@ -1908,7 +1908,7 @@ class ModuleCompiler(SettingsManager, GenUtils):
         else:
             self.addModuleGlobal('__CHEETAH_src__ = None')
             if self.setting('addSrcModifiedToCompilerOutput'):
-				self.addModuleGlobal('__CHEETAH_srcLastModified__ = None')
+                self.addModuleGlobal('__CHEETAH_srcLastModified__ = None')
 
         moduleDef = """%(header)s
 %(docstring)s
