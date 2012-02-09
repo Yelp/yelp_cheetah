@@ -68,6 +68,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('monitorSrcFile', False, ''),
     ('outputMethodsBeforeAttributes', True, ''),
     ('addTimestampsToCompilerOutput', True, ''),
+    ('addSrcModifiedToCompilerOutput', True, ''),
 
     ## Customizing the #extends directive
     ('autoImportForExtendsDirective', True, ''),
@@ -1190,8 +1191,8 @@ class ClassCompiler(GenUtils):
             self._generatedAttribs.append('_CHEETAH_genTimestamp = __CHEETAH_genTimestamp__')
 
         self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
-        self._generatedAttribs.append(
-            '_CHEETAH_srcLastModified = __CHEETAH_srcLastModified__')
+        if self.setting('addSrcModifiedToCompilerOutput'):
+            self._generatedAttribs.append('_CHEETAH_srcLastModified = __CHEETAH_srcLastModified__')
 
         if self.setting('templateMetaclass'):
             self._generatedAttribs.append('__metaclass__ = '+self.setting('templateMetaclass'))
@@ -1902,10 +1903,12 @@ class ModuleCompiler(SettingsManager, GenUtils):
         if self._filePath:
             timestamp = self.timestamp(self._fileMtime)
             self.addModuleGlobal('__CHEETAH_src__ = %r'%self._filePath)
-            self.addModuleGlobal('__CHEETAH_srcLastModified__ = %r'%timestamp)
+            if self.setting('addSrcModifiedToCompilerOutput'):
+                self.addModuleGlobal('__CHEETAH_srcLastModified__ = %r'%timestamp)
         else:
             self.addModuleGlobal('__CHEETAH_src__ = None')
-            self.addModuleGlobal('__CHEETAH_srcLastModified__ = None')            
+            if self.setting('addSrcModifiedToCompilerOutput'):
+                self.addModuleGlobal('__CHEETAH_srcLastModified__ = None')
 
         moduleDef = """%(header)s
 %(docstring)s
