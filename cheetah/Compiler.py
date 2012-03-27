@@ -817,8 +817,11 @@ class MethodCompiler(GenUtils):
                       +' at line %s, col %s'%lineCol + ' in the source.')
         self.addChunk('_orig_trans%(ID)s = trans'%locals())
         self.addChunk('_wasBuffering%(ID)s = self._CHEETAH__isBuffering'%locals())
-        self.addChunk('self._CHEETAH__isBuffering = True')
         self.addChunk('trans = _callCollector%(ID)s = DummyTransaction()'%locals())
+        if self.setting('autoAssignDummyTransactionToSelf'):
+            self.addChunk('self.transaction = trans')
+        else:
+            self.addChunk('self._CHEETAH__isBuffering = True')
         self.addChunk('write = _callCollector%(ID)s.response().write'%locals())
 
     def setCallArg(self, argName, lineCol):
@@ -839,6 +842,8 @@ class MethodCompiler(GenUtils):
                        ' _callCollector%(ID)s.response().getvalue()')%locals())
         self.addChunk('del _callCollector%(ID)s'%locals())
         self.addChunk('trans = _callCollector%(ID)s = DummyTransaction()'%locals())
+        if self.setting('autoAssignDummyTransactionToSelf'):
+            self.addChunk('self.transaction = trans')
         self.addChunk('write = _callCollector%(ID)s.response().write'%locals())
     
     def endCallRegion(self, regionTitle='CALL'):
@@ -847,7 +852,7 @@ class MethodCompiler(GenUtils):
             callDetails.functionName, callDetails.args, callDetails.lineCol)
 
         def reset(ID=ID):
-            self.addChunk('trans = _orig_trans%(ID)s'%locals())
+            self.addChunk('trans = self.transaction = _orig_trans%(ID)s'%locals())
             self.addChunk('write = trans.response().write')
             self.addChunk('self._CHEETAH__isBuffering = _wasBuffering%(ID)s '%locals())
             self.addChunk('del _wasBuffering%(ID)s'%locals())
@@ -891,14 +896,17 @@ class MethodCompiler(GenUtils):
                       +' at line %s, col %s'%lineCol + ' in the source.')
         self.addChunk('_orig_trans%(ID)s = trans'%locals())
         self.addChunk('_wasBuffering%(ID)s = self._CHEETAH__isBuffering'%locals())
-        self.addChunk('self._CHEETAH__isBuffering = True')
         self.addChunk('trans = _captureCollector%(ID)s = DummyTransaction()'%locals())
+        if self.setting('autoAssignDummyTransactionToSelf'):
+            self.addChunk('self.transaction = trans')
+        else:
+            self.addChunk('self._CHEETAH__isBuffering = True')
         self.addChunk('write = _captureCollector%(ID)s.response().write'%locals())
 
     def endCaptureRegion(self):
         ID, captureDetails = self._captureRegionsStack.pop()
         assignTo, lineCol = (captureDetails.assignTo, captureDetails.lineCol)
-        self.addChunk('trans = _orig_trans%(ID)s'%locals())
+        self.addChunk('trans = self.transaction = _orig_trans%(ID)s'%locals())
         self.addChunk('write = trans.response().write')
         self.addChunk('self._CHEETAH__isBuffering = _wasBuffering%(ID)s '%locals())
         self.addChunk('%(assignTo)s = _captureCollector%(ID)s.response().getvalue()'%locals())
@@ -927,6 +935,8 @@ class MethodCompiler(GenUtils):
 
     def setTransform(self, transformer, isKlass):
         self.addChunk('trans = TransformerTransaction()')
+        if self.setting('autoAssignDummyTransactionToSelf'):
+            self.addChunk('self.transaction = trans')
         self.addChunk('trans._response = trans.response()')
         self.addChunk('trans._response._filter = %s' % transformer)
         self.addChunk('write = trans._response.write')
@@ -1046,7 +1056,7 @@ class AutoMethodCompiler(MethodCompiler):
             self.indent()
             self.addChunk('trans = DummyTransaction()')
             if self.setting('autoAssignDummyTransactionToSelf'):
-                self.addChunk('self.transaction = trans')            
+                self.addChunk('self.transaction = trans')
             self.addChunk('_dummyTrans = True')
             self.dedent()
             self.addChunk('else: _dummyTrans = False')
