@@ -2953,6 +2953,9 @@ class GetVar(OutputTest):               # Template.getVar()
                     "1234")
 
 class Capture(OutputTest):
+    def _getCompilerSettings(self):
+        return dict(autoAssignDummyTransactionToSelf=True)
+
     def test1(self):
         self.verify(
             """#def foo: output\n"""
@@ -2960,6 +2963,30 @@ class Capture(OutputTest):
             """$buf $buf""",
             "output output"
         )
+
+    def test2(self):
+        self.verify(
+            """#def foo: #return 'output'\n"""
+            """#set $buf = $self.capture('foo')\n"""
+            """$buf $buf""",
+            "output output"
+        )
+
+    def test3(self):
+        warnings.filterwarnings(
+            'ignore', 'Ignoring buffer contents due to use of #return')
+
+        self.verify(
+            """#def foo\n"""
+            """    bunch of output that will be discarded\n"""
+            """    #return 'output'\n"""
+            """#end def\n"""
+            """#set $buf = $self.capture('foo')\n"""
+            """$buf $buf""",
+            "output output"
+        )
+
+
 
 
 class MiscComplexSyntax(OutputTest):

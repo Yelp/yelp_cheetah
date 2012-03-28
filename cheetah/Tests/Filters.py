@@ -101,7 +101,7 @@ class SingleTransactionModeTest(unittest.TestCase):
             compilerSettings=dict(
                 autoAssignDummyTransactionToSelf=True))
         template = str(template).strip()
-        assert template == u'@bar', (template, "should be @bar")
+        assert template == '@bar', (template, "should be @bar")
 
     def test_call(self):
         template = """
@@ -119,7 +119,7 @@ class SingleTransactionModeTest(unittest.TestCase):
             compilerSettings=dict(
                 autoAssignDummyTransactionToSelf=True))
         template = str(template).strip()
-        assert template == u'@[@bar]', (template, "should be [@bar]")
+        assert template == '@[@bar]', (template, "should be [@bar]")
 
 if __name__ == '__main__':
     unittest.main()
