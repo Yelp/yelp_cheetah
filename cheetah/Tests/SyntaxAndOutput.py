@@ -2952,6 +2952,15 @@ class GetVar(OutputTest):               # Template.getVar()
         self.verify("$getVar('$bogus',  1234)",
                     "1234")
 
+class Capture(OutputTest):
+    def test1(self):
+        self.verify(
+            """#def foo: output\n"""
+            """#set $buf = $self.capture('foo')\n"""
+            """$buf $buf""",
+            "output output"
+        )
+
 
 class MiscComplexSyntax(OutputTest):
     def test1(self):

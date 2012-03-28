@@ -77,7 +77,8 @@ class UniqueFilter(Cheetah.Filters.Filter):
             # filtering that is harmless
             return s
 
-        if '@' in s:
+        s = s.strip()
+        if s.startswith('@'):
             raise ValueError("UniqueFilter called twice; got %r" % (s,))
         return '@' + s
 
@@ -118,7 +119,7 @@ class SingleTransactionModeTest(unittest.TestCase):
             compilerSettings=dict(
                 autoAssignDummyTransactionToSelf=True))
         template = str(template).strip()
-        assert template == u'[@bar]', (template, "should be [@bar]")
+        assert template == u'@[@bar]', (template, "should be [@bar]")
 
 if __name__ == '__main__':
     unittest.main()
