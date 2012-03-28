@@ -1394,7 +1394,7 @@ class Template(Servlet):
             #set $foo = $self.capture('some_func', 42, arg=$whatever)
 
         `function` may be either a function object or a string.  (You'll have
-        to use the latter if `autoCall` is turned on.)  If a string, it will be
+        to use a string if `autoCall` is turned on.)  If a string, it will be
         looked up with `$getVar`.
 
         Note that the return value will be the rendered output of the called
@@ -1421,7 +1421,7 @@ class Template(Servlet):
             # try to write to the buffer.  Without $capture but with a
             # transaction, such a function would normally write out /both/ its
             # contents /and/ its return value, and we're not going to do that.
-            if buffer:
+            if buffer.strip():
                 warnings.warn("Ignoring buffer contents due to use of #return in $capture(%r)" % function)
 
             return retval

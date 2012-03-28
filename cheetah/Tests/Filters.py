@@ -67,6 +67,8 @@ def foo(self):
 
 
 
+class UniqueError(ValueError): pass
+
 class UniqueFilter(Cheetah.Filters.Filter):
     """A dummy filter that tries to notice when it's been called twice on the
     same string.
@@ -77,49 +79,82 @@ class UniqueFilter(Cheetah.Filters.Filter):
             # filtering that is harmless
             return s
 
+        # Strip off any whitespace template cruft
         s = s.strip()
-        if s.startswith('@'):
-            raise ValueError("UniqueFilter called twice; got %r" % (s,))
+        if '@' in s:
+            raise UniqueError("UniqueFilter applied twice to the same string; got %r" % (s,))
         return '@' + s
+
+    @classmethod
+    def unfilter(cls, s):
+        """Removes the decoration, allowing the string to be filtered again
+        without incident.
+        """
+        return s.replace('@', '')
 
 class SingleTransactionModeTest(unittest.TestCase):
     """Ensure that filters are only run once on any given block of text when
     using a single transaction.
     """
 
+    def render(self, template_source):
+        scope = dict(
+            # Dummy variable
+            foo = 'bar',
+
+            # No-op function, for use with #call
+            call_noop = lambda body: body,
+
+            # #call function that re-blesses its body
+            call_rebless = lambda body: UniqueFilter.unfilter(body),
+        )
+
+        template = Cheetah.Template.Template(
+            template_source,
+            filter=UniqueFilter,
+            searchList=[scope],
+            compilerSettings=dict(
+                autoAssignDummyTransactionToSelf=True),
+        )
+
+        return template.respond().strip()
+
     def test_def(self):
-        template = """
+        output = self.render("""
             #def print_foo: $foo
 
             $print_foo()
-        """
+        """)
 
-        template = Cheetah.Template.Template(
-            template,
-            filter=UniqueFilter,
-            searchList=[dict(foo='bar')],
-            compilerSettings=dict(
-                autoAssignDummyTransactionToSelf=True))
-        template = str(template).strip()
-        assert template == '@bar', (template, "should be @bar")
+        assert output == '@bar', (output, "should be @bar")
 
-    def test_call(self):
-        template = """
+    def test_naive_call(self):
+        try:
+            # This will fail because $foo is substituted and filtered inside
+            # the #call block, the function is run, and then the return value
+            # (still containing $foo) is filtered again
+            output = self.render("""
+                #def print_foo: $foo
+
+                #call $call_noop
+                    [$print_foo()]
+                #end call
+            """)
+        except UniqueError:
+            pass
+        else:
+            assert False, "UniqueFilter should have raised UniqueError"
+
+    def test_fixed_call(self):
+        output = self.render("""
             #def print_foo: $foo
 
-            #call $noop
+            #call $call_rebless
                 [$print_foo()]
             #end call
-        """
+        """)
 
-        template = Cheetah.Template.Template(
-            template,
-            filter=UniqueFilter,
-            searchList=[dict(foo='bar', noop=lambda body: body)],
-            compilerSettings=dict(
-                autoAssignDummyTransactionToSelf=True))
-        template = str(template).strip()
-        assert template == '@[@bar]', (template, "should be [@bar]")
+        assert output == '@[bar]', (output, "should be @[bar]")
 
 if __name__ == '__main__':
     unittest.main()

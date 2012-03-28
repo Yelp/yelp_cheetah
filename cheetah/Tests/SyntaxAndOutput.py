@@ -2958,33 +2958,48 @@ class Capture(OutputTest):
 
     def test1(self):
         self.verify(
-            """#def foo: output\n"""
-            """#set $buf = $self.capture('foo')\n"""
-            """$buf $buf""",
-            "output output"
+            "#def foo: output\n"
+            "#set $buf = $self.capture('foo')\n"
+            "$buf $buf",
+            'output output'
         )
 
     def test2(self):
         self.verify(
-            """#def foo: #return 'output'\n"""
-            """#set $buf = $self.capture('foo')\n"""
-            """$buf $buf""",
-            "output output"
+            "#def foo: #return 'output'\n"
+            "#set $buf = $self.capture('foo')\n"
+            "$buf $buf",
+            'output output'
         )
 
     def test3(self):
-        warnings.filterwarnings(
-            'ignore', 'Ignoring buffer contents due to use of #return')
+        # Monkeypatch showwarning to do logging; this is actually what the docs
+        # recommend!
+        warnings_log = []
+        def showwarning(message, category, filename, lineno, file=None, line=None):
+            # message is actually a warning object when using warnings.warn()
+            warnings_log.append(message.message)
+        orig_showwarning = warnings.showwarning
+        warnings.showwarning = showwarning
 
-        self.verify(
-            """#def foo\n"""
-            """    bunch of output that will be discarded\n"""
-            """    #return 'output'\n"""
-            """#end def\n"""
-            """#set $buf = $self.capture('foo')\n"""
-            """$buf $buf""",
-            "output output"
-        )
+        try:
+            self.verify(
+                "#def foo\n"
+                "    bunch of output that will be discarded\n"
+                "    #return 'output'\n"
+                "#end def\n"
+                "#set $buf = $self.capture('foo')\n"
+                "$buf $buf",
+                'output output'
+            )
+
+            assert any(
+                    'Ignoring buffer contents due to use of #return' in warning
+                    for warning in warnings_log
+                ), "Expected warning about losing foo()'s contents"
+        finally:
+            warnings.showwarning = orig_showwarning
+
 
 
 
