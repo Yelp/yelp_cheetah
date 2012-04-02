@@ -1409,20 +1409,20 @@ class Template(Servlet):
             retval = function(*args, **kwargs)
             buffer = self.transaction.response().getvalue()
 
-            if retval == '':
+            if retval is None:
                 # Template functions using transactions always return an empty
                 # string
                 return buffer
-
-            # ...but this one didn't, which means either the function is a
-            # plain Python function, or it's a template function that used
-            # #return.
-            # In the latter case, check that it didn't /both/ use #return /and/
-            # try to write to the buffer.  Without $capture but with a
-            # transaction, such a function would normally write out /both/ its
-            # contents /and/ its return value, and we're not going to do that.
-            if buffer.strip():
-                warnings.warn("Ignoring buffer contents due to use of #return in $capture(%r)" % function)
+            else:
+                # ...but this one didn't, which means either the function is a
+                # plain Python function, or it's a template function that used
+                # #return.
+                # In the latter case, check that it didn't /both/ use #return /and/
+                # try to write to the buffer.  Without $capture but with a
+                # transaction, such a function would normally write out /both/ its
+                # contents /and/ its return value, and we're not going to do that.
+                if buffer.strip():
+                    warnings.warn("Ignoring buffer contents due to use of #return in $capture(%r)" % function)
 
             return retval
         finally:

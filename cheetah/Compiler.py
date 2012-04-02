@@ -1096,7 +1096,12 @@ class AutoMethodCompiler(MethodCompiler):
         self.addChunk('')
         
     def addStop(self, expr=None):
-        self.addChunk('return _dummyTrans and trans.response().getvalue() or ""')
+        if self.setting('autoAssignDummyTransactionToSelf'):
+            empty = None
+        else:
+            empty = ''
+
+        self.addChunk('return _dummyTrans and trans.response().getvalue() or %r' % empty)
 
     def addMethArg(self, name, defVal=None):
         self._argStringList.append( (name, defVal) )

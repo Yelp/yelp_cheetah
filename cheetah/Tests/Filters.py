@@ -73,24 +73,11 @@ class UniqueFilter(Cheetah.Filters.Filter):
     """A dummy filter that tries to notice when it's been called twice on the
     same string.
     """
+    count = 0
     def filter(self, s, rawExpr=None):
-        if s == '':
-            # Defs return empty string when transactions are in use, and
-            # filtering that is harmless
-            return s
+        self.count += 1
+        return '<%i>%s</%i>' % (self.count, s, self.count)
 
-        # Strip off any whitespace template cruft
-        s = s.strip()
-        if '@' in s:
-            raise UniqueError("UniqueFilter applied twice to the same string; got %r" % (s,))
-        return '@' + s
-
-    @classmethod
-    def unfilter(cls, s):
-        """Removes the decoration, allowing the string to be filtered again
-        without incident.
-        """
-        return s.replace('@', '')
 
 class SingleTransactionModeTest(unittest.TestCase):
     """Ensure that filters are only run once on any given block of text when
@@ -103,18 +90,14 @@ class SingleTransactionModeTest(unittest.TestCase):
             foo = 'bar',
 
             # No-op function, for use with #call
-            call_noop = lambda body: body,
-
-            # #call function that re-blesses its body
-            call_rebless = lambda body: UniqueFilter.unfilter(body),
+            identity = lambda body: body,
         )
 
         template = Cheetah.Template.Template(
             template_source,
             filter=UniqueFilter,
             searchList=[scope],
-            compilerSettings=dict(
-                autoAssignDummyTransactionToSelf=True),
+            compilerSettings=dict(autoAssignDummyTransactionToSelf=True),
         )
 
         return template.respond().strip()
@@ -126,35 +109,21 @@ class SingleTransactionModeTest(unittest.TestCase):
             $print_foo()
         """)
 
-        assert output == '@bar', (output, "should be @bar")
+
+        expected = '<1>bar</1>'
+        assert output == expected, "%r should be %r" % (output, expected)
 
     def test_naive_call(self):
-        try:
-            # This will fail because $foo is substituted and filtered inside
-            # the #call block, the function is run, and then the return value
-            # (still containing $foo) is filtered again
-            output = self.render("""
-                #def print_foo: $foo
-
-                #call $call_noop
-                    [$print_foo()]
-                #end call
-            """)
-        except UniqueError:
-            pass
-        else:
-            assert False, "UniqueFilter should have raised UniqueError"
-
-    def test_fixed_call(self):
+        # This will be filtered twice because $foo is substituted and filtered
+        # inside the #call block, the function is run, and then the return
+        # value (still containing $foo) is filtered again
         output = self.render("""
             #def print_foo: $foo
 
-            #call $call_rebless
-                [$print_foo()]
-            #end call
+			#call $identity # [$print_foo()] #end call
         """)
-
-        assert output == '@[bar]', (output, "should be @[bar]")
+        expected = '<2> [<1>bar</1>] </2>'
+        assert output == expected, "%r should be %r" % (output, expected)
 
 if __name__ == '__main__':
     unittest.main()
