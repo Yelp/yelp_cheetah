@@ -2977,10 +2977,15 @@ class Capture(OutputTest):
         )
 
     def test3(self):
-        filters_copy = warnings.filters[:]
-        warnings.filterwarnings('error',
-                                'Ignoring buffer contents due to use of #return',
-                                UserWarning)
+        # Monkeypatch showwarning to do logging; this is actually what the docs
+        # recommend!
+        warnings_log = []
+        def showwarning(message, category, filename, lineno, file=None, line=None):
+            # message is actually a warning object when using warnings.warn()
+            warnings_log.append(message.message)
+        orig_showwarning = warnings.showwarning
+        warnings.showwarning = showwarning
+
         try:
             self.verify(
                 "#def foo\n"
@@ -2991,13 +2996,13 @@ class Capture(OutputTest):
                 "$buf $buf",
                 'output output'
             )
-        except UserWarning:
-            pass
-        else:
-            self.fail("Expected warning about losing foo()'s contents")
 
-        # Restore the old filters.
-        warnings.filters[:] = filters_copy
+            assert any(
+                    'Ignoring buffer contents due to use of #return' in warning
+                    for warning in warnings_log
+                ), "Expected warning about losing foo()'s contents"
+        finally:
+            warnings.showwarning = orig_showwarning
 
 
 

@@ -1424,7 +1424,7 @@ class Template(Servlet):
                 if buffer.strip():
                     warnings.warn("Ignoring buffer contents due to use of #return in $capture(%r)" % function)
 
-            return retval
+                return retval
         finally:
             self.transaction = current_transaction
 
