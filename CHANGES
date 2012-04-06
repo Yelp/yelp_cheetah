@@ -1,3 +1,15 @@
+2.4.5 (not yet released)
+  - Respect autoAssignDummyTransactionToSelf compiler setting within #call,
+    #cache, and #capture directives
+  - Add $capture method for retrieving the output of a template function, even
+    in the presence of a transaction
+
+2.4.4 (???)
+  - ???
+
+2.4.3 (???)
+  - ???
+
 2.4.2 (February 8th, 2010)
   - Fix issue where subclasses of Template failed to pick up attributes in the
     searchlist
