@@ -66,5 +66,64 @@ def foo(self):
         assert template, (template, 'We should have some content here...')
 
 
+
+class UniqueError(ValueError): pass
+
+class UniqueFilter(Cheetah.Filters.Filter):
+    """A dummy filter that tries to notice when it's been called twice on the
+    same string.
+    """
+    count = 0
+    def filter(self, s, rawExpr=None):
+        self.count += 1
+        return '<%i>%s</%i>' % (self.count, s, self.count)
+
+
+class SingleTransactionModeTest(unittest.TestCase):
+    """Ensure that filters are only run once on any given block of text when
+    using a single transaction.
+    """
+
+    def render(self, template_source):
+        scope = dict(
+            # Dummy variable
+            foo = 'bar',
+
+            # No-op function, for use with #call
+            identity = lambda body: body,
+        )
+
+        template = Cheetah.Template.Template(
+            template_source,
+            filter=UniqueFilter,
+            searchList=[scope],
+            compilerSettings=dict(autoAssignDummyTransactionToSelf=True),
+        )
+
+        return template.respond().strip()
+
+    def test_def(self):
+        output = self.render("""
+            #def print_foo: $foo
+
+            $print_foo()
+        """)
+
+
+        expected = '<1>bar</1>'
+        assert output == expected, "%r should be %r" % (output, expected)
+
+    def test_naive_call(self):
+        # This will be filtered twice because $foo is substituted and filtered
+        # inside the #call block, the function is run, and then the return
+        # value (still containing $foo) is filtered again
+        output = self.render("""
+            #def print_foo: $foo
+
+			#call $identity # [$print_foo()] #end call
+        """)
+        expected = '<2> [<1>bar</1>] </2>'
+        assert output == expected, "%r should be %r" % (output, expected)
+
 if __name__ == '__main__':
     unittest.main()
