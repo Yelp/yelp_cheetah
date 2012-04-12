@@ -120,10 +120,36 @@ class SingleTransactionModeTest(unittest.TestCase):
         output = self.render("""
             #def print_foo: $foo
 
-			#call $identity # [$print_foo()] #end call
+            #call $identity # [$print_foo()] #end call
         """)
         expected = '<2> [<1>bar</1>] </2>'
         assert output == expected, "%r should be %r" % (output, expected)
+
+class NotSingleTransactionModeTest(unittest.TestCase):
+    """Ensure that filters continue to apply to the results of function calls.
+    """
+
+    def test_after_call(self):
+        # The first crack at fixing #call with transactions introduced a subtle
+        # problem where the *end* of a call block would trigger transaction
+        # mode for all *subsequent* function calls *outside* of a call block.
+        template_source = ("""
+            #def inner: hello
+
+            #def outer: $inner()
+
+            #call $identity##end call#$outer()
+        """)
+
+        template = Cheetah.Template.Template(
+            template_source,
+            searchList=[dict(identity=lambda body: body)],
+            filter=UniqueFilter)
+        output = template.respond().strip()
+
+        expected = '<1></1><3><2>hello</2></3>'
+        assert output == expected, "%r should be %r" % (output, expected)
+
 
 if __name__ == '__main__':
     unittest.main()

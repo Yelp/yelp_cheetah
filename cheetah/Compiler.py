@@ -853,7 +853,9 @@ class MethodCompiler(GenUtils):
             callDetails.functionName, callDetails.args, callDetails.lineCol)
 
         def reset(ID=ID):
-            self.addChunk('trans = self.transaction = _orig_trans%(ID)s'%locals())
+            self.addChunk('trans = _orig_trans%(ID)s'%locals())
+            if self.setting('autoAssignDummyTransactionToSelf'):
+                self.addChunk('self.transaction = trans')
             self.addChunk('write = trans.response().write')
             self.addChunk('self._CHEETAH__isBuffering = _wasBuffering%(ID)s '%locals())
             self.addChunk('del _wasBuffering%(ID)s'%locals())
@@ -907,7 +909,9 @@ class MethodCompiler(GenUtils):
     def endCaptureRegion(self):
         ID, captureDetails = self._captureRegionsStack.pop()
         assignTo, lineCol = (captureDetails.assignTo, captureDetails.lineCol)
-        self.addChunk('trans = self.transaction = _orig_trans%(ID)s'%locals())
+        self.addChunk('trans = _orig_trans%(ID)s'%locals())
+        if self.setting('autoAssignDummyTransactionToSelf'):
+            self.addChunk('self.transaction = trans')
         self.addChunk('write = trans.response().write')
         self.addChunk('self._CHEETAH__isBuffering = _wasBuffering%(ID)s '%locals())
         self.addChunk('%(assignTo)s = _captureCollector%(ID)s.response().getvalue()'%locals())
