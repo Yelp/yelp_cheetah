@@ -1106,7 +1106,15 @@ class AutoMethodCompiler(MethodCompiler):
         else:
             empty = ''
 
-        self.addChunk('return _dummyTrans and trans.response().getvalue() or %r' % empty)
+        self.addChunk('if _dummyTrans:')
+        self.indent()
+        self.addChunk('self.transaction = None')
+        self.addChunk('return trans.response().getvalue()')
+        self.dedent()
+        self.addChunk('else:')
+        self.indent()
+        self.addChunk('return %r' % empty)
+        self.dedent()
 
     def addMethArg(self, name, defVal=None):
         self._argStringList.append( (name, defVal) )
