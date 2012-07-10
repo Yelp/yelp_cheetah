@@ -416,9 +416,9 @@ class MethodCompiler(GenUtils):
                 self.addChunk("_v = %s"%chunk)
                 
             if self.setting('useFilters'):
-                self.addChunk("if _v is not None: write(_filter(_v%s))"%filterArgs)
+                self.addChunk("if _v is not NO_CONTENT: write(_filter(_v%s))"%filterArgs)
             else:
-                self.addChunk("if _v is not None: write(str(_v))")
+                self.addChunk("if _v is not NO_CONTENT: write(str(_v))")
         else:
             if self.setting('useFilters'):
                 self.addChunk("write(_filter(%s%s))"%(chunk, filterArgs))
@@ -1102,9 +1102,9 @@ class AutoMethodCompiler(MethodCompiler):
         
     def addStop(self, expr=None):
         if self.setting('autoAssignDummyTransactionToSelf'):
-            empty = None
+            no_content = 'NO_CONTENT'
         else:
-            empty = ''
+            no_content = "''"
 
         self.addChunk('if _dummyTrans:')
         self.indent()
@@ -1113,7 +1113,7 @@ class AutoMethodCompiler(MethodCompiler):
         self.dedent()
         self.addChunk('else:')
         self.indent()
-        self.addChunk('return %r' % empty)
+        self.addChunk('return %s' % no_content)
         self.dedent()
 
     def addMethArg(self, name, defVal=None):
@@ -1664,7 +1664,7 @@ class ModuleCompiler(SettingsManager, GenUtils):
             "import types",
             "from Cheetah.Version import MinCompatibleVersion as RequiredCheetahVersion",            
             "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
-            "from Cheetah.Template import Template",
+            "from Cheetah.Template import Template, NO_CONTENT",
             "from Cheetah.DummyTransaction import *",
             "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
             "from Cheetah.CacheRegion import CacheRegion",
@@ -2042,3 +2042,5 @@ if __name__ == '__main__':
 ## Make Compiler an alias for ModuleCompiler
     
 Compiler = ModuleCompiler
+
+# vim: shiftwidth=4 tabstop=4 expandtab

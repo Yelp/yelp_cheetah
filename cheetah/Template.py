@@ -103,6 +103,10 @@ def hashDict(d):
 ################################################################################
 ## MODULE GLOBALS AND CONSTANTS
 
+# Singleton object, representing no data to be written.
+# None or empty-string can be filtered into useful data, unlike NO_CONTENT.
+NO_CONTENT = object()
+
 def _genUniqueModuleName(baseModuleName):
     """The calling code is responsible for concurrency locking.
     """
@@ -1409,9 +1413,8 @@ class Template(Servlet):
             retval = function(*args, **kwargs)
             buffer = self.transaction.response().getvalue()
 
-            if retval is None:
-                # Template functions using transactions always return an empty
-                # string
+            if retval is NO_CONTENT:
+                # Template functions using transactions always return no content.
                 return buffer
             else:
                 # ...but this one didn't, which means either the function is a
