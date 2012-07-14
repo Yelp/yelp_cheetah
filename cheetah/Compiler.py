@@ -1664,13 +1664,19 @@ class ModuleCompiler(SettingsManager, GenUtils):
             "import types",
             "from Cheetah.Version import MinCompatibleVersion as RequiredCheetahVersion",            
             "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
-            "from Cheetah.Template import Template, NO_CONTENT",
+            "from Cheetah.Template import Template",
             "from Cheetah.DummyTransaction import *",
             "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
             "from Cheetah.CacheRegion import CacheRegion",
             "import Cheetah.Filters as Filters",
             "import Cheetah.ErrorCatchers as ErrorCatchers",
-            ]        
+            "",
+            "try:",
+            "    #Backward compatibility with 2.4.5",
+            "    from Cheetah.Template import NO_CONTENT",
+            "except ImportError:",
+            "    NO_CONTENT = None",
+        ]
 
         self._importedVarNames = ['sys',
                                   'os',
