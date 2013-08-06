@@ -29,11 +29,12 @@ from Cheetah.Parser import Parser, ParseError, specialVarRE, \
      STATIC_CACHE, REFRESH_CACHE, SET_LOCAL, SET_GLOBAL, SET_MODULE, \
      unicodeDirectiveRE, encodingDirectiveRE, escapedNewlineRE
 
-from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList
+from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList, flushPlaceholderInfo
 VFFSL=valueFromFrameOrSearchList
 VFSL=valueFromSearchList
 VFN=valueForName
 currentTime=time.time
+FLUSH=flushPlaceholderInfo
 
 class Error(Exception): pass
 
@@ -155,11 +156,11 @@ class GenUtils(object):
             cacheInfo[key] = val
         return cacheInfo
         
-    def genCheetahVar(self, nameChunks, plain=False):
+    def genCheetahVar(self, nameChunks, placholderID, plain=False):
         if nameChunks[0][0] in self.setting('gettextTokens'):
             self.addGetTextVar(nameChunks) 
         if self.setting('useNameMapper') and not plain:
-            return self.genNameMapperVar(nameChunks)
+            return self.genNameMapperVar(nameChunks, placholderID)
         else:
             return self.genPlainVar(nameChunks)
 
@@ -190,7 +191,7 @@ class GenUtils(object):
             pythonCode = (pythonCode + '.' + chunk[0] + chunk[2])
         return pythonCode
 
-    def genNameMapperVar(self, nameChunks):
+    def genNameMapperVar(self, nameChunks, placeholderID):
         """Generate valid Python code for a Cheetah $var, using NameMapper
         (Unified Dotted Notation with the SearchList).
 
@@ -259,18 +260,21 @@ class GenUtils(object):
                 beforeFirstDot, afterDot = name[:firstDotIdx], name[firstDotIdx+1:]
                 pythonCode = ('VFN(' + beforeFirstDot +
                               ',"' + afterDot +
-                              '",' + repr(defaultUseAC and useAC) + ')'
+                              '",' + str(placeholderID) +
+                              ',' + repr(defaultUseAC and useAC) + ')'
                               + remainder)
             else:
                 pythonCode = name+remainder
         elif self.setting('useStackFrames'):
             pythonCode = ('VFFSL(SL,'
                           '"'+ name + '",'
+                          + str(placeholderID) + ','
                           + repr(defaultUseAC and useAC) + ')'
                           + remainder)
         else:
             pythonCode = ('VFSL([locals()]+SL+[globals(), builtin],'
                           '"'+ name + '",'
+                          + str(placeholderID) + ','
                           + repr(defaultUseAC and useAC) + ')'
                           + remainder)
         ##    
@@ -278,8 +282,26 @@ class GenUtils(object):
             name, useAC, remainder = nameChunks.pop()
             pythonCode = ('VFN(' + pythonCode +
                           ',"' + name +
-                          '",' + repr(defaultUseAC and useAC) + ')'
+                          '",' + str(placeholderID) +
+                          ',' + repr(defaultUseAC and useAC) + ')'
                           + remainder)
+
+        # Insert the FLUSH call before the final 'remainder' (if any), so that
+        # we properly handle cases like "#set $x[y] = 10" (we need the [y] to
+        # be outside the FLUSH, or else we end up with "FLUSH(...) = 10" which
+        # is not valid Python code).
+
+        # 'remainder' is still set from one of the pieces above.
+        if len(remainder) > 0:
+            assert pythonCode.endswith(remainder)
+            # Remove 'remainder', wrap in FLUSH(...), then add 'remainder' back on.
+            pythonCode = pythonCode[:-len(remainder)]
+
+        pythonCode = 'FLUSH(' + pythonCode + ',' + str(placeholderID) + ')'
+
+        if len(remainder) > 0:
+            pythonCode = pythonCode + remainder
+
         return pythonCode
     
 ##################################################
@@ -1666,7 +1688,7 @@ class ModuleCompiler(SettingsManager, GenUtils):
             "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
             "from Cheetah.Template import Template",
             "from Cheetah.DummyTransaction import *",
-            "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
+            "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList, flushPlaceholderInfo",
             "from Cheetah.CacheRegion import CacheRegion",
             "import Cheetah.Filters as Filters",
             "import Cheetah.ErrorCatchers as ErrorCatchers",
@@ -1696,6 +1718,7 @@ class ModuleCompiler(SettingsManager, GenUtils):
             "VFSL=valueFromSearchList",
             "VFN=valueForName",
             "currentTime=time.time",
+            "FLUSH=flushPlaceholderInfo",
             ]
         
     def compile(self):
