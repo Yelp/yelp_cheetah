@@ -33,49 +33,61 @@ static PyObject* pprintMod_pformat; /* used for exception formatting */
 /* Instrumentation code */
 /* *************************************************************************** */
 
-static PyObject *clogMod_log_line;
+/*** Placeholder tracking ***/
 
-#define DID_AUTOKEY     1
-#define DID_AUTOCALL    2
-
-#define NS_GLOBALS      (-1)
-#define NS_LOCALS       (-2)
-#define NS_BUILTINS     (-3)
-
+/* Information about a placeholder evaluation. */
 struct PlaceholderInfo {
     /* A pointer to the Python stack frame that is evaluating the placeholder.
-     * This is used to distinguish placeholders with the same name in different
-     * templates, since it's easier to compare frame pointers than to compare
-     * filenames (strings). */
+     * This is used to distinguish placeholders with the same ID in different
+     * templates, and to obtain the name of the template for logging purposes.
+     */
     PyFrameObject* pythonStackPointer;
 
-    /* The ID of the placeholder, assigned by the Cheetah compiler. */
+    /* The ID of the placeholder.  This is a number assigned by the Cheetah
+     * compiler, which can be used to identify a specific placeholder in the
+     * template file.  It is unique among all placeholders in the same
+     * template, but not across different templates. */
     uint16_t placeholderID;
 
     /* The index of the item in the search list where the first lookup
      * succeeded.  (For "$x.y", this is the index of the searchlist item that
-     * contained "x".)  May also be one of the special constants NS_GLOBALS,
-     * NS_LOCALS, or NS_BUILTINS, to indicate that the item was found in
-     * globals(), locals(), or __builtins__ respectively. */
-    int8_t nameSpaceIndex;
+     * contained "x".)  This may also be one of the special constants
+     * NS_GLOBALS, NS_LOCALS, or NS_BUILTINS, to indicate that the item was
+     * found in globals(), locals(), or __builtins__ respectively. */
+    uint8_t nameSpaceIndex;
 
     /* The number of lookups performed so far.  "$x.y[1].z" contains three
      * lookups (one each for "x", "y", and "z").  The "[1]" part does not
      * invoke the namemapper, so it is not counted as a lookup. */
     uint8_t lookupCount;
 
-    /* A list of 16 two-bit entries, indicating whether each lookup DID_AUTOKEY
-     * and/or DID_AUTOCALL.  The least-significant two bits correspond to the
-     * first lookup. */
+    /* A list of 16 two-bit entries, indicating whether each lookup used
+     * autokey and/or autocall.  The least-significant two bits correspond to
+     * the first lookup. */
     uint32_t flags;
 
     /* Pointer to the next item on the placeholder stack. */
     struct PlaceholderInfo *next;
 };
 
+/* Flags to indicate which namemapper features were used on a particular lookup
+ * step. */
+#define DID_AUTOKEY     1
+#define DID_AUTOCALL    2
 
-/* Keep a stack of placeholders being evaluated as a singly-linked list.  NULL
- * represents the empty list. */
+/* Special values for nameSpaceIndex to indicate that the first lookup was
+ * completed using something other than the searchlist. */
+#define NS_GLOBALS      255
+#define NS_LOCALS       254
+#define NS_BUILTINS     253
+
+/* We keep a stack of placeholders being evaluated as a singly-linked list.
+ * This lets us handle nested evaluations properly.  For example, evaluation of
+ * "$x[$y].z" will start by looking up "x" for the outer placeholder, then will
+ * fully evaluate the inner placeholder "$y", and finally will finish the outer
+ * placeholder by looking up "z".
+ *
+ * We initialize this to NULL to represent the empty list. */
 struct PlaceholderInfo *placeholderStackTop = NULL;
 
 /* Push a new item onto the placeholder stack, initialized with the provided
@@ -113,12 +125,14 @@ void clearPlaceholderStack(void) {
     }
 }
 
-/* Record a lookup step for the current placeholder. */
+/* Record the flags for a lookup step of the current placeholder. */
 void recordLookup(int flags) {
     int index = placeholderStackTop->lookupCount;
     ++placeholderStackTop->lookupCount;
     if (index >= 16)
-        // TODO: warn
+        /* We don't need an explicit warning for this case.  The code that
+         * processes the log can detect this has happened by looking for lines
+         * which report lookupCount >= 16. */
         return;
 
     placeholderStackTop->flags |= (flags & 3) << (index * 2);
@@ -127,10 +141,39 @@ void recordLookup(int flags) {
 /* Check if the current placeholder matches the provided placeholderID and the
  * current PyFrameObject. */
 int currentPlaceholderMatches(int placeholderID) {
-    return placeholderStackTop->pythonStackPointer == PyEval_GetFrame() &&
+    return placeholderStackTop != NULL &&
+        placeholderStackTop->pythonStackPointer == PyEval_GetFrame() &&
         placeholderStackTop->placeholderID == placeholderID;
 }
 
+/*** Placeholder Logging ***/
+
+/* We log the following information about each placeholder evaluation:
+ *
+ *  - Deploy SHA, template name hash, placeholder ID:  Together, these
+ *    uniquely identify a placeholder in a particular version of a particular
+ *    template file.  Processing code can obtain the actual template name from
+ *    the deploy SHA and the name hash by hashing the names of all compiled
+ *    templates in the deployed version of yelp-main and looking for a hash
+ *    that matches the one in the log.
+ *
+ *  - Namespace index:  This lets us detect use of Cheetah's searchlist
+ *    feature, by looking for placeholders that have different namespace
+ *    indices on different evaluations.
+ *
+ *  - Lookup count lets us know how many bits in the "flags" field are actually
+ *    interesting.  We could live without this, but it makes parsing the log
+ *    file a little bit easier - this way, we don't have to parse each .tmpl
+ *    file to find the correct count for the placeholder.
+ *
+ *  - The list of flags lets us detect where autokey/autocall is being used.
+ */
+
+/* We send data to Scribe by calling the Python function clog.log_line. */
+static PyObject *clogMod_log_line;
+
+/* Simple hash for strings.  We use this for hashing template filenames, so we
+ * don't have to log the whole name. */
 uint32_t hashString(const char* str) {
     uint32_t hash = 0;
     while (*str != '\0') {
@@ -140,6 +183,11 @@ uint32_t hashString(const char* str) {
     return hash;
 }
 
+/* Find the interesting parts of a template filename.  For our purposes,
+ * "interesting" parts are (1) the SHA of the current deployment (included in
+ * the directory name "r2013...-aabbccddee-deploy-some-branch") and (2) the
+ * path relative to the deployment (or yelp-main checkout) directory, which is
+ * sufficient to identify the template itself. */
 void extractPathComponents(const char *filename, const char **deploySHAStartPtr, const char **templateNameStartPtr) {
     const char *deploySHAStart = NULL;
     const char *templateNameStart = NULL;
@@ -149,8 +197,8 @@ void extractPathComponents(const char *filename, const char **deploySHAStartPtr,
     const char *foundSlash = NULL;
 
     /* Check for various things that look like yelp-main checkouts.  Set
-     * 'foundSlash' to the slash following the checkout directory once we find
-     * it. */
+     * 'foundSlash' to point to the slash following the checkout directory once
+     * we find it. */
 
     /* First check for path components that look like deployment directories.
      */
@@ -171,8 +219,8 @@ void extractPathComponents(const char *filename, const char **deploySHAStartPtr,
         foundSlash = strchr(foundDeploy, '/');
     }
 
-    /* Next, look for components containing "yelp-main".  This is how it works
-     * in dev playgrounds. */
+    /* Next, look for components containing "yelp-main".  This is how usually
+     * it works in dev playgrounds. */
     if (foundSlash == NULL) {
         foundYelpMain = strstr(filename, "yelp-main");
         if (foundYelpMain != NULL) {
@@ -181,7 +229,7 @@ void extractPathComponents(const char *filename, const char **deploySHAStartPtr,
     }
 
     /* Finally, check if the path starts with "./".  If so, we assume "." is a
-     * yelp-main checkout, because that's how it works on buildbot. */
+     * yelp-main checkout, because that's how things work on buildbot. */
     if (foundSlash == NULL) {
         if (strstr(filename, "./") == filename) {
             foundSlash = strchr(filename, '/');
@@ -227,13 +275,16 @@ void logPlaceholderInfo(void) {
     if (templateNameStart != NULL) {
         templateNameHash = hashString(templateNameStart);
     } else {
-        templateNameHash = 0;
+        /* We didn't find anything that looks like a deployment, so hash the
+         * whole fileName instead.  It's better than nothing - maybe if we are
+         * lucky we can figure out the format and recover the actual name. */
+        templateNameHash = hashString(fileName);
     }
 
     /* We log everything in hexadecimal, with each field separated by a space.
-     * So the expected output width is: 11 (deploy SHA) + 9 (fileNameHash) +
-     * 5 (placeholderID) + 3 (nameSpaceIndex) + 3 (lookupCount) +
-     * 9 (flags) = 40. */
+     * So the expected output width is: 10 (deploy SHA) + 8 (fileNameHash) +
+     * 4 (placeholderID) + 2 (nameSpaceIndex) + 2 (lookupCount) +
+     * 8 (flags) + 5 (spaces) = 39. */
     char buf[48];
     /* The 'size' argument to snprintf includes the terminating \0, which is
      * always written (even if the output is too long for the buffer). */
@@ -241,18 +292,11 @@ void logPlaceholderInfo(void) {
             deploySHAStart,
             templateNameHash,
             placeholderStackTop->placeholderID,
-            (uint8_t)placeholderStackTop->nameSpaceIndex,
+            placeholderStackTop->nameSpaceIndex,
             placeholderStackTop->lookupCount,
             placeholderStackTop->flags);
-    /* We cast nameSpaceIndex from int8_t to uint8_t because it might be
-     * negative.  Since printf arguments are implicitly converted to 'int',
-     * (int8_t)-1 would be converted to (int)-1, which is "ffffffff" (8
-     * digits), while (uint8_t)-1 == (uint8_t)255 would be converted to
-     * (int)255, which is "ff" (2 digits).  Observe:
-     *      printf("%x\n", (int8_t)-1);     -> prints "ffffffff"
-     *      printf("%x\n", (uint8_t)-1);    -> prints "ff"
-     */
 
+    /* Call clog.log_line via Python to do the actual logging. */
     PyObject_CallFunction(clogMod_log_line, "ss", "tmp_namemapper_placeholder_uses", buf);
 }
 
@@ -625,7 +669,8 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
     /* A placeholder evaluation should always start with a valueFromX call
      * (typically valueFromFrameOrSearchList), not valueForName, and it should
      * end with flushPlaceholderInfo.  If we see a valueForName for a
-     * placeholder that's not the current stack top, there's a bug. */
+     * placeholder that's not the current stack top, there's a bug somewhere.
+     */
     placeholderIsCurrent = currentPlaceholderMatches(placeholderID);
     if (!placeholderIsCurrent) {
         // TODO: warn
