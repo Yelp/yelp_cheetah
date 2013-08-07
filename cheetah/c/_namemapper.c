@@ -65,9 +65,6 @@ struct PlaceholderInfo {
      * autokey and/or autocall.  The least-significant two bits correspond to
      * the first lookup. */
     uint32_t flags;
-
-    /* Pointer to the next item on the placeholder stack. */
-    struct PlaceholderInfo *next;
 };
 
 /* Flags to indicate which namemapper features were used on a particular lookup
@@ -81,48 +78,58 @@ struct PlaceholderInfo {
 #define NS_LOCALS       254
 #define NS_BUILTINS     253
 
-/* We keep a stack of placeholders being evaluated as a singly-linked list.
- * This lets us handle nested evaluations properly.  For example, evaluation of
- * "$x[$y].z" will start by looking up "x" for the outer placeholder, then will
- * fully evaluate the inner placeholder "$y", and finally will finish the outer
- * placeholder by looking up "z".
+/* We keep a stack of placeholders being evaluated.  This lets us handle nested
+ * evaluations properly.  For example, evaluation of "$x[$y].z" will start by
+ * looking up "x" for the outer placeholder, then will fully evaluate the inner
+ * placeholder "$y", and finally will finish the outer placeholder by looking
+ * up "z". */
+
+/* The maximum size to use for the stack.  We limit the size to avoid dynamic
+ * allocation, which increases the cost of the instrumentation by about 50%.
  *
- * We initialize this to NULL to represent the empty list. */
-struct PlaceholderInfo *placeholderStackTop = NULL;
+ * In testing, I've never seen the stack depth exceed 3, so 64 seems like it
+ * should be high enough to avoid problems.
+ */
+#define PLACEHOLDER_STACK_SIZE 64
+struct PlaceholderInfo placeholderStack[PLACEHOLDER_STACK_SIZE];
+
+/* A pointer to the current stack element.  The stack grows downward, just like
+ * the x86 stack.  We initialize to past-the-end of placeholderStack. */
+struct PlaceholderInfo *placeholderStackTop = &placeholderStack[PLACEHOLDER_STACK_SIZE];
 
 /* Push a new item onto the placeholder stack, initialized with the provided
  * placeholderID and nameSpaceIndex, and the current PyFrameObject (the current
  * Python stack frame, from PyEval_GetFrame()). */
 void pushPlaceholderStack(int placeholderID, int nameSpaceIndex) {
-    struct PlaceholderInfo *newPlaceholderInfo = malloc(sizeof(struct PlaceholderInfo));
+    if (placeholderStackTop == &placeholderStack[0])
+        /* Don't push if the stack is already full.  Just let the checks
+         * against currentPlaceholderMatches prevent any logging while the
+         * stack is in this overflow state. */
+        return;
 
-    newPlaceholderInfo->pythonStackPointer = PyEval_GetFrame();
-    newPlaceholderInfo->placeholderID = placeholderID;
-    newPlaceholderInfo->nameSpaceIndex = nameSpaceIndex;
-    newPlaceholderInfo->lookupCount = 0;
-    newPlaceholderInfo->flags = 0;
-    newPlaceholderInfo->next = placeholderStackTop;
+    --placeholderStackTop;
 
-    placeholderStackTop = newPlaceholderInfo;
+    placeholderStackTop->pythonStackPointer = PyEval_GetFrame();
+    placeholderStackTop->placeholderID = placeholderID;
+    placeholderStackTop->nameSpaceIndex = nameSpaceIndex;
+    placeholderStackTop->lookupCount = 0;
+    placeholderStackTop->flags = 0;
 }
 
 /* Pop an item from the placeholder stack. */
 void popPlaceholderStack(void) {
-    if (placeholderStackTop == NULL) {
-        // TODO: warn
+    if (placeholderStackTop == &placeholderStack[PLACEHOLDER_STACK_SIZE]) {
+        /* Don't pop if the stack is already empty.  This probably indicates a
+         * bug. */
         return;
     }
 
-    struct PlaceholderInfo *oldStackTop = placeholderStackTop;
-    placeholderStackTop = oldStackTop->next;
-    free(oldStackTop);
+    ++placeholderStackTop;
 }
 
 /* Pop all items from the placeholder stack. */
 void clearPlaceholderStack(void) {
-    while (placeholderStackTop != NULL) {
-        popPlaceholderStack();
-    }
+    placeholderStackTop = &placeholderStack[PLACEHOLDER_STACK_SIZE];
 }
 
 /* Record the flags for a lookup step of the current placeholder. */
@@ -141,7 +148,7 @@ void recordLookup(int flags) {
 /* Check if the current placeholder matches the provided placeholderID and the
  * current PyFrameObject. */
 int currentPlaceholderMatches(int placeholderID) {
-    return placeholderStackTop != NULL &&
+    return placeholderStackTop != &placeholderStack[PLACEHOLDER_STACK_SIZE] &&
         placeholderStackTop->pythonStackPointer == PyEval_GetFrame() &&
         placeholderStackTop->placeholderID == placeholderID;
 }
