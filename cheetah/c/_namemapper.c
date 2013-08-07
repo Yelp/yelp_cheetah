@@ -172,6 +172,13 @@ int currentPlaceholderMatches(int placeholderID) {
 /* We send data to Scribe by calling the Python function clog.log_line. */
 static PyObject *clogMod_log_line;
 
+/* We consider logging only (loggingFraction / 10)% of placeholder evaluations.
+ * This defaults to zero, but it can be adjusted from Python by calling
+ * Cheetah.namemapper.setLoggingPercent.  This lets the percentage be adjusted
+ * on a per-request basis.
+ */
+static int loggingFraction = 0;
+
 /* Simple hash for strings.  We use this for hashing template filenames, so we
  * don't have to log the whole name. */
 uint32_t hashString(const char* str) {
@@ -971,9 +978,11 @@ static PyObject *namemapper_flushPlaceholderInfo(PyObject *self, PyObject *args,
     }
 
     if (currentPlaceholderMatches(placeholderID)) {
-        if (!filterGroupContains(&dedupeFilterGroup, placeholderStackTop)) {
-            logPlaceholderInfo();
-            filterGroupInsert(&dedupeFilterGroup, placeholderStackTop);
+        if (rand() % 1000 < loggingFraction) {
+            if (!filterGroupContains(&dedupeFilterGroup, placeholderStackTop)) {
+                logPlaceholderInfo();
+                filterGroupInsert(&dedupeFilterGroup, placeholderStackTop);
+            }
         }
         popPlaceholderStack();
     } else {
@@ -986,6 +995,23 @@ static PyObject *namemapper_flushPlaceholderInfo(PyObject *self, PyObject *args,
     return obj;
 }
 
+static PyObject *namemapper_setLoggingPercent(PyObject *self, PyObject *args, PyObject *keywds)
+{
+    /* python function args */
+    float loggingPercent;
+
+    static char *kwlist[] = {"loggingPercent", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "f", kwlist, &loggingPercent)) {
+        return NULL;
+    }
+
+    loggingFraction = (int)(10 * loggingPercent);
+
+    return Py_None;
+}
+
+
 /* *************************************************************************** */
 /* Method registration table: name-string -> function-pointer */
 
@@ -996,6 +1022,7 @@ static struct PyMethodDef namemapper_methods[] = {
   {"valueFromFrame", (PyCFunction)namemapper_valueFromFrame,  METH_VARARGS|METH_KEYWORDS},
   {"valueFromFrameOrSearchList", (PyCFunction)namemapper_valueFromFrameOrSearchList,  METH_VARARGS|METH_KEYWORDS},
   {"flushPlaceholderInfo", (PyCFunction)namemapper_flushPlaceholderInfo,  METH_VARARGS|METH_KEYWORDS},
+  {"setLoggingPercent", (PyCFunction)namemapper_setLoggingPercent,  METH_VARARGS|METH_KEYWORDS},
   {NULL,         NULL}
 };
 
