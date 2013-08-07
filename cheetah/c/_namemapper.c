@@ -257,6 +257,227 @@ void logPlaceholderInfo(void) {
 }
 
 
+
+/*** Bloom filter ***/
+
+/* We use a Bloom filter to avoid logging duplicate entries.  Each time we try
+ * to log a placeholder, we first check that it is not in the bloom filter
+ * already.  If it's not there, then we actually log the information and insert
+ * it into the filter.
+ *
+ * (We actually use more than one Bloom filter - see the Filter Group section
+ * for details.) */
+
+/* We want a bloom filter that can hold n = 2000 elements with <0.01% false
+ * positive rate.  According to wikipedia, we need m = 2**16 bits.  With that
+ * many bits, we can get away with only eight 16-bit hash functions and keep
+ * P(false positive) < 0.01% for up to 3000 elements.
+ *
+ * http://en.wikipedia.org/wiki/Bloom_filter#Probability_of_false_positives
+ */
+
+/* The number of bits in the bloom filter.  Wikipedia calls this 'm'. */
+#define BLOOM_FILTER_SIZE (1 << 16)
+
+/* The type to use for an individual array element. */
+typedef uint64_t bloom_filter_chunk_type;
+
+/* The number of bits stored by each array element. */
+#define BLOOM_FILTER_CHUNK_BITS (sizeof(bloom_filter_chunk_type) * 8)
+
+struct BloomFilter {
+    bloom_filter_chunk_type data[BLOOM_FILTER_SIZE / BLOOM_FILTER_CHUNK_BITS];
+};
+
+/* The number of hash functions to use for the bloom filter.  Wikipedia calls
+ * this 'k'. */
+#define BLOOM_FILTER_HASHES 8
+
+/* A bunch of prime numbers to use for hash functions.  We need four primes for
+ * each hash function.
+ *
+ * The numbers in this array were selected at random from a list of all primes
+ * below 10,000,000. */
+static const int PRIMES[BLOOM_FILTER_HASHES * 4] = {
+6687773, 6799669, 4175881, 8829721, 4965361, 3146579, 3135409, 7166507,
+1405363, 1002719, 5332973, 1616533, 8729849,  348307, 7445323, 6895531, 4095799,
+5981363, 1709143, 8158289, 1405493,  551653, 9018547, 8913847, 2147137, 3044567,
+ 187043, 2489339,  233917, 2147381, 1508063, 1234967,
+};
+
+/* Apply all 'k' hash functions to a PlaceholderInfo item.
+ *
+ * Each hash function combines four components:
+ *  - the filename hash
+ *  - the placeholder ID
+ *  - the namespace index
+ *  - the flags
+ *
+ * We combine these four pieces by multiplying each by a large prime and adding
+ * up the results.  I don't know how good of a hash this actually is, but it
+ * seems to work well enough to avoid false positives in my tests.
+ *
+ * Note that there are two pieces of data which we log but don't include in the
+ * hash:
+ *  - deploy SHA: This is guaranteed not to change for the duration of a
+ *    Python process.
+ *  - lookup count: Since we only hash PlaceholderInfos for placeholders that
+ *    have been fully evaluated, the lookup count should always be the same if
+ *    the fileName and placeholderID are the same.
+ *
+ * hashOutput should point to an array of BLOOM_FILTER_HASHES elements.  After
+ * calling this function, the array will be filled with values in the range
+ * 0 <= h < BLOOM_FILTER_SIZE.
+ */
+void bloomFilterHash(struct PlaceholderInfo *placeholderInfo, uint32_t* hashOutput) {
+    int i;
+    uint32_t hash;
+
+    PyObject* fileNamePyString = placeholderInfo->pythonStackPointer->f_code->co_filename;
+    uint32_t fileNameHash = hashString(PyString_AsString(fileNamePyString));
+
+    for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
+        hash =
+            PRIMES[i * 4 + 0] * fileNameHash  +
+            PRIMES[i * 4 + 1] * placeholderInfo->placeholderID +
+            PRIMES[i * 4 + 2] * placeholderInfo->nameSpaceIndex +
+            PRIMES[i * 4 + 3] * placeholderInfo->flags;
+
+        hash %= BLOOM_FILTER_SIZE;
+
+        hashOutput[i] = hash;
+    }
+}
+
+/* Initialize a bloom filter to an empty state. */
+void bloomFilterInit(struct BloomFilter *bloomFilter) {
+    /* Fill the 'data' array with all zeros. */
+    memset(&bloomFilter->data, 0, sizeof(bloomFilter->data));
+}
+
+/* Insert a PlaceholderInfo item into a bloom filter. */
+void bloomFilterInsert(struct BloomFilter *bloomFilter, struct PlaceholderInfo* placeholderInfo) {
+    int i;
+    uint32_t hash[BLOOM_FILTER_HASHES];
+
+    /* Hash the PlaceholderInfo into the 'hash' array. */
+    bloomFilterHash(placeholderInfo, hash);
+
+    for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
+        uint32_t index = hash[i] / BLOOM_FILTER_CHUNK_BITS;
+        uint32_t offset = hash[i] % BLOOM_FILTER_CHUNK_BITS;
+
+        /* This can't overflow the 'data' array because bloomFilterHash
+         * guarantees 0 <= hash[i] < BLOOM_FILTER_SIZE and there are
+         * BLOOM_FILTER_SIZE / BLOOM_FILTER_CHUNK_BITS elements in 'data'. */
+        bloomFilter->data[index] |= (1L << offset);
+    }
+}
+
+/* Check if a PlaceholderInfo has already been inserted into a bloom filter.
+ * Returns 1 if the placeholder might have been inserted, and 0 if it
+ * definitely has not been inserted. */
+int bloomFilterContains(struct BloomFilter *bloomFilter, struct PlaceholderInfo* placeholderInfo) {
+    int i;
+    uint32_t hash[BLOOM_FILTER_HASHES];
+
+    bloomFilterHash(placeholderInfo, hash);
+
+    for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
+        uint32_t index = hash[i] / BLOOM_FILTER_CHUNK_BITS;
+        uint32_t offset = hash[i] % BLOOM_FILTER_CHUNK_BITS;
+
+        if ((bloomFilter->data[index] & (1L << offset)) == 0)
+            return 0;
+    }
+
+    return 1;
+}
+
+/* Remove all items from a bloom filter. */
+void bloomFilterClear(struct BloomFilter *bloomFilter) {
+    bloomFilterInit(bloomFilter);
+}
+
+
+
+/*** Filter Group ***/
+
+/* The amount of space required for a bloom filter is proportional to the
+ * number of items we wish to insert (if we hold constant the probability of
+ * false positives).  This means if we want to avoid using tons of space and
+ * also avoid large numbers of false positives, we need to clear the filter
+ * periodically.  If we did this with a single filter, then immediately after
+ * the filter was cleared, we would end up with a large number of redundant log
+ * entries, since the logging code would forget that it had just recorded
+ * identical entries.
+ *
+ * Instead, we use multiple bloom filters (which I called a "filter group"), as
+ * follows:
+ *  - To insert into the filter group, insert into all component bloom filters.
+ *  - To check for membership in the filter group, check for membership in the
+ *    "current filter".
+ *  - After every N insertions, clear the current filter, and make the next
+ *    filter in the group the new current filter.
+ * This allows the logging code to lose only part of its "memory" when we clear
+ * a filter, since the newly-current filter contains some fraction of the items
+ * that were present in the previously-current filter.
+ */
+
+/* Number of bloom filters to include in the filter group. */
+#define FILTER_GROUP_SIZE 2
+/* Clear a filter after this many insertions. */
+#define FILTER_GROUP_ROTATION_INTERVAL 1000
+/* Note that each bloom filter will have SIZE * ROTATION_INTERVAL elements
+ * added to it.  The bloom filter parameters should be tuned accordingly. */
+
+struct FilterGroup {
+    /* The actual bloom filters. */
+    struct BloomFilter bloomFilters[FILTER_GROUP_SIZE];
+    /* The index of the current filter to read from. */
+    int currentFilterIndex;
+    /* The number of insertions since the last time a filter was cleared. */
+    int insertCount;
+};
+
+struct FilterGroup dedupeFilterGroup;
+
+/* Initialize a filter group. */
+void filterGroupInit(struct FilterGroup *filterGroup) {
+    int i;
+    for (i = 0; i < FILTER_GROUP_SIZE; ++i) {
+        bloomFilterInit(&filterGroup->bloomFilters[i]);
+    }
+    filterGroup->currentFilterIndex = 0;
+    filterGroup->insertCount = 0;
+}
+
+/* Insert a PlaceholderInfo item into a filter group. */
+void filterGroupInsert(struct FilterGroup *filterGroup, struct PlaceholderInfo* placeholderInfo) {
+    int i;
+    /* Insert into all component bloom filters. */
+    for (i = 0; i < FILTER_GROUP_SIZE; ++i) {
+        bloomFilterInsert(&filterGroup->bloomFilters[i], placeholderInfo);
+    }
+
+    ++filterGroup->insertCount;
+    if (filterGroup->insertCount >= FILTER_GROUP_ROTATION_INTERVAL) {
+        /* Clear the current filter and change to the next filter in the group.
+         */
+        bloomFilterClear(&filterGroup->bloomFilters[filterGroup->currentFilterIndex]);
+        filterGroup->currentFilterIndex = (filterGroup->currentFilterIndex + 1) % FILTER_GROUP_SIZE;
+
+        filterGroup->insertCount = 0;
+    }
+}
+
+/* Check if a filter group contains a particular PlaceholderInfo. */
+int filterGroupContains(struct FilterGroup *filterGroup, struct PlaceholderInfo* placeholderInfo) {
+    return bloomFilterContains(&filterGroup->bloomFilters[filterGroup->currentFilterIndex], placeholderInfo);
+}
+
+
+
 /* *************************************************************************** */
 /* First the c versions of the functions */
 /* *************************************************************************** */
@@ -705,7 +926,10 @@ static PyObject *namemapper_flushPlaceholderInfo(PyObject *self, PyObject *args,
     }
 
     if (currentPlaceholderMatches(placeholderID)) {
-        logPlaceholderInfo();
+        if (!filterGroupContains(&dedupeFilterGroup, placeholderStackTop)) {
+            logPlaceholderInfo();
+            filterGroupInsert(&dedupeFilterGroup, placeholderStackTop);
+        }
         popPlaceholderStack();
     } else {
         // TODO: warn
@@ -785,6 +1009,8 @@ DL_EXPORT(void) init_namemapper(void)
     }
     clogMod_log_line = PyObject_GetAttrString(clogMod, "log_line");
     Py_DECREF(clogMod);
+
+    filterGroupInit(&dedupeFilterGroup);
 
     /* check for errors */
     if (PyErr_Occurred()) {
