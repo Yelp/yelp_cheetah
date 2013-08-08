@@ -190,6 +190,67 @@ int currentPlaceholderMatches(uint16_t placeholderID) {
 /* We send data to Scribe by calling the Python function clog.log_line. */
 static PyObject *clogMod_log_line;
 
+/* We combine consecutive writes, because calls to clog.log_line have a high
+ * fixed cost independent of line length. */
+
+/* Buffer up to this many lines. */
+#define LINE_BUFFER_SIZE 16
+
+/* Maximum length for each line in the buffer (including terminator). */
+#define LINE_LENGTH 64
+
+struct LineBuffer {
+    /* The buffer itself. */
+    char buffer[LINE_BUFFER_SIZE * LINE_LENGTH];
+    /* A pointer to the next location in the buffer we can write to.  We ensure
+     * that currentPos always points to a \0. */
+    char *currentPos;
+    /* The number of lines written to the buffer so far. */
+    int lineCount;
+};
+
+struct LineBuffer lineBuffer;
+
+void lineBufferInit(void) {
+    lineBuffer.buffer[0] = '\0';
+    lineBuffer.currentPos = &lineBuffer.buffer[0];
+    lineBuffer.lineCount = 0;
+}
+
+void lineBufferFlush(void) {
+    PyObject_CallFunction(clogMod_log_line, "ss", "tmp_namemapper_placeholder_uses",
+            lineBuffer.buffer);
+
+    /* Reset the buffer to its initial state. */
+    lineBufferInit();
+}
+
+void lineBufferWrite(const char *line) {
+    int outputLength;
+
+    /* Overwrite the current terminator of lineBuffer.buffer by writing to
+     * lineBuffer.currentPos. */
+    outputLength = snprintf(lineBuffer.currentPos, LINE_LENGTH, " %s", line);
+    if (outputLength > LINE_LENGTH - 1) {
+        /* snprintf guarantees that it will write no more than LINE_LENGTH
+         * characters, including the null terminator.  Its return value
+         * indicates the number of characters it intended to write, *not*
+         * including the null terminator.  So the number of characters actually
+         * written is min(outputLength, LINE_LENGTH - 1). */
+        outputLength = LINE_LENGTH - 1;
+    }
+
+    /* Position currentPos on the \0 written by snprintf. */
+    lineBuffer.currentPos += outputLength;
+
+    ++lineBuffer.lineCount;
+    if (lineBuffer.lineCount >= LINE_BUFFER_SIZE) {
+        /* The buffer is full.  Flush it. */
+        lineBufferFlush();
+    }
+}
+
+
 /* We consider logging only (loggingFraction / 10)% of placeholder evaluations.
  * This defaults to zero, but it can be adjusted from Python by calling
  * Cheetah.namemapper.setLoggingPercent.  This lets the percentage be adjusted
@@ -321,8 +382,8 @@ void logPlaceholderInfo(void) {
             placeholderStackTop->lookupCount,
             placeholderStackTop->flags);
 
-    /* Call clog.log_line via Python to do the actual logging. */
-    PyObject_CallFunction(clogMod_log_line, "ss", "tmp_namemapper_placeholder_uses", buf);
+    /* Write the line. */
+    lineBufferWrite(buf);
 }
 
 
@@ -1146,6 +1207,7 @@ DL_EXPORT(void) init_namemapper(void)
     Py_DECREF(clogMod);
 
     filterGroupInit(&dedupeFilterGroup);
+    lineBufferInit();
 
     /* check for errors */
     if (PyErr_Occurred()) {
