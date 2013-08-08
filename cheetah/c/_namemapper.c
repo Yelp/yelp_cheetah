@@ -51,9 +51,8 @@ struct PlaceholderInfo {
 
     /* The index of the item in the search list where the first lookup
      * succeeded.  (For "$x.y", this is the index of the searchlist item that
-     * contained "x".)  This may also be one of the special constants
-     * NS_GLOBALS, NS_LOCALS, or NS_BUILTINS, to indicate that the item was
-     * found in globals(), locals(), or __builtins__ respectively. */
+     * contained "x".)  This may also be one of the special NS_ constants
+     * defined below. */
     uint8_t nameSpaceIndex;
 
     /* The number of lookups performed so far.  "$x.y[1].z" contains three
@@ -74,9 +73,14 @@ struct PlaceholderInfo {
 
 /* Special values for nameSpaceIndex to indicate that the first lookup was
  * completed using something other than the searchlist. */
-#define NS_GLOBALS      255
-#define NS_LOCALS       254
-#define NS_BUILTINS     253
+/* The first lookup was completed using globals(). */
+#define NS_GLOBALS      252
+/* The first lookup was completed using locals(). */
+#define NS_LOCALS       253
+/* The first lookup was completed using __builtins__. */
+#define NS_BUILTINS     254
+/* The first lookup raised a NotFound error. */
+#define NS_NOT_FOUND    255
 
 /* We keep a stack of placeholders being evaluated.  This lets us handle nested
  * evaluations properly.  For example, evaluation of "$x[$y].z" will start by
@@ -98,9 +102,9 @@ struct PlaceholderInfo placeholderStack[PLACEHOLDER_STACK_SIZE];
 struct PlaceholderInfo *placeholderStackTop = &placeholderStack[PLACEHOLDER_STACK_SIZE];
 
 /* Push a new item onto the placeholder stack, initialized with the provided
- * placeholderID and nameSpaceIndex, and the current PyFrameObject (the current
- * Python stack frame, from PyEval_GetFrame()). */
-void pushPlaceholderStack(int placeholderID, int nameSpaceIndex) {
+ * placeholderID and the current PyFrameObject (the current Python stack frame,
+ * from PyEval_GetFrame()). */
+void pushPlaceholderStack(int placeholderID) {
     if (placeholderStackTop == &placeholderStack[0])
         /* Don't push if the stack is already full.  Just let the checks
          * against currentPlaceholderMatches prevent any logging while the
@@ -111,7 +115,10 @@ void pushPlaceholderStack(int placeholderID, int nameSpaceIndex) {
 
     placeholderStackTop->pythonStackPointer = PyEval_GetFrame();
     placeholderStackTop->placeholderID = placeholderID;
-    placeholderStackTop->nameSpaceIndex = nameSpaceIndex;
+    /* nameSpaceIndex will be changed to the correct value once the first
+     * lookup succeeds.  We initialize it to NS_NOT_FOUND in case the lookup
+     * fails before reaching that point. */
+    placeholderStackTop->nameSpaceIndex = NS_NOT_FOUND;
     placeholderStackTop->lookupCount = 0;
     placeholderStackTop->flags = 0;
 }
@@ -147,7 +154,11 @@ void recordLookup(int flags) {
 
 /* Check if the current placeholder matches the provided placeholderID and the
  * current PyFrameObject. */
-int currentPlaceholderMatches(int placeholderID) {
+int currentPlaceholderMatches(uint16_t placeholderID) {
+    /* We make the placeholderID argument a uint16_t (like the placeholderID
+     * field of PlaceholderInfo) because if the argument was signed, we would
+     * run into problems with negative IDs (which are used to indicate calls to
+     * Cheetah.Template.getVar / .hasVar). */
     return placeholderStackTop != &placeholderStack[PLACEHOLDER_STACK_SIZE] &&
         placeholderStackTop->pythonStackPointer == PyEval_GetFrame() &&
         placeholderStackTop->placeholderID == placeholderID;
@@ -351,37 +362,34 @@ struct BloomFilter {
  * this 'k'. */
 #define BLOOM_FILTER_HASHES 8
 
-/* A bunch of prime numbers to use for hash functions.  We need four primes for
+/* A bunch of prime numbers to use for hash functions.  We need five primes for
  * each hash function.
  *
  * The numbers in this array were selected at random from a list of all primes
  * below 10,000,000. */
-static const int PRIMES[BLOOM_FILTER_HASHES * 4] = {
-6687773, 6799669, 4175881, 8829721, 4965361, 3146579, 3135409, 7166507,
-1405363, 1002719, 5332973, 1616533, 8729849,  348307, 7445323, 6895531, 4095799,
-5981363, 1709143, 8158289, 1405493,  551653, 9018547, 8913847, 2147137, 3044567,
- 187043, 2489339,  233917, 2147381, 1508063, 1234967,
+static const int PRIMES[BLOOM_FILTER_HASHES * 5] = {
+    9753463,  123979, 8701949, 1069219, 3704537,
+    6366473,  272693, 1829587, 3188723, 8039501,
+    6032921, 3638497, 4263253, 1788601, 9295687,
+    4069397, 9887611, 3195623, 2066137, 2131799,
+    7250263, 6188641, 1283903, 3376049, 2818817,
+    8308891, 2677093, 6490409, 4825627, 6902711,
+    3640543, 3535769, 8084729, 2022263, 1332329,
+    2434013, 1608259, 3452689,  302143, 1366019,
 };
 
 /* Apply all 'k' hash functions to a PlaceholderInfo item.
  *
- * Each hash function combines four components:
- *  - the filename hash
- *  - the placeholder ID
- *  - the namespace index
- *  - the flags
+ * Each hash function combines five components:
+ *  - filename hash
+ *  - placeholder ID
+ *  - namespace index
+ *  - lookup count
+ *  - flags
  *
- * We combine these four pieces by multiplying each by a large prime and adding
+ * We combine these five pieces by multiplying each by a large prime and adding
  * up the results.  I don't know how good of a hash this actually is, but it
  * seems to work well enough to avoid false positives in my tests.
- *
- * Note that there are two pieces of data which we log but don't include in the
- * hash:
- *  - deploy SHA: This is guaranteed not to change for the duration of a
- *    Python process.
- *  - lookup count: Since we only hash PlaceholderInfos for placeholders that
- *    have been fully evaluated, the lookup count should always be the same if
- *    the fileName and placeholderID are the same.
  *
  * hashOutput should point to an array of BLOOM_FILTER_HASHES elements.  After
  * calling this function, the array will be filled with values in the range
@@ -396,10 +404,11 @@ void bloomFilterHash(struct PlaceholderInfo *placeholderInfo, uint32_t* hashOutp
 
     for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
         hash =
-            PRIMES[i * 4 + 0] * fileNameHash  +
-            PRIMES[i * 4 + 1] * placeholderInfo->placeholderID +
-            PRIMES[i * 4 + 2] * placeholderInfo->nameSpaceIndex +
-            PRIMES[i * 4 + 3] * placeholderInfo->flags;
+            PRIMES[i * 5 + 0] * fileNameHash  +
+            PRIMES[i * 5 + 1] * placeholderInfo->placeholderID +
+            PRIMES[i * 5 + 2] * placeholderInfo->nameSpaceIndex +
+            PRIMES[i * 5 + 3] * placeholderInfo->lookupCount +
+            PRIMES[i * 5 + 4] * placeholderInfo->flags;
 
         hash %= BLOOM_FILTER_SIZE;
 
@@ -532,6 +541,35 @@ void filterGroupInsert(struct FilterGroup *filterGroup, struct PlaceholderInfo* 
 /* Check if a filter group contains a particular PlaceholderInfo. */
 int filterGroupContains(struct FilterGroup *filterGroup, struct PlaceholderInfo* placeholderInfo) {
     return bloomFilterContains(&filterGroup->bloomFilters[filterGroup->currentFilterIndex], placeholderInfo);
+}
+
+
+
+/*** High-level placeholder tracking functions ***/
+
+void startPlaceholder(int placeholderID) {
+    pushPlaceholderStack(placeholderID);
+}
+
+#define FP_SUCCESS  1
+#define FP_ERROR    0
+
+void finishPlaceholder(int placeholderID, int status) {
+    if (currentPlaceholderMatches(placeholderID)) {
+        if (status != FP_SUCCESS) {
+            placeholderStackTop->lookupCount |= 0x80;
+        }
+
+        if (rand() % 1000 < loggingFraction) {
+            if (!filterGroupContains(&dedupeFilterGroup, placeholderStackTop)) {
+                logPlaceholderInfo();
+                filterGroupInsert(&dedupeFilterGroup, placeholderStackTop);
+            }
+        }
+        popPlaceholderStack();
+    } else {
+        // TODO: warn
+    }
 }
 
 
@@ -801,6 +839,11 @@ static PyObject *namemapper_valueForName(PYARGS)
     if (wrapInternalNotFoundException(name, obj)) {
         theValue = NULL;
     }
+
+    if (theValue == NULL) {
+        finishPlaceholder(placeholderID, FP_ERROR);
+    }
+
     return theValue;
 }
 
@@ -830,6 +873,8 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
 
     createNameCopyAndChunks();
 
+    startPlaceholder(placeholderID);
+
     iterator = PyObject_GetIter(searchList);
     if (iterator == NULL) {
         PyErr_SetString(PyExc_TypeError,"This searchList is not iterable!");
@@ -856,6 +901,13 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
 done:
     Py_XDECREF(iterator);
     free(nameCopy);
+
+    if (theValue == NULL) {
+        /* An error of some kind occurred.  We are done with this placeholder,
+         * since its evaluation has raised some kind of exception. */
+        finishPlaceholder(placeholderID, FP_ERROR);
+    }
+
     return theValue;
 }
 
@@ -888,6 +940,8 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     }
 
     createNameCopyAndChunks();
+
+    startPlaceholder(placeholderID);
 
     nameSpace = PyEval_GetLocals();
     checkForNameInNameSpaceAndReturnIfFound(FALSE, NS_LOCALS);  
@@ -925,6 +979,11 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
 done:
     Py_XDECREF(iterator);
     free(nameCopy);
+
+    if (theValue == NULL) {
+        finishPlaceholder(placeholderID, FP_ERROR);
+    }
+
     return theValue;
 }
 
@@ -955,6 +1014,8 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
 
     createNameCopyAndChunks();
 
+    startPlaceholder(placeholderID);
+
     nameSpace = PyEval_GetLocals();
     checkForNameInNameSpaceAndReturnIfFound(FALSE, NS_LOCALS);
 
@@ -969,6 +1030,11 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
     Py_DECREF(excString);
 done:
     free(nameCopy);
+
+    if (theValue == NULL) {
+        finishPlaceholder(placeholderID, FP_ERROR);
+    }
+
     return theValue;
 }
 
@@ -984,17 +1050,7 @@ static PyObject *namemapper_flushPlaceholderInfo(PyObject *self, PyObject *args,
         return NULL;
     }
 
-    if (currentPlaceholderMatches(placeholderID)) {
-        if (rand() % 1000 < loggingFraction) {
-            if (!filterGroupContains(&dedupeFilterGroup, placeholderStackTop)) {
-                logPlaceholderInfo();
-                filterGroupInsert(&dedupeFilterGroup, placeholderStackTop);
-            }
-        }
-        popPlaceholderStack();
-    } else {
-        // TODO: warn
-    }
+    finishPlaceholder(placeholderID, FP_SUCCESS);
 
     /* Python doesn't automatically increment the reference count of the
      * function's return value, so we have to do it manually. */
