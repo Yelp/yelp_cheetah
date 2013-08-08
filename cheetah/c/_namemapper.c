@@ -190,6 +190,22 @@ int currentPlaceholderMatches(uint16_t placeholderID) {
 /* We send data to Scribe by calling the Python function clog.log_line. */
 static PyObject *clogMod_log_line;
 
+/* Get the deploy SHA from util.version on startup, then save it here so we can
+ * include it in our log lines.*/
+#define DEPLOY_SHA_SIZE 10
+char deploySHA[DEPLOY_SHA_SIZE + 1];
+
+void deploySHAInit(void) {
+    PyObject* utilVersionMod = PyImport_ImportModule("util.version");
+    PyObject* versionSHAFunc = PyObject_GetAttrString(utilVersionMod, "version_sha");
+    PyObject* pythonDeploySHA = PyObject_CallObject(versionSHAFunc, NULL);
+
+    strncpy(deploySHA, PyString_AsString(pythonDeploySHA), sizeof(deploySHA));
+    /* strncpy does not guarantee that the destination is null-terminated, so
+     * have to make sure it is ourselves. */
+    deploySHA[sizeof(deploySHA) - 1] = '\0';
+}
+
 /* We combine consecutive writes, because calls to clog.log_line have a high
  * fixed cost independent of line length. */
 
@@ -211,10 +227,15 @@ struct LineBuffer {
 
 struct LineBuffer lineBuffer;
 
+void lineBufferWriteInternal(const char *format, const char *line);
+
 void lineBufferInit(void) {
+    /* Reset the buffer, then write the deploy SHA. */
     lineBuffer.buffer[0] = '\0';
     lineBuffer.currentPos = &lineBuffer.buffer[0];
     lineBuffer.lineCount = 0;
+
+    lineBufferWriteInternal("%s", deploySHA);
 }
 
 void lineBufferFlush(void) {
@@ -225,12 +246,12 @@ void lineBufferFlush(void) {
     lineBufferInit();
 }
 
-void lineBufferWrite(const char *line) {
+void lineBufferWriteInternal(const char *format, const char *line) {
     int outputLength;
 
     /* Overwrite the current terminator of lineBuffer.buffer by writing to
      * lineBuffer.currentPos. */
-    outputLength = snprintf(lineBuffer.currentPos, LINE_LENGTH, " %s", line);
+    outputLength = snprintf(lineBuffer.currentPos, LINE_LENGTH, format, line);
     if (outputLength > LINE_LENGTH - 1) {
         /* snprintf guarantees that it will write no more than LINE_LENGTH
          * characters, including the null terminator.  Its return value
@@ -248,6 +269,10 @@ void lineBufferWrite(const char *line) {
         /* The buffer is full.  Flush it. */
         lineBufferFlush();
     }
+}
+
+void lineBufferWrite(const char *line) {
+    lineBufferWriteInternal(" %s", line);
 }
 
 
@@ -269,97 +294,61 @@ uint32_t hashString(const char* str) {
     return hash;
 }
 
-/* Find the interesting parts of a template filename.  For our purposes,
- * "interesting" parts are (1) the SHA of the current deployment (included in
- * the directory name "r2013...-aabbccddee-deploy-some-branch") and (2) the
- * path relative to the deployment (or yelp-main checkout) directory, which is
- * sufficient to identify the template itself. */
-void extractPathComponents(const char *filename, const char **deploySHAStartPtr, const char **templateNameStartPtr) {
-    const char *deploySHAStart = NULL;
-    const char *templateNameStart = NULL;
-
+/* Given a filename, find the template name relative to yelp-main/ or the
+ * deploy directory. */
+const char* findTemplateName(const char *filename) {
     const char *foundDeploy;
     const char *foundYelpMain;
     const char *foundSlash = NULL;
-
-    /* Check for various things that look like yelp-main checkouts.  Set
-     * 'foundSlash' to point to the slash following the checkout directory once
-     * we find it. */
 
     /* First check for path components that look like deployment directories.
      */
     foundDeploy = strstr(filename, "-deploy");
     if (foundDeploy != NULL) {
-        /* Try to find a deployment SHA.  It should be 10 characters of hex
-         * immediately preceding the "-deploy". */
-
-        /* First make sure there are at least 10 characters between the start
-         * of the filename and the "-deploy". */
-        if (foundDeploy - 10 >= filename) {
-            /* Now check that those 10 characters are all hex. */
-            if (strspn(foundDeploy - 10, "0123456789abcdef") >= 10) {
-                deploySHAStart = foundDeploy - 10;
-            }
-        }
-
+        /* Look for a slash after the -deploy part and return the following
+         * character. */
         foundSlash = strchr(foundDeploy, '/');
+        if (foundSlash != NULL)
+            return foundSlash + 1;
     }
 
     /* Next, look for components containing "yelp-main".  This is how usually
      * it works in dev playgrounds. */
-    if (foundSlash == NULL) {
-        foundYelpMain = strstr(filename, "yelp-main");
-        if (foundYelpMain != NULL) {
-            foundSlash = strchr(foundYelpMain, '/');
-        }
+    foundYelpMain = strstr(filename, "yelp-main");
+    if (foundYelpMain != NULL) {
+        foundSlash = strchr(foundYelpMain, '/');
+        if (foundSlash != NULL)
+            return foundSlash + 1;
     }
 
     /* Finally, check if the path starts with "./".  If so, we assume "." is a
      * yelp-main checkout, because that's how things work on buildbot. */
-    if (foundSlash == NULL) {
-        if (strstr(filename, "./") == filename) {
-            foundSlash = strchr(filename, '/');
-        }
+    if (strstr(filename, "./") == filename) {
+        foundSlash = strchr(filename, '/');
+        if (foundSlash != NULL)
+            return foundSlash + 1;
     }
 
-    /* If we found a yelp-main component, then the template name starts after
-     * the / that follows that component.  Otherwise, leave NULL as the
-     * template name. */
-    if (foundSlash != NULL) {
-        templateNameStart = foundSlash + 1;
-    }
-
-    *deploySHAStartPtr = deploySHAStart;
-    *templateNameStartPtr = templateNameStart;
+    /* We didn't find a yelp-main directory anywhere. */
+    return NULL;
 }
 
-/* Log the information stored in the current placeholders. */
+/* Log the information stored in the current PlaceholderInfo. */
 void logPlaceholderInfo(void) {
     PyFrameObject *pyFrame = placeholderStackTop->pythonStackPointer;
     const char *fileName = PyString_AsString(pyFrame->f_code->co_filename);
     /* We don't need to free(fileName), since it's a pointer into memory that
      * is managed by the Python runtime. */
 
-    /* Extract the interesting information from the filename. */
-
-    /* The first character of the deploy SHA from the filename, or NULL if we
-     * can't find the SHA. */
-    const char *deploySHAStart;
-    /* The first character of the first path component inside the yelp-main
-     * checkout. */
-    const char *templateNameStart;
-
-    extractPathComponents(fileName, &deploySHAStart, &templateNameStart);
-
-    if (deploySHAStart == NULL) {
-        deploySHAStart = "0000000000";
-    }
+    /* findTemplateName returns a pointer into 'fileName', or NULL if it can't
+     * find the template name. */
+    const char *templateName = findTemplateName(fileName);
 
     /* Hash the template name, so we don't have to write the whole thing to
      * scribe. */
     uint32_t templateNameHash;
-    if (templateNameStart != NULL) {
-        templateNameHash = hashString(templateNameStart);
+    if (templateName != NULL) {
+        templateNameHash = hashString(templateName);
     } else {
         /* We didn't find anything that looks like a deployment, so hash the
          * whole fileName instead.  It's better than nothing - maybe if we are
@@ -368,14 +357,12 @@ void logPlaceholderInfo(void) {
     }
 
     /* We log everything in hexadecimal, with each field separated by a space.
-     * So the expected output width is: 10 (deploy SHA) + 8 (fileNameHash) +
-     * 4 (placeholderID) + 2 (nameSpaceIndex) + 2 (lookupCount) +
-     * 8 (flags) + 5 (spaces) = 39. */
-    char buf[48];
+     * So the expected output width is: 8 (fileNameHash) + 4 (placeholderID) +
+     * 2 (nameSpaceIndex) + 2 (lookupCount) + 8 (flags) + 4 (spaces) = 28. */
+    char buf[32];
     /* The 'size' argument to snprintf includes the terminating \0, which is
      * always written (even if the output is too long for the buffer). */
-    snprintf(buf, 48, "%.10s %x %x %x %x %x",
-            deploySHAStart,
+    snprintf(buf, 32, "%x %x %x %x %x",
             templateNameHash,
             placeholderStackTop->placeholderID,
             placeholderStackTop->nameSpaceIndex,
@@ -1207,6 +1194,7 @@ DL_EXPORT(void) init_namemapper(void)
     Py_DECREF(clogMod);
 
     filterGroupInit(&dedupeFilterGroup);
+    deploySHAInit();
     lineBufferInit();
 
     /* check for errors */
