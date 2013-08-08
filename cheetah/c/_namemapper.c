@@ -33,7 +33,7 @@ static PyObject* pprintMod_pformat; /* used for exception formatting */
 /* Instrumentation code */
 /* *************************************************************************** */
 
-/*** Placeholder tracking ***/
+/*** PlaceholderInfo ***/
 
 /* Information about a placeholder evaluation. */
 struct PlaceholderInfo {
@@ -82,87 +82,77 @@ struct PlaceholderInfo {
 /* The first lookup raised a NotFound error. */
 #define NS_NOT_FOUND    255
 
+
+
+/*** Placeholder Stack ***/
+
 /* We keep a stack of placeholders being evaluated.  This lets us handle nested
  * evaluations properly.  For example, evaluation of "$x[$y].z" will start by
  * looking up "x" for the outer placeholder, then will fully evaluate the inner
  * placeholder "$y", and finally will finish the outer placeholder by looking
  * up "z". */
 
-/* The maximum size to use for the stack.  We limit the size to avoid dynamic
- * allocation, which increases the cost of the instrumentation by about 50%.
+/* The maximum number of items that can be stored on the stack.  We limit the
+ * size to avoid dynamic allocation during placeholder evaluation, as it would
+ * increase the cost of the instrumentation by 50-100%.
  *
  * In testing, I've never seen the stack depth exceed 3, so 64 seems like it
  * should be high enough to avoid problems.
  */
 #define PLACEHOLDER_STACK_SIZE 64
-struct PlaceholderInfo placeholderStack[PLACEHOLDER_STACK_SIZE];
 
-/* A pointer to the current stack element.  The stack grows downward, just like
- * the x86 stack.  We initialize to past-the-end of placeholderStack. */
-struct PlaceholderInfo *placeholderStackTop = &placeholderStack[PLACEHOLDER_STACK_SIZE];
+struct PlaceholderStack {
+    /* Storage for the items in the stack.  This starts uninitialized.  The
+     * stack grows downward, so only items at addresses >= current are valid.
+     */
+    struct PlaceholderInfo items[PLACEHOLDER_STACK_SIZE];
 
-/* Push a new item onto the placeholder stack, initialized with the provided
- * placeholderID and the current PyFrameObject (the current Python stack frame,
- * from PyEval_GetFrame()). */
-void pushPlaceholderStack(int placeholderID) {
-    if (placeholderStackTop == &placeholderStack[0])
-        /* Don't push if the stack is already full.  Just let the checks
-         * against currentPlaceholderMatches prevent any logging while the
-         * stack is in this overflow state. */
-        return;
+    /* A pointer to the most recently pushed stack element.  This points
+     * somewhere in or past-the-end of 'items', with &items[0] indicating that
+     * the stack is full, and &items[PLACEHOLDER_STACK_SIZE] (past-the-end)
+     * indicating that the stack is empty. */
+    struct PlaceholderInfo *current;
+};
 
-    --placeholderStackTop;
-
-    placeholderStackTop->pythonStackPointer = PyEval_GetFrame();
-    placeholderStackTop->placeholderID = placeholderID;
-    /* nameSpaceIndex will be changed to the correct value once the first
-     * lookup succeeds.  We initialize it to NS_NOT_FOUND in case the lookup
-     * fails before reaching that point. */
-    placeholderStackTop->nameSpaceIndex = NS_NOT_FOUND;
-    placeholderStackTop->lookupCount = 0;
-    placeholderStackTop->flags = 0;
+/* Initialize a PlaceholderStack.  The stack starts out empty. */
+void placeholderStackInit(struct PlaceholderStack *stack) {
+    stack->current = &stack->items[PLACEHOLDER_STACK_SIZE];
 }
 
-/* Pop an item from the placeholder stack. */
-void popPlaceholderStack(void) {
-    if (placeholderStackTop == &placeholderStack[PLACEHOLDER_STACK_SIZE]) {
-        /* Don't pop if the stack is already empty.  This probably indicates a
-         * bug. */
-        return;
+/* Add a new element to the stack by adjusting 'stack->current'.  The new
+ * element is uninitialized - the caller is expected to initialize it.  This
+ * function returns 1 on success and 0 on failure (if the stack is full). */
+int placeholderStackPush(struct PlaceholderStack *stack) {
+    if (stack->current == &stack->items[0]) {
+        /* The stack is full.  Let the caller know so they know not to try to
+         * initialize stack->current. */
+        return 0;
+    } else {
+        --stack->current;
+        return 1;
     }
-
-    ++placeholderStackTop;
 }
 
-/* Pop all items from the placeholder stack. */
-void clearPlaceholderStack(void) {
-    placeholderStackTop = &placeholderStack[PLACEHOLDER_STACK_SIZE];
+/* Remove an element from the stack.  Returns 1 on success and 0 on failure (if
+ * the stack is already empty). */
+int placeholderStackPop(struct PlaceholderStack *stack) {
+    if (stack->current == &stack->items[PLACEHOLDER_STACK_SIZE]) {
+        /* The stack is already empty.  This probably indicates a bug. */
+        return 0;
+    } else {
+        ++stack->current;
+        return 1;
+    }
 }
 
-/* Record the flags for a lookup step of the current placeholder. */
-void recordLookup(int flags) {
-    int index = placeholderStackTop->lookupCount;
-    ++placeholderStackTop->lookupCount;
-    if (index >= 16)
-        /* We don't need an explicit warning for this case.  The code that
-         * processes the log can detect this has happened by looking for lines
-         * which report lookupCount >= 16. */
-        return;
-
-    placeholderStackTop->flags |= (flags & 3) << (index * 2);
+/* Check if the stack is empty. */
+int placeholderStackIsEmpty(struct PlaceholderStack *stack) {
+    return (stack->current == &stack->items[PLACEHOLDER_STACK_SIZE]);
 }
 
-/* Check if the current placeholder matches the provided placeholderID and the
- * current PyFrameObject. */
-int currentPlaceholderMatches(uint16_t placeholderID) {
-    /* We make the placeholderID argument a uint16_t (like the placeholderID
-     * field of PlaceholderInfo) because if the argument was signed, we would
-     * run into problems with negative IDs (which are used to indicate calls to
-     * Cheetah.Template.getVar / .hasVar). */
-    return placeholderStackTop != &placeholderStack[PLACEHOLDER_STACK_SIZE] &&
-        placeholderStackTop->pythonStackPointer == PyEval_GetFrame() &&
-        placeholderStackTop->placeholderID == placeholderID;
-}
+struct PlaceholderStack activePlaceholders;
+
+
 
 /*** Placeholder Logging ***/
 
@@ -335,7 +325,7 @@ const char* findTemplateName(const char *filename) {
 
 /* Log the information stored in the current PlaceholderInfo. */
 void logPlaceholderInfo(void) {
-    PyFrameObject *pyFrame = placeholderStackTop->pythonStackPointer;
+    PyFrameObject *pyFrame = activePlaceholders.current->pythonStackPointer;
     const char *fileName = PyString_AsString(pyFrame->f_code->co_filename);
     /* We don't need to free(fileName), since it's a pointer into memory that
      * is managed by the Python runtime. */
@@ -364,10 +354,10 @@ void logPlaceholderInfo(void) {
      * always written (even if the output is too long for the buffer). */
     snprintf(buf, 32, "%x %x %x %x %x",
             templateNameHash,
-            placeholderStackTop->placeholderID,
-            placeholderStackTop->nameSpaceIndex,
-            placeholderStackTop->lookupCount,
-            placeholderStackTop->flags);
+            activePlaceholders.current->placeholderID,
+            activePlaceholders.current->nameSpaceIndex,
+            activePlaceholders.current->lookupCount,
+            activePlaceholders.current->flags);
 
     /* Write the line. */
     lineBufferWrite(buf);
@@ -596,7 +586,43 @@ int filterGroupContains(struct FilterGroup *filterGroup, struct PlaceholderInfo*
 /*** High-level placeholder tracking functions ***/
 
 void startPlaceholder(int placeholderID) {
-    pushPlaceholderStack(placeholderID);
+    if (placeholderStackPush(&activePlaceholders)) {
+        activePlaceholders.current->pythonStackPointer = PyEval_GetFrame();
+        activePlaceholders.current->placeholderID = placeholderID;
+
+        /* The namespace index will be set to a more appropriate value once we
+         * finish the first lookup step.  If the first lookup step fails, we
+         * don't need to do anything but leave the index as NS_NOT_FOUND. */
+        activePlaceholders.current->nameSpaceIndex = NS_NOT_FOUND;
+
+        activePlaceholders.current->lookupCount = 0;
+        activePlaceholders.current->flags = 0;
+    }
+}
+
+/* Record the flags for a lookup step of the current placeholder. */
+void recordLookup(int flags) {
+    int index = activePlaceholders.current->lookupCount;
+    ++activePlaceholders.current->lookupCount;
+    if (index >= 16)
+        /* We don't need an explicit warning for this case.  The code that
+         * processes the log can detect this has happened by looking for lines
+         * which report lookupCount >= 16. */
+        return;
+
+    activePlaceholders.current->flags |= (flags & 3) << (index * 2);
+}
+
+/* Check if the current placeholder matches the provided placeholderID and the
+ * current PyFrameObject. */
+int currentPlaceholderMatches(uint16_t placeholderID) {
+    /* We make the placeholderID argument a uint16_t (like the placeholderID
+     * field of PlaceholderInfo) because if the argument was signed, we would
+     * run into problems with negative IDs (which are used to indicate calls to
+     * Cheetah.Template.getVar / .hasVar). */
+    return !placeholderStackIsEmpty(&activePlaceholders) &&
+        activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
+        activePlaceholders.current->placeholderID == placeholderID;
 }
 
 #define FP_SUCCESS  1
@@ -605,16 +631,16 @@ void startPlaceholder(int placeholderID) {
 void finishPlaceholder(int placeholderID, int status) {
     if (currentPlaceholderMatches(placeholderID)) {
         if (status != FP_SUCCESS) {
-            placeholderStackTop->lookupCount |= 0x80;
+            activePlaceholders.current->lookupCount |= 0x80;
         }
 
         if (rand() % 1000 < loggingFraction) {
-            if (!filterGroupContains(&dedupeFilterGroup, placeholderStackTop)) {
+            if (!filterGroupContains(&dedupeFilterGroup, activePlaceholders.current)) {
                 logPlaceholderInfo();
-                filterGroupInsert(&dedupeFilterGroup, placeholderStackTop);
+                filterGroupInsert(&dedupeFilterGroup, activePlaceholders.current);
             }
         }
-        popPlaceholderStack();
+        placeholderStackPop(&activePlaceholders);
     } else {
         // TODO: warn
     }

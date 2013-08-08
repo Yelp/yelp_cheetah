@@ -64,7 +64,7 @@
 
 #define checkForNameInNameSpaceAndReturnIfFound(namespace_decref, currentSearchListIndex) { \
     if ( PyNamemapper_hasKey(nameSpace, nameChunks[0]) ) {\
-        placeholderStackTop->nameSpaceIndex = currentSearchListIndex;\
+        activePlaceholders.current->nameSpaceIndex = currentSearchListIndex;\
         theValue = PyNamemapper_valueForName(nameSpace, nameChunks, numChunks, placeholderID, executeCallables);\
         if (namespace_decref) {\
             Py_DECREF(nameSpace);\
