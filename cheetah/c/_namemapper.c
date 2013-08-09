@@ -24,14 +24,68 @@ extern "C" {
 #endif
 
 
+
+static inline unsigned long long rdtsc(void)
+{
+  unsigned hi, lo;
+  __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+  return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
+}
+
+struct Timer {
+    uint64_t start;
+    uint64_t total;
+    uint32_t count;
+};
+
+void timerStart(struct Timer* timer) {
+    timer->start = rdtsc();
+}
+
+void timerEnd(struct Timer* timer, int incrementCount) {
+    uint64_t diff = rdtsc() - timer->start;
+    timer->total += diff;
+    if (incrementCount)
+        timer->count += 1;
+}
+
+void timerIncrementCount(struct Timer* timer) {
+    timer->count += 1;
+}
+
+uint64_t timerAverage(struct Timer* timer) {
+    uint32_t count = timer->count;
+    if (count == 0)
+        return 0;
+    return timer->total / count;
+}
+
+void timerInit(struct Timer* timer) {
+    timer->total = 0;
+    timer->count = 0;
+}
+
+#define START(what)     (timerStart(&time##what))
+#define END(what,inc)   (timerEnd(&time##what, inc))
+#define COUNT(what)     (timerIncrementCount(&time##what))
+#define SEEN(what)      (time##what.count)
+#define TIME(what)      (timerAverage(&time##what))
+
+struct Timer timeStart, timePlaceholder, timeFinish, timeLog;
+
+
+
 static PyObject *NotFound;   /* locally-raised exception */
 static PyObject *TooManyPeriods;   /* locally-raised exception */
 static PyObject* pprintMod_pformat; /* used for exception formatting */
 
 
+
 /* *************************************************************************** */
 /* Instrumentation code */
 /* *************************************************************************** */
+
+
 
 /*** PlaceholderInfo ***/
 
@@ -150,20 +204,18 @@ int placeholderStackIsEmpty(struct PlaceholderStack *stack) {
     return (stack->current == &stack->items[PLACEHOLDER_STACK_SIZE]);
 }
 
-struct PlaceholderStack activePlaceholders;
-
 
 
 /*** Placeholder Logging ***/
 
 /* We log the following information about each placeholder evaluation:
  *
- *  - Deploy SHA, template name hash, placeholder ID:  Together, these
+ *  - Template name hash, placeholder ID:  Together with the deploy SHA, these
  *    uniquely identify a placeholder in a particular version of a particular
  *    template file.  Processing code can obtain the actual template name from
  *    the deploy SHA and the name hash by hashing the names of all compiled
- *    templates in the deployed version of yelp-main and looking for a hash
- *    that matches the one in the log.
+ *    templates in that version of yelp-main and looking for a hash that
+ *    matches the one in the log.
  *
  *  - Namespace index:  This lets us detect use of Cheetah's searchlist
  *    feature, by looking for placeholders that have different namespace
@@ -177,101 +229,16 @@ struct PlaceholderStack activePlaceholders;
  *  - The list of flags lets us detect where autokey/autocall is being used.
  */
 
-/* We send data to Scribe by calling the Python function clog.log_line. */
-static PyObject *clogMod_log_line;
-
-/* Get the deploy SHA from util.version on startup, then save it here so we can
- * include it in our log lines.*/
-#define DEPLOY_SHA_SIZE 10
-char deploySHA[DEPLOY_SHA_SIZE + 1];
-
-void deploySHAInit(void) {
-    PyObject* utilVersionMod = PyImport_ImportModule("util.version");
-    PyObject* versionSHAFunc = PyObject_GetAttrString(utilVersionMod, "version_sha");
-    PyObject* pythonDeploySHA = PyObject_CallObject(versionSHAFunc, NULL);
-
-    strncpy(deploySHA, PyString_AsString(pythonDeploySHA), sizeof(deploySHA));
-    /* strncpy does not guarantee that the destination is null-terminated, so
-     * have to make sure it is ourselves. */
-    deploySHA[sizeof(deploySHA) - 1] = '\0';
-}
-
-/* We combine consecutive writes, because calls to clog.log_line have a high
- * fixed cost independent of line length. */
-
-/* Buffer up to this many lines. */
-#define LINE_BUFFER_SIZE 16
-
-/* Maximum length for each line in the buffer (including terminator). */
-#define LINE_LENGTH 64
-
-struct LineBuffer {
-    /* The buffer itself. */
-    char buffer[LINE_BUFFER_SIZE * LINE_LENGTH];
-    /* A pointer to the next location in the buffer we can write to.  We ensure
-     * that currentPos always points to a \0. */
-    char *currentPos;
-    /* The number of lines written to the buffer so far. */
-    int lineCount;
+/* A LogItem is similar to a PlaceholderInfo, but it has the template name hash
+ * instead of the Python stack fram pointer.  This means the LogItem is still
+ * usable after the stack frame has been deallocated. */
+struct LogItem {
+    uint32_t templateNameHash;
+    uint16_t placeholderID;
+    uint8_t nameSpaceIndex;
+    uint8_t lookupCount;
+    uint32_t flags;
 };
-
-struct LineBuffer lineBuffer;
-
-void lineBufferWriteInternal(const char *format, const char *line);
-
-void lineBufferInit(void) {
-    /* Reset the buffer, then write the deploy SHA. */
-    lineBuffer.buffer[0] = '\0';
-    lineBuffer.currentPos = &lineBuffer.buffer[0];
-    lineBuffer.lineCount = 0;
-
-    lineBufferWriteInternal("%s", deploySHA);
-}
-
-void lineBufferFlush(void) {
-    PyObject_CallFunction(clogMod_log_line, "ss", "tmp_namemapper_placeholder_uses",
-            lineBuffer.buffer);
-
-    /* Reset the buffer to its initial state. */
-    lineBufferInit();
-}
-
-void lineBufferWriteInternal(const char *format, const char *line) {
-    int outputLength;
-
-    /* Overwrite the current terminator of lineBuffer.buffer by writing to
-     * lineBuffer.currentPos. */
-    outputLength = snprintf(lineBuffer.currentPos, LINE_LENGTH, format, line);
-    if (outputLength > LINE_LENGTH - 1) {
-        /* snprintf guarantees that it will write no more than LINE_LENGTH
-         * characters, including the null terminator.  Its return value
-         * indicates the number of characters it intended to write, *not*
-         * including the null terminator.  So the number of characters actually
-         * written is min(outputLength, LINE_LENGTH - 1). */
-        outputLength = LINE_LENGTH - 1;
-    }
-
-    /* Position currentPos on the \0 written by snprintf. */
-    lineBuffer.currentPos += outputLength;
-
-    ++lineBuffer.lineCount;
-    if (lineBuffer.lineCount >= LINE_BUFFER_SIZE) {
-        /* The buffer is full.  Flush it. */
-        lineBufferFlush();
-    }
-}
-
-void lineBufferWrite(const char *line) {
-    lineBufferWriteInternal(" %s", line);
-}
-
-
-/* We consider logging only (loggingFraction / 10)% of placeholder evaluations.
- * This defaults to zero, but it can be adjusted from Python by calling
- * Cheetah.namemapper.setLoggingPercent.  This lets the percentage be adjusted
- * on a per-request basis.
- */
-static int loggingFraction = 0;
 
 /* Simple hash for strings.  We use this for hashing template filenames, so we
  * don't have to log the whole name. */
@@ -323,52 +290,86 @@ const char* findTemplateName(const char *filename) {
     return NULL;
 }
 
-/* Log the information stored in the current PlaceholderInfo. */
-void logPlaceholderInfo(void) {
-    PyFrameObject *pyFrame = activePlaceholders.current->pythonStackPointer;
-    const char *fileName = PyString_AsString(pyFrame->f_code->co_filename);
-    /* We don't need to free(fileName), since it's a pointer into memory that
-     * is managed by the Python runtime. */
+/* Construct a LogItem containing the same data as a PlaceholderInfo. */
+void logItemInit(struct LogItem *logItem, struct PlaceholderInfo *placeholderInfo) {
+    /* Populate the templateNameHash field. */
+    PyObject *pyFileName = placeholderInfo->pythonStackPointer->f_code->co_filename;
+    const char *fileName = PyString_AsString(pyFileName);
 
-    /* findTemplateName returns a pointer into 'fileName', or NULL if it can't
-     * find the template name. */
     const char *templateName = findTemplateName(fileName);
+    if (templateName == NULL)
+        templateName = fileName;
 
-    /* Hash the template name, so we don't have to write the whole thing to
-     * scribe. */
-    uint32_t templateNameHash;
-    if (templateName != NULL) {
-        templateNameHash = hashString(templateName);
-    } else {
-        /* We didn't find anything that looks like a deployment, so hash the
-         * whole fileName instead.  It's better than nothing - maybe if we are
-         * lucky we can figure out the format and recover the actual name. */
-        templateNameHash = hashString(fileName);
-    }
+    logItem->templateNameHash = hashString(templateName);
 
-    /* We log everything in hexadecimal, with each field separated by a space.
-     * So the expected output width is: 8 (fileNameHash) + 4 (placeholderID) +
-     * 2 (nameSpaceIndex) + 2 (lookupCount) + 8 (flags) + 4 (spaces) = 28. */
-    char buf[32];
-    /* The 'size' argument to snprintf includes the terminating \0, which is
-     * always written (even if the output is too long for the buffer). */
-    snprintf(buf, 32, "%x %x %x %x %x",
-            templateNameHash,
-            activePlaceholders.current->placeholderID,
-            activePlaceholders.current->nameSpaceIndex,
-            activePlaceholders.current->lookupCount,
-            activePlaceholders.current->flags);
+    /* Populate the other fields. */
 
-    /* Write the line. */
-    lineBufferWrite(buf);
+    logItem->placeholderID = placeholderInfo->placeholderID;
+    logItem->nameSpaceIndex = placeholderInfo->nameSpaceIndex;
+    logItem->lookupCount = placeholderInfo->lookupCount;
+    logItem->flags = placeholderInfo->flags;
 }
 
 
 
-/*** Bloom filter ***/
+/*** Log Item Buffer ***/
+
+/* We keep a buffer of data we plan to log.  When the template rendering has
+ * finished, we take the whole buffer and dump it into Scribe all at once.
+ * This means we don't have the overhead of multiple Scribe calls, and we don't
+ * need to worry about interleaving lines from different processes. */
+
+/* The maximum number of PlaceholderInfos in the buffer.  Normally biz_details
+ * produces about 5,000 entries after deduplication, so setting the size to
+ * 20,000 should be plenty.
+ */
+#define LOG_BUFFER_SIZE 20000
+
+struct LogBuffer {
+    /* An array for storing LogItems.  This starts uninitialized.  Only items
+     * at locations before 'nextSlot' are valid. */
+    struct LogItem items[LOG_BUFFER_SIZE];
+
+    /* A pointer to the next available slot in the buffer.  This always points
+     * to somewhere in 'items', or to past-the-end if the buffer is full. */
+    struct LogItem *nextSlot;
+
+    /* The number of items we tried to insert, which may be greater than the
+     * number *actually* inserted.  (We discard any items inserted after the
+     * buffer is full, instead incrementing this counter to let consumers of
+     * the log know that there was an overflow.) */
+    int insertAttempts;
+};
+
+void logBufferInit(struct LogBuffer *buffer) {
+    buffer->nextSlot = &buffer->items[0];
+    buffer->insertAttempts = 0;
+}
+
+void logBufferInsert(struct LogBuffer *buffer, struct LogItem *item) {
+    ++buffer->insertAttempts;
+
+    if (buffer->nextSlot == &buffer->items[LOG_BUFFER_SIZE]) {
+        /* We can't store anything else to the buffer.  That's unfortunate, but
+         * we can't do much about it. */
+        return;
+    }
+
+    /* Copy the item into the next slot, and increment the nextSlot pointer. */
+    memcpy(/*dest = */buffer->nextSlot, /*src = */item, sizeof(struct LogItem));
+    ++buffer->nextSlot;
+}
+
+int logBufferGetCount(struct LogBuffer *buffer) {
+    return (buffer->nextSlot - &buffer->items[0]);
+}
+
+
+
+/*** Bloom Filter ***/
 
 /* We use a Bloom filter to avoid logging duplicate entries.  Each time we try
- * to log a placeholder, we first check that it is not in the bloom filter
+ * to record a LogItem, we first check that it is not in the bloom filter
  * already.  If it's not there, then we actually log the information and insert
  * it into the filter.
  *
@@ -383,6 +384,11 @@ void logPlaceholderInfo(void) {
  * http://en.wikipedia.org/wiki/Bloom_filter#Probability_of_false_positives
  */
 
+/* The maximum number of items that we expect to be stored in a bloom filter.
+ * It is possible to store more items, but the false positive rate may increase
+ * beyond 0.01%. */
+#define BLOOM_FILTER_MAX_ITEMS 2000
+
 /* The number of bits in the bloom filter.  Wikipedia calls this 'm'. */
 #define BLOOM_FILTER_SIZE (1 << 16)
 
@@ -393,7 +399,11 @@ typedef uint64_t bloom_filter_chunk_type;
 #define BLOOM_FILTER_CHUNK_BITS (sizeof(bloom_filter_chunk_type) * 8)
 
 struct BloomFilter {
+    /* The array of bits. */
     bloom_filter_chunk_type data[BLOOM_FILTER_SIZE / BLOOM_FILTER_CHUNK_BITS];
+
+    /* The number of distinct items that have been inserted. */
+    int itemCount;
 };
 
 /* The number of hash functions to use for the bloom filter.  Wikipedia calls
@@ -416,7 +426,7 @@ static const int PRIMES[BLOOM_FILTER_HASHES * 5] = {
     2434013, 1608259, 3452689,  302143, 1366019,
 };
 
-/* Apply all 'k' hash functions to a PlaceholderInfo item.
+/* Apply all 'k' hash functions to a LogItem.
  *
  * Each hash function combines five components:
  *  - filename hash
@@ -433,20 +443,17 @@ static const int PRIMES[BLOOM_FILTER_HASHES * 5] = {
  * calling this function, the array will be filled with values in the range
  * 0 <= h < BLOOM_FILTER_SIZE.
  */
-void bloomFilterHash(struct PlaceholderInfo *placeholderInfo, uint32_t* hashOutput) {
+void bloomFilterHash(struct LogItem *item, uint32_t* hashOutput) {
     int i;
     uint32_t hash;
 
-    PyObject* fileNamePyString = placeholderInfo->pythonStackPointer->f_code->co_filename;
-    uint32_t fileNameHash = hashString(PyString_AsString(fileNamePyString));
-
     for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
         hash =
-            PRIMES[i * 5 + 0] * fileNameHash  +
-            PRIMES[i * 5 + 1] * placeholderInfo->placeholderID +
-            PRIMES[i * 5 + 2] * placeholderInfo->nameSpaceIndex +
-            PRIMES[i * 5 + 3] * placeholderInfo->lookupCount +
-            PRIMES[i * 5 + 4] * placeholderInfo->flags;
+            PRIMES[i * 5 + 0] * item->templateNameHash  +
+            PRIMES[i * 5 + 1] * item->placeholderID +
+            PRIMES[i * 5 + 2] * item->nameSpaceIndex +
+            PRIMES[i * 5 + 3] * item->lookupCount +
+            PRIMES[i * 5 + 4] * item->flags;
 
         hash %= BLOOM_FILTER_SIZE;
 
@@ -458,134 +465,154 @@ void bloomFilterHash(struct PlaceholderInfo *placeholderInfo, uint32_t* hashOutp
 void bloomFilterInit(struct BloomFilter *bloomFilter) {
     /* Fill the 'data' array with all zeros. */
     memset(&bloomFilter->data, 0, sizeof(bloomFilter->data));
+
+    bloomFilter->itemCount = 0;
 }
 
-/* Insert a PlaceholderInfo item into a bloom filter. */
-void bloomFilterInsert(struct BloomFilter *bloomFilter, struct PlaceholderInfo* placeholderInfo) {
+/* Check if a LogItem is present in the bloom filter, and if not, add it.  This
+ * is somewhat faster than performing the two operations separately, because we
+ * only need to compute the hashes once. */
+int bloomFilterContainsAndInsert(struct BloomFilter *filter, struct LogItem* item) {
     int i;
     uint32_t hash[BLOOM_FILTER_HASHES];
+    int wasPresent = 1;
 
     /* Hash the PlaceholderInfo into the 'hash' array. */
-    bloomFilterHash(placeholderInfo, hash);
+    bloomFilterHash(item, hash);
 
     for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
         uint32_t index = hash[i] / BLOOM_FILTER_CHUNK_BITS;
         uint32_t offset = hash[i] % BLOOM_FILTER_CHUNK_BITS;
+
+        /* Check if the corresponding bit is set.  If not, set it and remember
+         * that this item was not initially present in the filter. */
 
         /* This can't overflow the 'data' array because bloomFilterHash
          * guarantees 0 <= hash[i] < BLOOM_FILTER_SIZE and there are
          * BLOOM_FILTER_SIZE / BLOOM_FILTER_CHUNK_BITS elements in 'data'. */
-        bloomFilter->data[index] |= (1L << offset);
-    }
-}
-
-/* Check if a PlaceholderInfo has already been inserted into a bloom filter.
- * Returns 1 if the placeholder might have been inserted, and 0 if it
- * definitely has not been inserted. */
-int bloomFilterContains(struct BloomFilter *bloomFilter, struct PlaceholderInfo* placeholderInfo) {
-    int i;
-    uint32_t hash[BLOOM_FILTER_HASHES];
-
-    bloomFilterHash(placeholderInfo, hash);
-
-    for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
-        uint32_t index = hash[i] / BLOOM_FILTER_CHUNK_BITS;
-        uint32_t offset = hash[i] % BLOOM_FILTER_CHUNK_BITS;
-
-        if ((bloomFilter->data[index] & (1L << offset)) == 0)
-            return 0;
+        if ((filter->data[index] & (1L << offset)) == 0) {
+            wasPresent = 0;
+            filter->data[index] |= (1L << offset);
+        }
     }
 
-    return 1;
-}
-
-/* Remove all items from a bloom filter. */
-void bloomFilterClear(struct BloomFilter *bloomFilter) {
-    bloomFilterInit(bloomFilter);
+    if (!wasPresent) {
+        ++filter->itemCount;
+    }
+    return wasPresent;
 }
 
 
 
-/*** Filter Group ***/
+/* We send data to Scribe by calling the Python function clog.log_line. */
+static PyObject *clogMod_log_line;
 
-/* The amount of space required for a bloom filter is proportional to the
- * number of items we wish to insert (if we hold constant the probability of
- * false positives).  This means if we want to avoid using tons of space and
- * also avoid large numbers of false positives, we need to clear the filter
- * periodically.  If we did this with a single filter, then immediately after
- * the filter was cleared, we would end up with a large number of redundant log
- * entries, since the logging code would forget that it had just recorded
- * identical entries.
- *
- * Instead, we use multiple bloom filters (which I called a "filter group"), as
- * follows:
- *  - To insert into the filter group, insert into all component bloom filters.
- *  - To check for membership in the filter group, check for membership in the
- *    "current filter".
- *  - After every N insertions, clear the current filter, and make the next
- *    filter in the group the new current filter.
- * This allows the logging code to lose only part of its "memory" when we clear
- * a filter, since the newly-current filter contains some fraction of the items
- * that were present in the previously-current filter.
- */
+/* Get the deploy SHA from util.version on startup, then save it here so we can
+ * include it in our log lines.*/
+#define DEPLOY_SHA_SIZE 10
+char deploySHA[DEPLOY_SHA_SIZE + 1];
 
-/* Number of bloom filters to include in the filter group. */
-#define FILTER_GROUP_SIZE 2
-/* Clear a filter after this many insertions. */
-#define FILTER_GROUP_ROTATION_INTERVAL 1000
-/* Note that each bloom filter will have SIZE * ROTATION_INTERVAL elements
- * added to it.  The bloom filter parameters should be tuned accordingly. */
+void deploySHAInit(void) {
+    PyObject* utilVersionMod = PyImport_ImportModule("util.version");
+    PyObject* versionSHAFunc = PyObject_GetAttrString(utilVersionMod, "version_sha");
+    PyObject* pythonDeploySHA = PyObject_CallObject(versionSHAFunc, NULL);
 
-struct FilterGroup {
-    /* The actual bloom filters. */
-    struct BloomFilter bloomFilters[FILTER_GROUP_SIZE];
-    /* The index of the current filter to read from. */
-    int currentFilterIndex;
-    /* The number of insertions since the last time a filter was cleared. */
-    int insertCount;
-};
-
-struct FilterGroup dedupeFilterGroup;
-
-/* Initialize a filter group. */
-void filterGroupInit(struct FilterGroup *filterGroup) {
-    int i;
-    for (i = 0; i < FILTER_GROUP_SIZE; ++i) {
-        bloomFilterInit(&filterGroup->bloomFilters[i]);
-    }
-    filterGroup->currentFilterIndex = 0;
-    filterGroup->insertCount = 0;
-}
-
-/* Insert a PlaceholderInfo item into a filter group. */
-void filterGroupInsert(struct FilterGroup *filterGroup, struct PlaceholderInfo* placeholderInfo) {
-    int i;
-    /* Insert into all component bloom filters. */
-    for (i = 0; i < FILTER_GROUP_SIZE; ++i) {
-        bloomFilterInsert(&filterGroup->bloomFilters[i], placeholderInfo);
-    }
-
-    ++filterGroup->insertCount;
-    if (filterGroup->insertCount >= FILTER_GROUP_ROTATION_INTERVAL) {
-        /* Clear the current filter and change to the next filter in the group.
-         */
-        bloomFilterClear(&filterGroup->bloomFilters[filterGroup->currentFilterIndex]);
-        filterGroup->currentFilterIndex = (filterGroup->currentFilterIndex + 1) % FILTER_GROUP_SIZE;
-
-        filterGroup->insertCount = 0;
-    }
-}
-
-/* Check if a filter group contains a particular PlaceholderInfo. */
-int filterGroupContains(struct FilterGroup *filterGroup, struct PlaceholderInfo* placeholderInfo) {
-    return bloomFilterContains(&filterGroup->bloomFilters[filterGroup->currentFilterIndex], placeholderInfo);
+    strncpy(deploySHA, PyString_AsString(pythonDeploySHA), sizeof(deploySHA));
+    /* strncpy does not guarantee that the destination is null-terminated, so
+     * have to make sure it is ourselves. */
+    deploySHA[sizeof(deploySHA) - 1] = '\0';
 }
 
 
 
 /*** High-level placeholder tracking functions ***/
 
-void startPlaceholder(int placeholderID) {
+/* The stack of placeholders we are currently evaluating. */
+struct PlaceholderStack activePlaceholders;
+
+/* A Bloom filter for deduplicating LogItems. */
+struct BloomFilter dedupeFilter; 
+
+/* The buffer of LogItems we have decided to record. */
+struct LogBuffer buffer;
+
+/* Flag to indicate whether we should do instrumentation. */
+int instrumentationEnabled = 0;
+
+void instrumentStartRequest(void) {
+    START(Start);
+    placeholderStackInit(&activePlaceholders);
+    bloomFilterInit(&dedupeFilter);
+    logBufferInit(&buffer);
+    instrumentationEnabled = 1;
+    END(Start, 1);
+}
+
+void instrumentFinishRequest(void) {
+    if (!instrumentationEnabled) {
+        return;
+    }
+
+    START(Finish);
+
+    instrumentationEnabled = 0;
+
+    /* If there is nothing recorded, don't bother logging anything. */
+    if (buffer.insertAttempts == 0) {
+        return;
+    }
+
+    PyObject *rawString = PyString_FromStringAndSize((const char*)&buffer.items,
+            logBufferGetCount(&buffer) * sizeof(struct LogItem));
+
+    PyObject *zlibMod = PyImport_ImportModule("zlib");
+    PyObject *zlibMod_compress = PyObject_GetAttrString(zlibMod, "compress");
+
+    PyObject *gzippedString = PyObject_CallFunction(zlibMod_compress, "O", rawString);
+
+    PyObject *base64Mod = PyImport_ImportModule("base64");
+    PyObject *base64Mod_b64encode = PyObject_GetAttrString(base64Mod, "b64encode");
+
+    PyObject *base64EncodedString = PyObject_CallFunction(base64Mod_b64encode, "O", gzippedString);
+
+    PyObject *formatString = PyString_FromString("%s %d %s");
+    PyObject *formatArgs = Py_BuildValue("siO", deploySHA, buffer.insertAttempts, base64EncodedString);
+
+    PyObject *formattedLine = PyString_Format(formatString, formatArgs);
+
+    /* Release all objects except for formattedLine. */
+    Py_DECREF(rawString);
+    Py_DECREF(zlibMod);
+    Py_DECREF(zlibMod_compress);
+    Py_DECREF(gzippedString);
+    Py_DECREF(base64Mod);
+    Py_DECREF(base64Mod_b64encode);
+    Py_DECREF(base64EncodedString);
+    Py_DECREF(formatString);
+    Py_DECREF(formatArgs);
+
+    END(Finish, 1);
+    START(Log);
+
+    PyObject_CallFunction(clogMod_log_line, "sO", "tmp_namemapper_placeholder_uses", formattedLine);
+    Py_DECREF(formattedLine);
+
+    END(Log, 1);
+
+    /* Log timer results */
+    char buf[256];
+    snprintf(buf, 256, "times: %lu %lu(%lu) %lu %lu",
+            TIME(Start), TIME(Placeholder), timePlaceholder.total, TIME(Finish), TIME(Log));
+
+    PyObject_CallFunction(clogMod_log_line, "ss", "tmp_namemapper_placeholder_uses", buf);
+}
+
+void instrumentStartPlaceholder(int placeholderID) {
+    if (!instrumentationEnabled)
+        return;
+
+    START(Placeholder);
+
     if (placeholderStackPush(&activePlaceholders)) {
         activePlaceholders.current->pythonStackPointer = PyEval_GetFrame();
         activePlaceholders.current->placeholderID = placeholderID;
@@ -598,10 +625,17 @@ void startPlaceholder(int placeholderID) {
         activePlaceholders.current->lookupCount = 0;
         activePlaceholders.current->flags = 0;
     }
+
+    END(Placeholder, 0);
 }
 
 /* Record the flags for a lookup step of the current placeholder. */
-void recordLookup(int flags) {
+void instrumentRecordLookup(int flags) {
+    if (!instrumentationEnabled)
+        return;
+
+    START(Placeholder);
+
     int index = activePlaceholders.current->lookupCount;
     ++activePlaceholders.current->lookupCount;
     if (index >= 16)
@@ -611,39 +645,72 @@ void recordLookup(int flags) {
         return;
 
     activePlaceholders.current->flags |= (flags & 3) << (index * 2);
+
+    END(Placeholder, 0);
+}
+
+void instrumentRecordNameSpaceIndex(int nameSpaceIndex) {
+    if (!instrumentationEnabled)
+        return;
+
+    START(Placeholder);
+
+    activePlaceholders.current->nameSpaceIndex = nameSpaceIndex;
+
+    END(Placeholder, 0);
 }
 
 /* Check if the current placeholder matches the provided placeholderID and the
  * current PyFrameObject. */
-int currentPlaceholderMatches(uint16_t placeholderID) {
+int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
     /* We make the placeholderID argument a uint16_t (like the placeholderID
      * field of PlaceholderInfo) because if the argument was signed, we would
      * run into problems with negative IDs (which are used to indicate calls to
      * Cheetah.Template.getVar / .hasVar). */
-    return !placeholderStackIsEmpty(&activePlaceholders) &&
+    START(Placeholder);
+    int result =
+        instrumentationEnabled &&
+        !placeholderStackIsEmpty(&activePlaceholders) &&
         activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
         activePlaceholders.current->placeholderID == placeholderID;
+    END(Placeholder, 0);
+    return result;
 }
 
 #define FP_SUCCESS  1
 #define FP_ERROR    0
 
-void finishPlaceholder(int placeholderID, int status) {
-    if (currentPlaceholderMatches(placeholderID)) {
+void instrumentFinishPlaceholder(int placeholderID, int status) {
+    if (!instrumentationEnabled)
+        return;
+
+    START(Placeholder);
+
+    if (instrumentCurrentPlaceholderMatches(placeholderID)) {
         if (status != FP_SUCCESS) {
             activePlaceholders.current->lookupCount |= 0x80;
         }
 
-        if (rand() % 1000 < loggingFraction) {
-            if (!filterGroupContains(&dedupeFilterGroup, activePlaceholders.current)) {
-                logPlaceholderInfo();
-                filterGroupInsert(&dedupeFilterGroup, activePlaceholders.current);
+        struct LogItem item;
+        logItemInit(&item, activePlaceholders.current);
+
+        if (!bloomFilterContainsAndInsert(&dedupeFilter, &item)) {
+            /* The item was not already present. */
+            logBufferInsert(&buffer, &item);
+
+            if (dedupeFilter.itemCount > BLOOM_FILTER_MAX_ITEMS) {
+                /* Clear out the filter once it hits MAX_ITEMS, to avoid
+                 * increasing the false positive rate. */
+                bloomFilterInit(&dedupeFilter);
             }
         }
+
         placeholderStackPop(&activePlaceholders);
     } else {
         // TODO: warn
     }
+
+    END(Placeholder, 1);
 }
 
 
@@ -797,7 +864,7 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
      * end with flushPlaceholderInfo.  If we see a valueForName for a
      * placeholder that's not the current stack top, there's a bug somewhere.
      */
-    placeholderIsCurrent = currentPlaceholderMatches(placeholderID);
+    placeholderIsCurrent = instrumentCurrentPlaceholderMatches(placeholderID);
     if (!placeholderIsCurrent) {
         // TODO: warn
     }
@@ -861,7 +928,7 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
         }
 
         if (placeholderIsCurrent)
-            recordLookup(currentFlags);
+            instrumentRecordLookup(currentFlags);
     }
 
     return currentVal;
@@ -915,7 +982,7 @@ static PyObject *namemapper_valueForName(PYARGS)
     }
 
     if (theValue == NULL) {
-        finishPlaceholder(placeholderID, FP_ERROR);
+        instrumentFinishPlaceholder(placeholderID, FP_ERROR);
     }
 
     return theValue;
@@ -947,7 +1014,7 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
 
     createNameCopyAndChunks();
 
-    startPlaceholder(placeholderID);
+    instrumentStartPlaceholder(placeholderID);
 
     iterator = PyObject_GetIter(searchList);
     if (iterator == NULL) {
@@ -979,7 +1046,7 @@ done:
     if (theValue == NULL) {
         /* An error of some kind occurred.  We are done with this placeholder,
          * since its evaluation has raised some kind of exception. */
-        finishPlaceholder(placeholderID, FP_ERROR);
+        instrumentFinishPlaceholder(placeholderID, FP_ERROR);
     }
 
     return theValue;
@@ -1015,7 +1082,7 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
 
     createNameCopyAndChunks();
 
-    startPlaceholder(placeholderID);
+    instrumentStartPlaceholder(placeholderID);
 
     nameSpace = PyEval_GetLocals();
     checkForNameInNameSpaceAndReturnIfFound(FALSE, NS_LOCALS);  
@@ -1055,7 +1122,7 @@ done:
     free(nameCopy);
 
     if (theValue == NULL) {
-        finishPlaceholder(placeholderID, FP_ERROR);
+        instrumentFinishPlaceholder(placeholderID, FP_ERROR);
     }
 
     return theValue;
@@ -1088,7 +1155,7 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
 
     createNameCopyAndChunks();
 
-    startPlaceholder(placeholderID);
+    instrumentStartPlaceholder(placeholderID);
 
     nameSpace = PyEval_GetLocals();
     checkForNameInNameSpaceAndReturnIfFound(FALSE, NS_LOCALS);
@@ -1106,7 +1173,7 @@ done:
     free(nameCopy);
 
     if (theValue == NULL) {
-        finishPlaceholder(placeholderID, FP_ERROR);
+        instrumentFinishPlaceholder(placeholderID, FP_ERROR);
     }
 
     return theValue;
@@ -1124,7 +1191,7 @@ static PyObject *namemapper_flushPlaceholderInfo(PyObject *self, PyObject *args,
         return NULL;
     }
 
-    finishPlaceholder(placeholderID, FP_SUCCESS);
+    instrumentFinishPlaceholder(placeholderID, FP_SUCCESS);
 
     /* Python doesn't automatically increment the reference count of the
      * function's return value, so we have to do it manually. */
@@ -1132,21 +1199,18 @@ static PyObject *namemapper_flushPlaceholderInfo(PyObject *self, PyObject *args,
     return obj;
 }
 
-static PyObject *namemapper_setLoggingPercent(PyObject *self, PyObject *args, PyObject *keywds)
+static PyObject *namemapper_startLogging(PyObject *self, PyObject *args, PyObject *keywds)
 {
-    /* python function args */
-    float loggingPercent;
-
-    static char *kwlist[] = {"loggingPercent", NULL};
-
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "f", kwlist, &loggingPercent)) {
-        return NULL;
-    }
-
-    loggingFraction = (int)(10 * loggingPercent);
-
+    instrumentStartRequest();
     return Py_None;
 }
+
+static PyObject *namemapper_finishLogging(PyObject *self, PyObject *args, PyObject *keywds)
+{
+    instrumentFinishRequest();
+    return Py_None;
+}
+
 
 
 /* *************************************************************************** */
@@ -1159,7 +1223,8 @@ static struct PyMethodDef namemapper_methods[] = {
   {"valueFromFrame", (PyCFunction)namemapper_valueFromFrame,  METH_VARARGS|METH_KEYWORDS},
   {"valueFromFrameOrSearchList", (PyCFunction)namemapper_valueFromFrameOrSearchList,  METH_VARARGS|METH_KEYWORDS},
   {"flushPlaceholderInfo", (PyCFunction)namemapper_flushPlaceholderInfo,  METH_VARARGS|METH_KEYWORDS},
-  {"setLoggingPercent", (PyCFunction)namemapper_setLoggingPercent,  METH_VARARGS|METH_KEYWORDS},
+  {"startLogging", (PyCFunction)namemapper_startLogging,  METH_VARARGS|METH_KEYWORDS},
+  {"finishLogging", (PyCFunction)namemapper_finishLogging,  METH_VARARGS|METH_KEYWORDS},
   {NULL,         NULL}
 };
 
@@ -1219,9 +1284,12 @@ DL_EXPORT(void) init_namemapper(void)
     clogMod_log_line = PyObject_GetAttrString(clogMod, "log_line");
     Py_DECREF(clogMod);
 
-    filterGroupInit(&dedupeFilterGroup);
     deploySHAInit();
-    lineBufferInit();
+
+    timerInit(&timeStart);
+    timerInit(&timePlaceholder);
+    timerInit(&timeFinish);
+    timerInit(&timeLog);
 
     /* check for errors */
     if (PyErr_Occurred()) {
