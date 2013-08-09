@@ -89,7 +89,7 @@ static PyObject* pprintMod_pformat; /* used for exception formatting */
 
 /*** PlaceholderInfo ***/
 
-/* Information about a placeholder evaluation. */
+/* All the interesting information about an active placeholder evaluation. */
 struct PlaceholderInfo {
     /* A pointer to the Python stack frame that is evaluating the placeholder.
      * This is used to distinguish placeholders with the same ID in different
@@ -110,8 +110,10 @@ struct PlaceholderInfo {
     uint8_t nameSpaceIndex;
 
     /* The number of lookups performed so far.  "$x.y[1].z" contains three
-     * lookups (one each for "x", "y", and "z").  The "[1]" part does not
-     * invoke the namemapper, so it is not counted as a lookup. */
+     * lookups (one each for "x", "y", and "z"), which are performed in the
+     * course of two namemapper calls (VFFSL on "x.y", and VFN on "z").  (The
+     * "[1]" part does not invoke the namemapper, so it is not counted as a
+     * lookup.) */
     uint8_t lookupCount;
 
     /* A list of 16 two-bit entries, indicating whether each lookup used
@@ -143,21 +145,23 @@ struct PlaceholderInfo {
 /* We keep a stack of placeholders being evaluated.  This lets us handle nested
  * evaluations properly.  For example, evaluation of "$x[$y].z" will start by
  * looking up "x" for the outer placeholder, then will fully evaluate the inner
- * placeholder "$y", and finally will finish the outer placeholder by looking
- * up "z". */
+ * placeholder "$y", and finally will finish evaluating the outer placeholder
+ * by looking up "z". */
 
 /* The maximum number of items that can be stored on the stack.  We limit the
  * size to avoid dynamic allocation during placeholder evaluation, as it would
- * increase the cost of the instrumentation by 50-100%.
+ * increase the cost of the placeholder instrumentation by about 50%.
  *
  * In testing, I've never seen the stack depth exceed 3, so 64 seems like it
  * should be high enough to avoid problems.
  */
 #define PLACEHOLDER_STACK_SIZE 64
 
+/* A stack of PlaceholderInfo records. */
 struct PlaceholderStack {
-    /* Storage for the items in the stack.  This starts uninitialized.  The
-     * stack grows downward, so only items at addresses >= current are valid.
+    /* Storage for the items in the stack.  This array starts with all entries
+     * uninitialized.  The stack grows downward, so only items at addresses >=
+     * current are valid.
      */
     struct PlaceholderInfo items[PLACEHOLDER_STACK_SIZE];
 
@@ -174,12 +178,13 @@ void placeholderStackInit(struct PlaceholderStack *stack) {
 }
 
 /* Add a new element to the stack by adjusting 'stack->current'.  The new
- * element is uninitialized - the caller is expected to initialize it.  This
- * function returns 1 on success and 0 on failure (if the stack is full). */
+ * element is left uninitialized - the caller is expected to initialize it.
+ * This function returns 1 on success and 0 on failure (if the stack is full).
+ */
 int placeholderStackPush(struct PlaceholderStack *stack) {
     if (stack->current == &stack->items[0]) {
-        /* The stack is full.  Let the caller know so they know not to try to
-         * initialize stack->current. */
+        /* The stack is full.  Tell the caller about this so they know not to
+         * try to initialize stack->current. */
         return 0;
     } else {
         --stack->current;
@@ -469,10 +474,8 @@ void bloomFilterInit(struct BloomFilter *bloomFilter) {
     bloomFilter->itemCount = 0;
 }
 
-/* Check if a LogItem is present in the bloom filter, and if not, add it.  This
- * is somewhat faster than performing the two operations separately, because we
- * only need to compute the hashes once. */
-int bloomFilterContainsAndInsert(struct BloomFilter *filter, struct LogItem* item) {
+int bloomFilterOperate(struct BloomFilter *filter, struct LogItem* item,
+        int shouldInsert) {
     int i;
     uint32_t hash[BLOOM_FILTER_HASHES];
     int wasPresent = 1;
@@ -492,7 +495,9 @@ int bloomFilterContainsAndInsert(struct BloomFilter *filter, struct LogItem* ite
          * BLOOM_FILTER_SIZE / BLOOM_FILTER_CHUNK_BITS elements in 'data'. */
         if ((filter->data[index] & (1L << offset)) == 0) {
             wasPresent = 0;
-            filter->data[index] |= (1L << offset);
+            if (shouldInsert) {
+                filter->data[index] |= (1L << offset);
+            }
         }
     }
 
@@ -502,6 +507,16 @@ int bloomFilterContainsAndInsert(struct BloomFilter *filter, struct LogItem* ite
     return wasPresent;
 }
 
+/* Check if a LogItem is present in the bloom filter, and if not, add it.  This
+ * is somewhat faster than performing the two operations separately, because we
+ * only need to compute the hashes once. */
+int bloomFilterContainsAndInsert(struct BloomFilter *filter, struct LogItem* item) {
+    return bloomFilterOperate(filter, item, 1);
+}
+
+int bloomFilterContains(struct BloomFilter *filter, struct LogItem* item) {
+    return bloomFilterOperate(filter, item, 0);
+}
 
 
 /* We send data to Scribe by calling the Python function clog.log_line. */
@@ -1302,4 +1317,388 @@ DL_EXPORT(void) init_namemapper(void)
 
 #ifdef __cplusplus
 }
+#endif
+
+
+
+
+/* *************************************************************************** */
+/* Tests for instrumentation code */
+/* *************************************************************************** */
+
+/* To run the tests:
+ *      gcc -DBUILD_TESTS -O2 -I/usr/lib/python2.6 -lpython2.6 _namemapper.c
+ *      ./a.out
+ * The tests have passed if you see "0 / ## assertions failed" for each
+ * section, and the test program exits successfully (without segfault or other
+ * errors).
+ * 
+ * To run the tests with valgrind:
+ *      gcc -DBUILD_TESTS -DTEST_WITH_VALGRIND -O2 -I/usr/lib/python2.6 -lpython2.6 _namemapper.c
+ *      valgrind ./a.out
+ * The tests have passed if you see "0 / ## assertions failed" for each
+ * section, and valgrind reports no errors.
+ *
+ * (The -DTEST_WITH_VALGRIND flag disables tests which call into Python, since
+ * the Python interpreter generates tons of valgrind errors.)
+ */
+
+#ifdef BUILD_TESTS
+
+#include <assert.h>
+
+#define DEFINE_COUNTERS() \
+    int asserts_passed = 0, asserts_total = 0
+
+#define CHECK_THAT(what, cond) \
+    do {\
+        printf("%-70s   ", what);\
+        if (cond) {\
+            printf("[  OK  ]\n");\
+            ++asserts_passed;\
+        } else {\
+            printf("[FAILED]\n"); \
+        }\
+        ++asserts_total;\
+    } while(0)
+
+#define SUMMARIZE() \
+    do {\
+        printf("%d / %d assertions failed\n\n",\
+                asserts_total - asserts_passed, asserts_total);\
+    } while(0)
+
+void testPlaceholderStack(void) {
+    DEFINE_COUNTERS();
+    struct PlaceholderStack stack;
+    int i;
+
+    placeholderStackInit(&stack);
+
+    CHECK_THAT("the stack starts empty",
+            placeholderStackIsEmpty(&stack));
+
+    struct PlaceholderInfo *current1 = stack.current;
+    placeholderStackPush(&stack);
+    struct PlaceholderInfo *current2 = stack.current;
+    CHECK_THAT("Push() changes the value of 'current'",
+            current1 != current2);
+
+    CHECK_THAT("Push() makes the stack nonempty",
+            !placeholderStackIsEmpty(&stack));
+
+    placeholderStackPop(&stack);
+    struct PlaceholderInfo *current3 = stack.current;
+    CHECK_THAT("Pop() after Push() restores the previous value to 'current'",
+            current1 == current3);
+
+    int failedPushCount = 0;
+    int succeededPushCount = 0;
+    for (i = 0; i < 1100; ++i) {
+        if (placeholderStackPush(&stack))
+            ++succeededPushCount;
+        else
+            ++failedPushCount;
+    }
+    CHECK_THAT("Push() succeeds at least some of the time",
+            succeededPushCount > 0);
+    CHECK_THAT("Push() indicates an error when it runs out of space",
+            failedPushCount > 0);
+
+    int failedPopCount = 0;
+    int succeededPopCount = 0;
+    for (i = 0; i < 1100; ++i) {
+        if (placeholderStackPop(&stack))
+            ++succeededPopCount;
+        else
+            ++failedPopCount;
+    }
+    CHECK_THAT("Pop() returns success once for every successful Push()",
+            succeededPopCount == succeededPushCount);
+    CHECK_THAT("Pop() indicates an error if the stack is empty",
+            failedPopCount > 0);
+    CHECK_THAT("Pop() all elements leaves the stack empty",
+            placeholderStackIsEmpty(&stack));
+
+    SUMMARIZE();
+}
+
+PyFrameObject* newMockStackFrame(const char *filename) {
+    PyFrameObject* frame = malloc(sizeof(PyFrameObject));
+    PyCodeObject* code = malloc(sizeof(PyCodeObject));
+    PyObject* string = PyString_FromString(filename);
+    code->co_filename = string;
+    frame->f_code = code;
+    return frame;
+}
+
+void deleteMockStackFrame(PyFrameObject *frame) {
+    Py_DECREF(frame->f_code->co_filename);
+    free(frame->f_code);
+    free(frame);
+}
+
+void testLogItem(void) {
+    DEFINE_COUNTERS();
+
+    const char *deployFilename = "/nail/live/versions/r201308091019-61e5d1d574-deploy-breaking-bread/templates/blank.py";
+    const char *playgroundFilename = "/nail/home/spernste/pg/yelp-main/templates/blank.py";
+    const char *buildbotFilename = "./templates/blank.py";
+    const char *badFilename = "this does not contain any template name";
+    const char *templateName = "templates/blank.py";
+
+    const char *foundTemplateName;
+    foundTemplateName = findTemplateName(deployFilename);
+    CHECK_THAT("findTemplateName works on deploy directories",
+            foundTemplateName != NULL && !strcmp(foundTemplateName, templateName));
+
+    foundTemplateName = findTemplateName(playgroundFilename);
+    CHECK_THAT("findTemplateName works on playground directories",
+            foundTemplateName != NULL && !strcmp(foundTemplateName, templateName));
+
+    foundTemplateName = findTemplateName(buildbotFilename);
+    CHECK_THAT("findTemplateName works on buildbot directories",
+            foundTemplateName != NULL && !strcmp(foundTemplateName, templateName));
+
+    foundTemplateName = findTemplateName(badFilename);
+    CHECK_THAT("findTemplateName returns null on failure",
+            foundTemplateName == NULL);
+
+
+#ifndef TEST_WITH_VALGRIND
+    struct PlaceholderInfo placeholderInfo;
+    struct LogItem logItem;
+
+    placeholderInfo.pythonStackPointer = newMockStackFrame(deployFilename);
+    placeholderInfo.placeholderID = 0x1234;
+    placeholderInfo.nameSpaceIndex = 0x56;
+    placeholderInfo.lookupCount = 0x78;
+    placeholderInfo.flags = 0x90abcdef;
+
+    memset(&logItem, 0, sizeof(logItem));
+    logItemInit(&logItem, &placeholderInfo);
+    CHECK_THAT("logItemInit hashes the template name hash correctly",
+            logItem.templateNameHash == hashString(templateName));
+    CHECK_THAT("logItemInit copies all other PlaceholderInfo fields",
+            logItem.placeholderID == 0x1234 &&
+            logItem.nameSpaceIndex == 0x56 &&
+            logItem.lookupCount == 0x78 &&
+            logItem.flags == 0x90abcdef);
+
+    deleteMockStackFrame(placeholderInfo.pythonStackPointer);
+    placeholderInfo.pythonStackPointer = newMockStackFrame(badFilename);
+
+    memset(&logItem, 0, sizeof(logItem));
+    logItemInit(&logItem, &placeholderInfo);
+    CHECK_THAT("logItemInit hashes the full filename if findTemplateName fails",
+            logItem.templateNameHash == hashString(badFilename));
+
+    deleteMockStackFrame(placeholderInfo.pythonStackPointer);
+#endif
+
+    SUMMARIZE();
+}
+
+void testLogBuffer(void) {
+    DEFINE_COUNTERS();
+
+    struct LogBuffer buffer;
+    struct LogItem item;
+    int i;
+
+    logBufferInit(&buffer);
+    CHECK_THAT("LogBuffer is initialized to be empty",
+            logBufferGetCount(&buffer) == 0 && buffer.insertAttempts == 0);
+
+    logBufferInsert(&buffer, &item);
+    CHECK_THAT("logBufferInsert increases the item count",
+            logBufferGetCount(&buffer) == 1);
+    CHECK_THAT("logBufferInsert increases insertAttempts",
+            buffer.insertAttempts == 1);
+
+    /* Reset the buffer */
+    logBufferInit(&buffer);
+
+#define TEST_LOG_BUFFER_INSERT_COUNT    50000
+    /* The item count should increase on every insert for a while, and then
+     * stop increasing past a certain point. */
+    int sawFailedInsert = 0;
+    int sawIncreaseWhenFull = 0;
+    for (i = 0; i < TEST_LOG_BUFFER_INSERT_COUNT; ++i) {
+        int oldCount = logBufferGetCount(&buffer);
+        logBufferInsert(&buffer, &item);
+        int newCount = logBufferGetCount(&buffer);
+
+        if (newCount == oldCount) {
+            sawFailedInsert = 1;
+        } else {
+            if (sawFailedInsert) {
+                sawIncreaseWhenFull = 1;
+            }
+        }
+    }
+    CHECK_THAT("logBufferInsert stops inserting once the buffer is full",
+            sawFailedInsert && !sawIncreaseWhenFull);
+    CHECK_THAT("insertAttempts continues to increase after the buffer is full",
+            buffer.insertAttempts == TEST_LOG_BUFFER_INSERT_COUNT);
+
+    SUMMARIZE();
+}
+
+int countOnesInFilter(struct BloomFilter *filter) {
+    int i;
+    uint8_t *data = (uint8_t*)&filter->data;
+    int totalCount = 0;
+    for (i = 0; i < sizeof(filter->data); ++i) {
+        uint8_t a = data[i];
+        /* Fast popcount, for explanation see
+         * https://en.wikipedia.org/wiki/Hamming_weight#Efficient_implementation
+         */
+        a = (a & 0x55) + ((a >> 1) & 0x55);
+        a = (a & 0x33) + ((a >> 2) & 0x33);
+        a = (a & 0x0f) + ((a >> 4) & 0x0f);
+        totalCount += a;
+    }
+    return totalCount;
+}
+
+int countEqual(uint32_t* hash1, uint32_t* hash2) {
+    int i;
+    int numEqual = 0;
+    for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
+        if (hash1[i] == hash2[i])
+            ++numEqual;
+    }
+    return numEqual;
+}
+
+void testBloomFilter(void) {
+    DEFINE_COUNTERS();
+
+    struct BloomFilter filter;
+    int i;
+
+    bloomFilterInit(&filter);
+    CHECK_THAT("bloomFilterInit makes the filter empty",
+            filter.itemCount == 0 && countOnesInFilter(&filter) == 0);
+
+    struct LogItem item;
+    memset(&item, 0, sizeof(item));
+    item.templateNameHash = 1;
+    item.placeholderID = 2;
+    item.nameSpaceIndex = 3;
+    item.lookupCount = 4;
+    item.flags = 5;
+
+    uint32_t oldHash[BLOOM_FILTER_HASHES];
+    uint32_t newHash[BLOOM_FILTER_HASHES];
+
+    bloomFilterHash(&item, oldHash);
+    item.templateNameHash += 100;
+    bloomFilterHash(&item, newHash);
+    CHECK_THAT("bloomFilterHash uses item.templateNameHash",
+            countEqual(oldHash, newHash) == 0);
+
+    bloomFilterHash(&item, oldHash);
+    item.placeholderID += 100;
+    bloomFilterHash(&item, newHash);
+    CHECK_THAT("bloomFilterHash uses item.placeholderID",
+            countEqual(oldHash, newHash) == 0);
+
+    bloomFilterHash(&item, oldHash);
+    item.nameSpaceIndex += 100;
+    bloomFilterHash(&item, newHash);
+    CHECK_THAT("bloomFilterHash uses item.nameSpaceIndex",
+            countEqual(oldHash, newHash) == 0);
+
+    bloomFilterHash(&item, oldHash);
+    item.lookupCount += 100;
+    bloomFilterHash(&item, newHash);
+    CHECK_THAT("bloomFilterHash uses item.lookupCount",
+            countEqual(oldHash, newHash) == 0);
+
+    bloomFilterHash(&item, oldHash);
+    item.flags += 100;
+    bloomFilterHash(&item, newHash);
+    CHECK_THAT("bloomFilterHash uses item.flags",
+            countEqual(oldHash, newHash) == 0);
+
+
+    /* (1) Insert some items, and make sure that each insert sets at most
+     * BLOOM_FILTER_NUM_HASHES bits. */
+#define TEST_BLOOM_FILTER_NUM_ITEMS 2000
+    int oldBitsSet;
+    int newBitsSet;
+    oldBitsSet = countOnesInFilter(&filter);
+    int sawTooManyBitsChange = 0;
+    int itemsInserted = 0;
+
+    memset(&item, 0, sizeof(item));
+    for (i = 0; i < TEST_BLOOM_FILTER_NUM_ITEMS; ++i) {
+        ++item.templateNameHash;
+        int wasPresent = bloomFilterContainsAndInsert(&filter, &item);
+
+        if (!wasPresent) {
+            ++itemsInserted;
+        }
+
+        newBitsSet = countOnesInFilter(&filter);
+        if ((!wasPresent && newBitsSet - oldBitsSet > BLOOM_FILTER_HASHES) ||
+                (wasPresent && newBitsSet != oldBitsSet)) {
+            sawTooManyBitsChange = 1;
+        }
+        oldBitsSet = newBitsSet;
+    }
+
+    CHECK_THAT("inserting an element updates no more than NUM_HASHES bits",
+            !sawTooManyBitsChange);
+    CHECK_THAT("Bloom filter counts insertions correctly",
+            itemsInserted == filter.itemCount);
+
+
+    /* (2) Check that all the items we inserted are detected as present. */
+    memset(&item, 0, sizeof(item));
+    int foundItems = 0;
+    for (i = 0; i < TEST_BLOOM_FILTER_NUM_ITEMS; ++i) {
+        ++item.templateNameHash;
+        if (bloomFilterContains(&filter, &item)) {
+            ++foundItems;
+        }
+    }
+
+    CHECK_THAT("all inserted items were found in the bloom filter",
+            foundItems == TEST_BLOOM_FILTER_NUM_ITEMS);
+
+
+    /* (3) Check that items we *didn't* insert are mostly not detected as
+     * present. */
+    int falsePositives = 0;
+    for (i = 0; i < TEST_BLOOM_FILTER_NUM_ITEMS; ++i) {
+        ++item.templateNameHash;
+        if (bloomFilterContains(&filter, &item)) {
+            ++falsePositives;
+        }
+    }
+
+    CHECK_THAT("Bloom filter false positive rate is less than 0.01%",
+            falsePositives <= TEST_BLOOM_FILTER_NUM_ITEMS / 10000);
+
+
+    SUMMARIZE();
+}
+
+int main() {
+#ifndef TEST_WITH_VALGRIND
+    Py_Initialize();
+#endif
+    testPlaceholderStack();
+    testLogItem();
+    testLogBuffer();
+    testBloomFilter();
+#ifndef TEST_WITH_VALGRIND
+    Py_Finalize();
+#endif
+    return 0;
+}
+
 #endif
