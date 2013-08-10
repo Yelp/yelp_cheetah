@@ -561,6 +561,11 @@ void instrumentStartRequest(void) {
     logBufferInit(&buffer);
     instrumentationEnabled = 1;
     END(Start, 1);
+
+    timerInit(&timeStart);
+    timerInit(&timePlaceholder);
+    timerInit(&timeFinish);
+    timerInit(&timeLog);
 }
 
 void instrumentFinishRequest(void) {
@@ -616,8 +621,8 @@ void instrumentFinishRequest(void) {
 
     /* Log timer results */
     char buf[256];
-    snprintf(buf, 256, "times: %lu %lu(%lu) %lu %lu",
-            TIME(Start), TIME(Placeholder), timePlaceholder.total, TIME(Finish), TIME(Log));
+    snprintf(buf, 256, "times: %lu %lu(%lu/%u) %lu %lu",
+            TIME(Start), TIME(Placeholder), timePlaceholder.total, timePlaceholder.count, TIME(Finish), TIME(Log));
 
     PyObject_CallFunction(clogMod_log_line, "ss", "tmp_namemapper_placeholder_uses", buf);
 }
@@ -1300,11 +1305,6 @@ DL_EXPORT(void) init_namemapper(void)
     Py_DECREF(clogMod);
 
     deploySHAInit();
-
-    timerInit(&timeStart);
-    timerInit(&timePlaceholder);
-    timerInit(&timeFinish);
-    timerInit(&timeLog);
 
     /* check for errors */
     if (PyErr_Occurred()) {
