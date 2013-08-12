@@ -474,6 +474,9 @@ void bloomFilterInit(struct BloomFilter *bloomFilter) {
     bloomFilter->itemCount = 0;
 }
 
+/* The primary operation on a bloom filter: check if an item is present, and
+ * optionally add it if it's not.  Having this combined operation avoids code
+ * duplication between the 'contains' and 'insert' operations. */
 int bloomFilterOperate(struct BloomFilter *filter, struct LogItem* item,
         int shouldInsert) {
     int i;
@@ -487,8 +490,9 @@ int bloomFilterOperate(struct BloomFilter *filter, struct LogItem* item,
         uint32_t index = hash[i] / BLOOM_FILTER_CHUNK_BITS;
         uint32_t offset = hash[i] % BLOOM_FILTER_CHUNK_BITS;
 
-        /* Check if the corresponding bit is set.  If not, set it and remember
-         * that this item was not initially present in the filter. */
+        /* Check if the corresponding bit is set.  If not, set it (if
+         * shouldInsert is true) and remember that this item was not initially
+         * present in the filter. */
 
         /* This can't overflow the 'data' array because bloomFilterHash
          * guarantees 0 <= hash[i] < BLOOM_FILTER_SIZE and there are
@@ -497,50 +501,50 @@ int bloomFilterOperate(struct BloomFilter *filter, struct LogItem* item,
             wasPresent = 0;
             if (shouldInsert) {
                 filter->data[index] |= (1L << offset);
+            } else {
+                break;
             }
         }
     }
 
-    if (!wasPresent) {
+    if (!wasPresent && shouldInsert) {
         ++filter->itemCount;
     }
     return wasPresent;
 }
 
-/* Check if a LogItem is present in the bloom filter, and if not, add it.  This
- * is somewhat faster than performing the two operations separately, because we
- * only need to compute the hashes once. */
+/* Check if a LogItem is present in the bloom filter, and if not, add it.
+ * Returns true if the item was present before the call, and false if it was
+ * not.  Regardless, after this function returns, the item is guaranteed to be
+ * present in the bloom filter. */
 int bloomFilterContainsAndInsert(struct BloomFilter *filter, struct LogItem* item) {
     return bloomFilterOperate(filter, item, 1);
 }
 
+/* Check if a LogItem is present in the bloom filter. */
 int bloomFilterContains(struct BloomFilter *filter, struct LogItem* item) {
     return bloomFilterOperate(filter, item, 0);
 }
 
 
-/* We send data to Scribe by calling the Python function clog.log_line. */
-static PyObject *clogMod_log_line;
-
-/* Get the deploy SHA from util.version on startup, then save it here so we can
- * include it in our log lines.*/
-#define DEPLOY_SHA_SIZE 10
-char deploySHA[DEPLOY_SHA_SIZE + 1];
-
-void deploySHAInit(void) {
-    PyObject* utilVersionMod = PyImport_ImportModule("util.version");
-    PyObject* versionSHAFunc = PyObject_GetAttrString(utilVersionMod, "version_sha");
-    PyObject* pythonDeploySHA = PyObject_CallObject(versionSHAFunc, NULL);
-
-    strncpy(deploySHA, PyString_AsString(pythonDeploySHA), sizeof(deploySHA));
-    /* strncpy does not guarantee that the destination is null-terminated, so
-     * have to make sure it is ourselves. */
-    deploySHA[sizeof(deploySHA) - 1] = '\0';
-}
-
-
 
 /*** High-level placeholder tracking functions ***/
+
+/* The placeholder tracking system has two main components:
+ *  - A stack of PlaceholderInfos for all placeholders that are currently being
+ *    evaluated.
+ *  - A buffer of LogItems we plan to write to the Scribe log.  Each LogItem
+ *    added to the buffer is checked against a bloom filter to prevent logging
+ *    duplicate items.
+ *
+ * When an instrumented request begins, both structures are cleared.  As each
+ * placeholder starts evaluation, a corresponding PlaceholderInfo is pushed onto the
+ * stack, and that PlaceholderInfo is updated as evaluation proceeds.  When
+ * evaluation is finished, the PlaceholderInfo is popped from the stack,
+ * converted to a LogItem, and added to the buffer.  At the end of the
+ * instrumented request, the contents of the buffer are logged to Scribe.
+ */
+
 
 /* The stack of placeholders we are currently evaluating. */
 struct PlaceholderStack activePlaceholders;
@@ -554,20 +558,78 @@ struct LogBuffer buffer;
 /* Flag to indicate whether we should do instrumentation. */
 int instrumentationEnabled = 0;
 
+/* We get the deploy SHA from util.version on startup, then save it here so we
+ * can include it in our log lines.*/
+#define DEPLOY_SHA_SIZE 10
+char deploySHA[DEPLOY_SHA_SIZE + 1];
+
+/* Python functions we call: */
+
+/* zlib.compress: For compressing the log data. */
+static PyObject *zlibCompress;
+
+/* base64.b64encode: For encoding the log data to ASCII. */
+static PyObject *base64Encode;
+
+/* clog.log_line: Used to perform the actual logging. */
+static PyObject *clogLogLine;
+
+
+/* Perform one-time setup for instrumentation. */
+void instrumentInit(void) {
+    /* Make sure we don't segfault if instrumented functions are called before
+     * instrumentStartRequest. */
+    placeholderStackInit(&activePlaceholders);
+    bloomFilterInit(&dedupeFilter);
+    logBufferInit(&buffer);
+
+    /* Get pointers to the necessary Python functions. */
+    PyObject *zlibMod = PyImport_ImportModule("zlib");
+    zlibCompress = PyObject_GetAttrString(zlibMod, "compress");
+    Py_DECREF(zlibMod);
+
+    PyObject *base64Mod = PyImport_ImportModule("base64");
+    base64Encode = PyObject_GetAttrString(base64Mod, "b64encode");
+    Py_DECREF(base64Mod);
+
+    PyObject *clogMod = PyImport_ImportModule("clog");
+    clogLogLine = PyObject_GetAttrString(clogMod, "log_line");
+    Py_DECREF(clogMod);
+
+    /* Get the current deploy SHA. */
+    PyObject* utilVersionMod = PyImport_ImportModule("util.version");
+    PyObject* versionSHAFunc = PyObject_GetAttrString(utilVersionMod, "version_sha");
+    PyObject* pythonDeploySHA = PyObject_CallObject(versionSHAFunc, NULL);
+
+    strncpy(deploySHA, PyString_AsString(pythonDeploySHA), sizeof(deploySHA));
+    /* strncpy does not guarantee that the destination will be null-terminated,
+     * so we have to make sure it is. */
+    deploySHA[sizeof(deploySHA) - 1] = '\0';
+
+    Py_DECREF(pythonDeploySHA);
+    Py_DECREF(versionSHAFunc);
+    Py_DECREF(utilVersionMod);
+}
+
+/* Indicate the start of an instrumented request.  This resets the main data
+ * structures and enables instrumentation of placeholder evaluations. */
 void instrumentStartRequest(void) {
+    timerInit(&timeStart);
+    timerInit(&timePlaceholder);
+    timerInit(&timeFinish);
+    timerInit(&timeLog);
+
     START(Start);
     placeholderStackInit(&activePlaceholders);
     bloomFilterInit(&dedupeFilter);
     logBufferInit(&buffer);
     instrumentationEnabled = 1;
     END(Start, 1);
-
-    timerInit(&timeStart);
-    timerInit(&timePlaceholder);
-    timerInit(&timeFinish);
-    timerInit(&timeLog);
 }
 
+/* Indicate the end of an instrumented request.  This disables instrumentation
+ * of placeholder evaluations and logs all the data collected during the
+ * request. */
 void instrumentFinishRequest(void) {
     if (!instrumentationEnabled) {
         return;
@@ -582,57 +644,60 @@ void instrumentFinishRequest(void) {
         return;
     }
 
-    PyObject *rawString = PyString_FromStringAndSize((const char*)&buffer.items,
+    /* Convert the raw placeholder data into a format we can write to scribe.
+     *
+     * Each log line has three fields, separated by spaces:
+     *  - Deploy SHA
+     *  - Number of log attempts
+     *  - The raw log contents, copied from buffer.items, then gzipped and
+     *    base64-encoded.
+     */
+    PyObject *rawLog = PyString_FromStringAndSize((const char*)&buffer.items,
             logBufferGetCount(&buffer) * sizeof(struct LogItem));
 
-    PyObject *zlibMod = PyImport_ImportModule("zlib");
-    PyObject *zlibMod_compress = PyObject_GetAttrString(zlibMod, "compress");
-
-    PyObject *gzippedString = PyObject_CallFunction(zlibMod_compress, "O", rawString);
-
-    PyObject *base64Mod = PyImport_ImportModule("base64");
-    PyObject *base64Mod_b64encode = PyObject_GetAttrString(base64Mod, "b64encode");
-
-    PyObject *base64EncodedString = PyObject_CallFunction(base64Mod_b64encode, "O", gzippedString);
+    PyObject *gzippedLog = PyObject_CallFunction(zlibCompress, "O", rawLog);
+    PyObject *base64EncodedLog = PyObject_CallFunction(base64Encode, "O", gzippedLog);
 
     PyObject *formatString = PyString_FromString("%s %d %s");
-    PyObject *formatArgs = Py_BuildValue("siO", deploySHA, buffer.insertAttempts, base64EncodedString);
+    PyObject *formatArgs = Py_BuildValue("siO", deploySHA, buffer.insertAttempts, base64EncodedLog);
 
     PyObject *formattedLine = PyString_Format(formatString, formatArgs);
 
     /* Release all objects except for formattedLine. */
-    Py_DECREF(rawString);
-    Py_DECREF(zlibMod);
-    Py_DECREF(zlibMod_compress);
-    Py_DECREF(gzippedString);
-    Py_DECREF(base64Mod);
-    Py_DECREF(base64Mod_b64encode);
-    Py_DECREF(base64EncodedString);
+    Py_DECREF(rawLog);
+    Py_DECREF(gzippedLog);
+    Py_DECREF(base64EncodedLog);
     Py_DECREF(formatString);
     Py_DECREF(formatArgs);
 
     END(Finish, 1);
     START(Log);
 
-    PyObject_CallFunction(clogMod_log_line, "sO", "tmp_namemapper_placeholder_uses", formattedLine);
+    /* Log the actual line. */
+    PyObject_CallFunction(clogLogLine, "sO", "tmp_namemapper_placeholder_uses", formattedLine);
     Py_DECREF(formattedLine);
 
     END(Log, 1);
 
     /* Log timer results */
     char buf[256];
-    snprintf(buf, 256, "times: %lu %lu(%lu/%u) %lu %lu",
-            TIME(Start), TIME(Placeholder), timePlaceholder.total, timePlaceholder.count, TIME(Finish), TIME(Log));
+    snprintf(buf, 256, "times: %lu %lu(%lu/%u) %lu %lu (%u)",
+            TIME(Start), TIME(Placeholder),
+            timePlaceholder.total, timePlaceholder.count,
+            TIME(Finish), TIME(Log), logBufferGetCount(&buffer));
 
-    PyObject_CallFunction(clogMod_log_line, "ss", "tmp_namemapper_placeholder_uses", buf);
+    PyObject_CallFunction(clogLogLine, "ss", "tmp_namemapper_placeholder_uses", buf);
 }
 
+/* Indicate the start of evaluation for the placeholder with the given ID. */
 void instrumentStartPlaceholder(int placeholderID) {
     if (!instrumentationEnabled)
         return;
 
     START(Placeholder);
 
+    /* Add a new PlaceholderInfo to the stack, or do nothing if the stack is
+     * full. */
     if (placeholderStackPush(&activePlaceholders)) {
         activePlaceholders.current->pythonStackPointer = PyEval_GetFrame();
         activePlaceholders.current->placeholderID = placeholderID;
@@ -649,9 +714,31 @@ void instrumentStartPlaceholder(int placeholderID) {
     END(Placeholder, 0);
 }
 
-/* Record the flags for a lookup step of the current placeholder. */
-void instrumentRecordLookup(int flags) {
-    if (!instrumentationEnabled)
+/* Check if the current placeholder (the top of the stack) matches the provided
+ * placeholderID and the current Python stack frame.  If this function returns
+ * true, then it is guaranteed that activePlaceholders.current contains data on
+ * the placeholder with the provided ID being evaluated in the current Python
+ * stack frame. */
+int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
+    /* We make the placeholderID argument a uint16_t (like the placeholderID
+     * field of PlaceholderInfo) because if the argument was signed, we would
+     * run into problems with negative IDs (which are used to indicate calls to
+     * Cheetah.Template.getVar / .hasVar). */
+    START(Placeholder);
+    int result =
+        instrumentationEnabled &&
+        !placeholderStackIsEmpty(&activePlaceholders) &&
+        activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
+        activePlaceholders.current->placeholderID == placeholderID;
+    END(Placeholder, 0);
+    return result;
+}
+
+/* Record the flags for a lookup step of the current placeholder.  If the
+ * provided placeholder ID doesn't match the placeholder on top of the stack,
+ * this function does nothing. */
+void instrumentRecordLookup(uint16_t placeholderID, int flags) {
+    if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
     START(Placeholder);
@@ -669,8 +756,11 @@ void instrumentRecordLookup(int flags) {
     END(Placeholder, 0);
 }
 
-void instrumentRecordNameSpaceIndex(int nameSpaceIndex) {
-    if (!instrumentationEnabled)
+/* Record the namespace index for the first lookup step of the current
+ * placeholder.  If the provided placeholder ID doesn't match the current
+ * the placeholder on stack, this function does nothing. */
+void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) {
+    if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
     START(Placeholder);
@@ -680,55 +770,41 @@ void instrumentRecordNameSpaceIndex(int nameSpaceIndex) {
     END(Placeholder, 0);
 }
 
-/* Check if the current placeholder matches the provided placeholderID and the
- * current PyFrameObject. */
-int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
-    /* We make the placeholderID argument a uint16_t (like the placeholderID
-     * field of PlaceholderInfo) because if the argument was signed, we would
-     * run into problems with negative IDs (which are used to indicate calls to
-     * Cheetah.Template.getVar / .hasVar). */
-    START(Placeholder);
-    int result =
-        instrumentationEnabled &&
-        !placeholderStackIsEmpty(&activePlaceholders) &&
-        activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
-        activePlaceholders.current->placeholderID == placeholderID;
-    END(Placeholder, 0);
-    return result;
-}
-
 #define FP_SUCCESS  1
 #define FP_ERROR    0
 
+/* Indicate the end of evaluation of the placeholder with the given ID.  The
+ * 'status' argument is one of FP_SUCCESS or FP_ERROR, indicating that the
+ * placeholder evaluation succeeded or aborted due to an error.  The
+ * PlaceholderInfo for the current placeholder is converted to a LogItem and
+ * stored in the LogBuffer, and then popped from the stack.  If the provided
+ * placeholder ID doesn't match the current the placeholder on stack, this
+ * function does nothing. */
 void instrumentFinishPlaceholder(int placeholderID, int status) {
-    if (!instrumentationEnabled)
+    if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
     START(Placeholder);
 
-    if (instrumentCurrentPlaceholderMatches(placeholderID)) {
-        if (status != FP_SUCCESS) {
-            activePlaceholders.current->lookupCount |= 0x80;
-        }
-
-        struct LogItem item;
-        logItemInit(&item, activePlaceholders.current);
-
-        if (!bloomFilterContainsAndInsert(&dedupeFilter, &item)) {
-            /* The item was not already present. */
-            logBufferInsert(&buffer, &item);
-
-            if (dedupeFilter.itemCount > BLOOM_FILTER_MAX_ITEMS) {
-                /* Clear out the filter once it hits MAX_ITEMS, to avoid
-                 * increasing the false positive rate. */
-                bloomFilterInit(&dedupeFilter);
-            }
-        }
-
-        placeholderStackPop(&activePlaceholders);
-    } else {
-        // TODO: warn
+    if (status != FP_SUCCESS) {
+        activePlaceholders.current->lookupCount |= 0x80;
     }
+
+    struct LogItem item;
+    logItemInit(&item, activePlaceholders.current);
+
+    if (!bloomFilterContainsAndInsert(&dedupeFilter, &item)) {
+        /* The item was not already present. */
+        logBufferInsert(&buffer, &item);
+
+        if (dedupeFilter.itemCount > BLOOM_FILTER_MAX_ITEMS) {
+            /* Clear out the filter once it hits MAX_ITEMS, to avoid
+             * increasing the false positive rate. */
+            bloomFilterInit(&dedupeFilter);
+        }
+    }
+
+    placeholderStackPop(&activePlaceholders);
 
     END(Placeholder, 1);
 }
@@ -879,16 +955,6 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
     PyObject *currentVal = NULL;
     PyObject *nextVal = NULL;
 
-    /* A placeholder evaluation should always start with a valueFromX call
-     * (typically valueFromFrameOrSearchList), not valueForName, and it should
-     * end with flushPlaceholderInfo.  If we see a valueForName for a
-     * placeholder that's not the current stack top, there's a bug somewhere.
-     */
-    placeholderIsCurrent = instrumentCurrentPlaceholderMatches(placeholderID);
-    if (!placeholderIsCurrent) {
-        // TODO: warn
-    }
-
     currentVal = obj;
     for (i=0; i < numChunks;i++) {
         currentKey = nameChunks[i];
@@ -947,8 +1013,7 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
             currentVal = nextVal;
         }
 
-        if (placeholderIsCurrent)
-            instrumentRecordLookup(currentFlags);
+        instrumentRecordLookup(placeholderID, currentFlags);
     }
 
     return currentVal;
@@ -1293,18 +1358,7 @@ DL_EXPORT(void) init_namemapper(void)
     pprintMod_pformat = PyObject_GetAttrString(pprintMod, "pformat");
     Py_DECREF(pprintMod);
 
-    PyObject* clogMod = PyImport_ImportModule("clog");
-    if (!clogMod) {
-#ifdef IS_PYTHON3
-        return NULL;
-#else
-        return;
-#endif
-    }
-    clogMod_log_line = PyObject_GetAttrString(clogMod, "log_line");
-    Py_DECREF(clogMod);
-
-    deploySHAInit();
+    instrumentInit();
 
     /* check for errors */
     if (PyErr_Occurred()) {
