@@ -577,12 +577,25 @@ static PyObject *base64Encode = NULL;
 /* clog.log_line: Used to perform the actual logging. */
 static PyObject *clogLogLine = NULL;
 
+#define INSTR_NOT_INITED    0
+#define INSTR_INITED        1
+#define INSTR_INIT_FAILED   2
+static int instrumentInitState = INSTR_NOT_INITED;
 
-/* Perform one-time setup for instrumentation. */
+/* Perform one-time setup for instrumentation.  Returns 1 on success and 0 on
+ * failure.  After the first call, subsequent calls will return the same value
+ * without trying to re-initialize. */
 
 int instrumentInitPythonObjects(void);
 
 int instrumentInit(void) {
+    /* If initialization has already been attempted, don't try it again. */
+    if (instrumentInitState == INSTR_INITED) {
+        return 1;
+    } else if (instrumentInitState == INSTR_INIT_FAILED) {
+        return 0;
+    }
+
     /* Make sure we don't segfault if instrumented functions are called before
      * instrumentStartRequest. */
     placeholderStackInit(&activePlaceholders);
@@ -604,15 +617,18 @@ int instrumentInit(void) {
 
         Py_XDECREF(clogLogLine);
         clogLogLine = NULL;
-    }
 
-    return result;
+        instrumentInitState = INSTR_INIT_FAILED;
+        return 0;
+    } else {
+        instrumentInitState = INSTR_INITED;
+        return 1;
+    }
 }
 
 /* Get pointers to the necessary Python functions.  This is only separate from
  * instrumentInit because it makes the error handling less horrible. */
 int instrumentInitPythonObjects(void) {
-
     /* Ugh.  Using return codes to indicate errors makes me sad :(
      *
      * The general strategy here is to have as few live Python objects as
@@ -681,12 +697,24 @@ int instrumentInitPythonObjects(void) {
 /* Indicate the start of an instrumented request.  This resets the main data
  * structures and enables instrumentation of placeholder evaluations. */
 void instrumentStartRequest(void) {
+
     timerInit(&timeStart);
     timerInit(&timePlaceholder);
     timerInit(&timeFinish);
     timerInit(&timeLog);
 
     START(Start);
+
+    /* We defer initialization until the start of the first instrumented
+     * request.  The benefit of this is that we can still use the instrumented
+     * namemapper without having access to the instrumentation dependencies
+     * (particularly 'util.version'), as long as there are no calls to
+     * '_namemapper.startLogging()'.  The downside is that we won't see any
+     * namemapper initialization errors until the first instrumented request
+     * happens. */
+    if (!instrumentInit())
+        return;
+
     placeholderStackInit(&activePlaceholders);
     bloomFilterInit(&dedupeFilter);
     logBufferInit(&buffer);
@@ -1426,8 +1454,6 @@ DL_EXPORT(void) init_namemapper(void)
     }
     pprintMod_pformat = PyObject_GetAttrString(pprintMod, "pformat");
     Py_DECREF(pprintMod);
-
-    instrumentInit();
 
     /* check for errors */
     if (PyErr_Occurred()) {
