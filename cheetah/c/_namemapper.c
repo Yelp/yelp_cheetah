@@ -563,52 +563,119 @@ int instrumentationEnabled = 0;
 #define DEPLOY_SHA_SIZE 10
 char deploySHA[DEPLOY_SHA_SIZE + 1];
 
-/* Python functions we call: */
+/* Python functions we call.
+ *
+ * These need to be initialized to NULL, or else the instrumentInit error
+ * handling code would be even *more* ugly. */
 
 /* zlib.compress: For compressing the log data. */
-static PyObject *zlibCompress;
+static PyObject *zlibCompress = NULL;
 
 /* base64.b64encode: For encoding the log data to ASCII. */
-static PyObject *base64Encode;
+static PyObject *base64Encode = NULL;
 
 /* clog.log_line: Used to perform the actual logging. */
-static PyObject *clogLogLine;
+static PyObject *clogLogLine = NULL;
 
 
 /* Perform one-time setup for instrumentation. */
-void instrumentInit(void) {
+
+int instrumentInitPythonObjects(void);
+
+int instrumentInit(void) {
     /* Make sure we don't segfault if instrumented functions are called before
      * instrumentStartRequest. */
     placeholderStackInit(&activePlaceholders);
     bloomFilterInit(&dedupeFilter);
     logBufferInit(&buffer);
+    instrumentationEnabled = 0;
 
-    /* Get pointers to the necessary Python functions. */
+    int result = instrumentInitPythonObjects();
+
+    if (result == 0) {
+        /* Clean up any object references that were successfully obtained
+         * before the error occurred.  (XDECREF is like DECREF but does nothing
+         * if the argument is NULL.)*/
+        Py_XDECREF(zlibCompress);
+        zlibCompress = NULL;
+
+        Py_XDECREF(base64Encode);
+        base64Encode = NULL;
+
+        Py_XDECREF(clogLogLine);
+        clogLogLine = NULL;
+    }
+
+    return result;
+}
+
+/* Get pointers to the necessary Python functions.  This is only separate from
+ * instrumentInit because it makes the error handling less horrible. */
+int instrumentInitPythonObjects(void) {
+
+    /* Ugh.  Using return codes to indicate errors makes me sad :(
+     *
+     * The general strategy here is to have as few live Python objects as
+     * possible, so we don't have to do as much cleanup in the error cases.
+     * Note that cleanup of globals is handled by the main instrumentInit
+     * function, so we don't need to clean up any of the globals (zlibCompress,
+     * etc.).  For everything else, we Py_DECREF things the very moment we're
+     * done with them, before even checking for errors that arose during their
+     * use.  (For example, we DECREF(zlibMod) before we check whether
+     * GetAttrString(zlibMod, ...) succeeded.)  This looks a bit strange but is
+     * perfectly safe. */
+
     PyObject *zlibMod = PyImport_ImportModule("zlib");
+    if (zlibMod == NULL)
+        return 0;
+
     zlibCompress = PyObject_GetAttrString(zlibMod, "compress");
     Py_DECREF(zlibMod);
+    if (zlibCompress == NULL)
+        return 0;
+
 
     PyObject *base64Mod = PyImport_ImportModule("base64");
+    if (base64Mod == NULL)
+        return 0;
+
     base64Encode = PyObject_GetAttrString(base64Mod, "b64encode");
     Py_DECREF(base64Mod);
+    if (base64Encode == NULL)
+        return 0;
+
 
     PyObject *clogMod = PyImport_ImportModule("clog");
+    if (clogMod == NULL)
+        return  0;
+
     clogLogLine = PyObject_GetAttrString(clogMod, "log_line");
     Py_DECREF(clogMod);
+    if (clogLogLine == NULL)
+        return 0;
 
     /* Get the current deploy SHA. */
     PyObject* utilVersionMod = PyImport_ImportModule("util.version");
+    if (utilVersionMod == NULL)
+        return 0;
+
     PyObject* versionSHAFunc = PyObject_GetAttrString(utilVersionMod, "version_sha");
+    Py_DECREF(utilVersionMod);
+    if (versionSHAFunc == NULL)
+        return 0;
+
     PyObject* pythonDeploySHA = PyObject_CallObject(versionSHAFunc, NULL);
+    Py_DECREF(versionSHAFunc);
+    if (pythonDeploySHA == NULL)
+        return 0;
 
     strncpy(deploySHA, PyString_AsString(pythonDeploySHA), sizeof(deploySHA));
     /* strncpy does not guarantee that the destination will be null-terminated,
      * so we have to make sure it is. */
     deploySHA[sizeof(deploySHA) - 1] = '\0';
-
     Py_DECREF(pythonDeploySHA);
-    Py_DECREF(versionSHAFunc);
-    Py_DECREF(utilVersionMod);
+
+    return 1;
 }
 
 /* Indicate the start of an instrumented request.  This resets the main data
@@ -655,6 +722,7 @@ void instrumentFinishRequest(void) {
     PyObject *rawLog = PyString_FromStringAndSize((const char*)&buffer.items,
             logBufferGetCount(&buffer) * sizeof(struct LogItem));
 
+    /* TODO: error checking */
     PyObject *gzippedLog = PyObject_CallFunction(zlibCompress, "O", rawLog);
     PyObject *base64EncodedLog = PyObject_CallFunction(base64Encode, "O", gzippedLog);
 
@@ -686,7 +754,7 @@ void instrumentFinishRequest(void) {
             timePlaceholder.total, timePlaceholder.count,
             TIME(Finish), TIME(Log), logBufferGetCount(&buffer));
 
-    PyObject_CallFunction(clogLogLine, "ss", "tmp_namemapper_placeholder_uses", buf);
+    //PyObject_CallFunction(clogLogLine, "ss", "tmp_namemapper_placeholder_uses", buf);
 }
 
 /* Indicate the start of evaluation for the placeholder with the given ID. */
@@ -770,6 +838,7 @@ void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) 
     END(Placeholder, 0);
 }
 
+/* Constants to indicate success or failure of a placeholder evaluation. */
 #define FP_SUCCESS  1
 #define FP_ERROR    0
 
@@ -1381,14 +1450,14 @@ DL_EXPORT(void) init_namemapper(void)
 /* *************************************************************************** */
 
 /* To run the tests:
- *      gcc -DBUILD_TESTS -O2 -I/usr/lib/python2.6 -lpython2.6 _namemapper.c
+ *      gcc -DBUILD_TESTS -O2 -I/usr/include/python2.6 -lpython2.6 _namemapper.c
  *      ./a.out
  * The tests have passed if you see "0 / ## assertions failed" for each
  * section, and the test program exits successfully (without segfault or other
  * errors).
  * 
  * To run the tests with valgrind:
- *      gcc -DBUILD_TESTS -DTEST_WITH_VALGRIND -O2 -I/usr/lib/python2.6 -lpython2.6 _namemapper.c
+ *      gcc -DBUILD_TESTS -DTEST_WITH_VALGRIND -O2 -I/usr/include/python2.6 -lpython2.6 _namemapper.c
  *      valgrind ./a.out
  * The tests have passed if you see "0 / ## assertions failed" for each
  * section, and valgrind reports no errors.
@@ -1397,6 +1466,7 @@ DL_EXPORT(void) init_namemapper(void)
  * the Python interpreter generates tons of valgrind errors.)
  */
 
+#define BUILD_TESTS
 #ifdef BUILD_TESTS
 
 #include <assert.h>
@@ -1741,6 +1811,172 @@ void testBloomFilter(void) {
     SUMMARIZE();
 }
 
+
+static int mockLogLineLength = 0;
+static uint32_t mockLogLineHash = 0;
+
+static PyObject *mockLog(PyObject *self, PyObject *args) {
+    const char *logName;
+    const char *line;
+
+    if (!PyArg_ParseTuple(args, "ss#", &logName, &line, &mockLogLineLength)) {
+        return NULL;
+    }
+
+    mockLogLineHash = hashString(line);
+
+    return Py_None;
+}
+
+static struct PyMethodDef mockLogMethodDef = {
+    "mockLog", (PyCFunction)mockLog, METH_VARARGS
+};
+
+void testInstrumentation(void) {
+#ifndef TEST_WITH_VALGRIND
+    DEFINE_COUNTERS();
+    int i;
+
+    if (!instrumentInit()) {
+        if (PyErr_Occurred())
+            PyErr_PrintEx(0);
+        printf("Error occurred during instrumentInit\n");
+        return;
+    }
+
+    /* Replace the instrumentation code's reference to clog.log_line with a
+     * reference to mockLog. */
+    clogLogLine = PyCFunction_New(&mockLogMethodDef, NULL);
+
+
+    /* Run a fake placeholder evaluation before instrumentStartRequest and make
+     * sure it doesn't crash. */
+    instrumentStartPlaceholder(42);
+    instrumentCurrentPlaceholderMatches(42);
+    instrumentRecordNameSpaceIndex(42, 3);
+    instrumentRecordLookup(42, DID_AUTOCALL);
+    instrumentFinishPlaceholder(42, FP_SUCCESS);
+    CHECK_THAT("placeholder evaluation before first StartRequest didn't crash",
+            1);
+
+
+    /* Test instrumentCurrentPlaceholderMatches */
+    instrumentStartRequest();
+
+    instrumentStartPlaceholder(42);
+    CHECK_THAT("CurrentPlaceholderMatches same ID immediately after Start",
+            instrumentCurrentPlaceholderMatches(42));
+
+    instrumentStartPlaceholder(99);
+    CHECK_THAT("only new ID matches after starting nested evaluation",
+            instrumentCurrentPlaceholderMatches(99) &&
+            !instrumentCurrentPlaceholderMatches(42));
+
+    instrumentFinishPlaceholder(42, FP_SUCCESS);
+    CHECK_THAT("FinishPlaceholder with wrong ID is ignored",
+            instrumentCurrentPlaceholderMatches(99) &&
+            !instrumentCurrentPlaceholderMatches(42));
+
+    instrumentFinishPlaceholder(99, FP_SUCCESS);
+    CHECK_THAT("only old ID matches after finishing nested evaluation",
+            instrumentCurrentPlaceholderMatches(42) &&
+            !instrumentCurrentPlaceholderMatches(99));
+
+    instrumentFinishPlaceholder(42, FP_SUCCESS);
+    CHECK_THAT("no IDs match after finishing outer evaluations",
+            !instrumentCurrentPlaceholderMatches(42) &&
+            !instrumentCurrentPlaceholderMatches(99));
+
+    instrumentFinishRequest();
+
+
+    /* Start a request, evaluate a placeholder, and log the request. */
+    instrumentStartRequest();
+
+    instrumentStartPlaceholder(42);
+    instrumentRecordNameSpaceIndex(42, 3);
+    instrumentRecordLookup(42, DID_AUTOCALL);
+    instrumentFinishPlaceholder(42, FP_SUCCESS);
+
+    mockLogLineLength = -1;
+    instrumentFinishRequest();
+    int simpleLineLength = mockLogLineLength;
+    uint32_t simpleLineHash = mockLogLineHash;
+    CHECK_THAT("simple placeholder evaluation was logged",
+            simpleLineLength > 0);
+
+
+    /* Same as before, but add a bunch of calls for non-matching placeholders
+     * and make sure they're ignored. */
+    instrumentStartRequest();
+
+    instrumentStartPlaceholder(42);
+    instrumentRecordNameSpaceIndex(42, 3);
+    instrumentRecordNameSpaceIndex(99, 7);
+    instrumentRecordLookup(42, DID_AUTOCALL);
+    instrumentRecordLookup(99, DID_AUTOKEY);
+    instrumentFinishPlaceholder(42, FP_SUCCESS);
+
+    mockLogLineLength = -1;
+    instrumentFinishRequest();
+    uint32_t nonMatchingLineHash = mockLogLineHash;
+    CHECK_THAT("instrumentation data for non-matching placeholders is ignored",
+            nonMatchingLineHash == simpleLineHash);
+
+
+    /* Start a request then end it without evaluating any placeholders.  Should
+     * log nothing at all. */
+    instrumentStartRequest();
+
+    mockLogLineLength = -1;
+    instrumentFinishRequest();
+    CHECK_THAT("request with no placeholders logs nothing",
+            mockLogLineLength == -1);
+
+
+    /* Start a request, evaluate the same placeholder several times, and log
+     * the request.  Should produce identical results to the simple case. */
+    instrumentStartRequest();
+
+    for (i = 0; i < 5; ++i) {
+        instrumentStartPlaceholder(42);
+        instrumentRecordNameSpaceIndex(42, 3);
+        instrumentRecordLookup(42, DID_AUTOCALL);
+        instrumentFinishPlaceholder(42, FP_SUCCESS);
+    }
+
+    mockLogLineLength = -1;
+    instrumentFinishRequest();
+    uint32_t duplicateLineHash = mockLogLineHash;
+    CHECK_THAT("duplicate log entries are discarded",
+            duplicateLineHash == simpleLineHash);
+
+
+    SUMMARIZE();
+#endif
+}
+
+/* This horrible mess is necessary to run testInstrumentation with an active
+ * stack frame in the Python interpreter. */
+
+/* Wrapper around testInstrumentation that can be called from Python. */
+static PyObject *pythonTestInstrumentation(PyObject *self, PyObject *args) {
+    testInstrumentation();
+    return Py_None;
+}
+
+static struct PyMethodDef pythonTestInstrumentationMethodDef = {
+    "pythonTestInstrumentation", (PyCFunction)pythonTestInstrumentation, METH_VARARGS
+};
+
+void runTestInstrumentation() {
+    PyObject* testInstrumentationObject = PyCFunction_New(&pythonTestInstrumentationMethodDef, NULL);
+    PyObject* locals = Py_BuildValue("{s:O}", "run", testInstrumentationObject);
+    PyObject* globals = Py_BuildValue("{s:O}", "__builtins__", PyImport_ImportModule("__builtin__"));
+
+    PyRun_String("run()", Py_file_input, globals, locals);
+}
+
 int main() {
 #ifndef TEST_WITH_VALGRIND
     Py_Initialize();
@@ -1749,9 +1985,7 @@ int main() {
     testLogItem();
     testLogBuffer();
     testBloomFilter();
-#ifndef TEST_WITH_VALGRIND
-    Py_Finalize();
-#endif
+    runTestInstrumentation();
     return 0;
 }
 
