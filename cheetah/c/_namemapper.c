@@ -1978,6 +1978,38 @@ void testInstrumentation(void) {
             duplicateLineHash == simpleLineHash);
 
 
+    /* Run a request that overflows the placeholder stack. */
+    instrumentStartRequest();
+
+    for (i = 0; i < 1000; ++i) {
+        instrumentStartPlaceholder(i);
+        instrumentRecordNameSpaceIndex(i, 3);
+        instrumentRecordLookup(i, DID_AUTOCALL);
+    }
+    for (i = 999; i >= 0; --i) {
+        instrumentFinishPlaceholder(i, FP_SUCCESS);
+    }
+
+    instrumentFinishRequest();
+    CHECK_THAT("placeholder stack overflow doesn't cause a crash",
+            1);
+
+
+    /* Run a request that overflows the log buffer. */
+    instrumentStartRequest();
+
+    for (i = 0; i < 100000; ++i) {
+        instrumentStartPlaceholder(i);
+        instrumentRecordNameSpaceIndex(i, 3);
+        instrumentRecordLookup(i, DID_AUTOCALL);
+        instrumentFinishPlaceholder(i, FP_SUCCESS);
+    }
+
+    instrumentFinishRequest();
+    CHECK_THAT("log buffer overflow doesn't cause a crash",
+            1);
+
+
     SUMMARIZE();
 #endif
 }
