@@ -733,6 +733,7 @@ void instrumentLogPlaceholder(int result) {
         }
     }
 
+    Py_DECREF(activePlaceholders.current->pythonStackPointer);
     placeholderStackPop(&activePlaceholders);
     COUNT(Placeholder);
 }
@@ -1016,6 +1017,12 @@ void instrumentStartPlaceholder(int placeholderID) {
      * full. */
     if (placeholderStackPush(&activePlaceholders)) {
         activePlaceholders.current->pythonStackPointer = PyEval_GetFrame();
+        /* Make sure the Python stack frame doesn't get deallocated, which also
+         * ensure its address does not get reused.  The corresponding DECREF is
+         * in instrumentLogPlaceholder, which also contains the
+         * placeholderStackPop corresponding to our placeholderStackPush. */
+        Py_INCREF(activePlaceholders.current->pythonStackPointer);
+
         activePlaceholders.current->placeholderID = placeholderID;
 
         /* The namespace index will be set to a more appropriate value once we
@@ -1347,11 +1354,11 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
 
         if (executeCallables && PyCallable_Check(nextVal) && 
                 (isInstanceOrClass(nextVal) == 0) ) {
+            currentFlags |= DID_AUTOCALL;
             if (!(currentVal = PyObject_CallObject(nextVal, NULL))) {
                 Py_DECREF(nextVal);
                 return NULL;
             }
-            currentFlags |= DID_AUTOCALL;
             Py_DECREF(nextVal);
         } else {
             currentVal = nextVal;
