@@ -209,6 +209,13 @@ int placeholderStackIsEmpty(struct PlaceholderStack *stack) {
     return (stack->current == &stack->items[PLACEHOLDER_STACK_SIZE]);
 }
 
+/* Get a pointer to the bottommost element on the stack.  The result points to
+ * a valid PlaceholderInfo only if the stack is non-empty (or equivalently,
+ * only if GetBottom(&stack) >= stack.current). */
+struct PlaceholderInfo* placeholderStackGetBottom(struct PlaceholderStack *stack) {
+    return &stack->items[PLACEHOLDER_STACK_SIZE - 1];
+}
+
 
 
 /*** Placeholder Logging ***/
@@ -670,6 +677,7 @@ int instrumentInitPythonObjects(void) {
     if (clogLogLine == NULL)
         return 0;
 
+
     /* Get the current deploy SHA. */
     PyObject* utilVersionMod = PyImport_ImportModule("util.version");
     if (utilVersionMod == NULL)
@@ -692,6 +700,41 @@ int instrumentInitPythonObjects(void) {
     Py_DECREF(pythonDeploySHA);
 
     return 1;
+}
+
+/* Prototype for instrumentLogPlaceholder, since it's used in several places. */
+void instrumentLogPlaceholder(int result);
+
+/* Constants to indicate success or failure of a placeholder evaluation, for
+ * use with instrumentLogPlaceholder. */
+#define EVAL_SUCCESS    1
+#define EVAL_FAILURE    0
+
+/* Pop the topmost PlaceholderInfo from the activePlaceholders stack, and log a
+ * corresponding LogItem to the buffer.  'result' should be EVAL_SUCCESS or
+ * EVAL_FAILURE, to indicate whether the placeholder evaluation succeeded or
+ * failed with an exception. */
+void instrumentLogPlaceholder(int result) {
+    if (result != EVAL_SUCCESS) {
+        activePlaceholders.current->lookupCount |= 0x80;
+    }
+
+    struct LogItem item;
+    logItemInit(&item, activePlaceholders.current);
+
+    if (!bloomFilterContainsAndInsert(&dedupeFilter, &item)) {
+        /* The item was not already present. */
+        logBufferInsert(&buffer, &item);
+
+        if (dedupeFilter.itemCount > BLOOM_FILTER_MAX_ITEMS) {
+            /* Clear out the filter once it hits MAX_ITEMS, to avoid
+             * increasing the false positive rate. */
+            bloomFilterInit(&dedupeFilter);
+        }
+    }
+
+    placeholderStackPop(&activePlaceholders);
+    COUNT(Placeholder);
 }
 
 /* Indicate the start of an instrumented request.  This resets the main data
@@ -731,6 +774,12 @@ void instrumentFinishRequest(void) {
     }
 
     START(Finish);
+
+    /* Anything left on the stack as of the end of the request is assumed to
+     * have failed during evaluation. */
+    while (!placeholderStackIsEmpty(&activePlaceholders)) {
+        instrumentLogPlaceholder(EVAL_FAILURE);
+    }
 
     instrumentationEnabled = 0;
 
@@ -782,8 +831,174 @@ void instrumentFinishRequest(void) {
             timePlaceholder.total, timePlaceholder.count,
             TIME(Finish), TIME(Log), logBufferGetCount(&buffer));
 
-    //PyObject_CallFunction(clogLogLine, "ss", "tmp_namemapper_placeholder_uses", buf);
+    PyObject_CallFunction(clogLogLine, "ss", "tmp_namemapper_placeholder_uses", buf);
 }
+
+
+/* Helper functions for dealing with exceptions
+ *
+ * It turns out dealing with exceptions is rather complicated.  Here are two
+ * interesting examples:
+ *
+ *      #def f
+ *          #try
+ *              $x[0].y     ## throws an exception from the __getitem__ call
+ *          #except
+ *              ## pass
+ *          #end try
+ *      #end def
+ *
+ *      $z[f()].w
+ *
+ * Here we have the following events (with parentheses indicating events that
+ * we can't observe directly):
+ *  - Evaluate "$z" for "$z[...].w"
+ *  - (Call f() without using the namemapper)
+ *  - Evaluate "$x" for "$x[0].y"
+ *  - (An exception is thrown, then caught.  f returns.)
+ *  - Evaluate ".w" for "$z[...].w"
+ * We are actually done evaluating "$x[0].y", but we did not see any event to
+ * indicate that.  We have to figure it out by looking at the stack during the
+ * next observable event (the evaluation of ".w").  We handle this in
+ * instrumentCurrentPlaceholderMatches: if the top placeholder of the stack
+ * does not match at first, we check for exceptions, clean up the stack, and
+ * examine the top placeholder again.  (We "clean up the stack" by logging an
+ * evaluation failure for any PlaceholderInfo whose pythonStackPointer points
+ * to a Python stack frame that is no longer part of the current Python stack.)
+ *
+ *
+ *      #def f
+ *          #try
+ *              $x[0].y     ## throws an exception from the __getitem__ call
+ *          #except
+ *              ## pass
+ *          #end try
+ *      #end def
+ *
+ *      $f()
+ *      $z
+ *
+ * In this example, we have the following events:
+ *  - Evaluate "$f".  (Call f().)
+ *  - Evaluate "$x" for "$x[0].y"
+ *  - (An exception is thrown, then caught.  f returns.)
+ *  - Evaluate "$z"
+ * There is no call to CurrentPlaceholderMatches because "$z" just pushes a new
+ * PlaceholderInfo instead of modifying an existing one.  To detect cases like
+ * this, we check in StartPlaceholder if the pythonStackPointer for the
+ * PlaceholderInfo on top of the stack is part of the current Python stack.  If
+ * it is not, then that Python stack frame has returned, and any placeholder in
+ * that stack frame has died with an evaluation error.  (We use the normal
+ * stack cleanup to handle this.)
+ *
+ *
+ *      #try
+ *          $x[0].y     ## throws an exception from the __getitem__ call
+ *      #except
+ *          ## pass
+ *      #end try
+ *      $z
+ *
+ * This is similar to the previous example, but slightly more complicated.  We
+ * have the following events:
+ *  - Evaluate "$x" for "$x[0].y"
+ *  - (An exception is thrown, then caught.)
+ *  - Evaluate "$z"
+ * Now there is no call to CurrentPlaceholderMatches, and the check in
+ * StartPlaceholder will find that the pythonStackPointer of the topmost item
+ * ("$x[0].y") is still live (since "$x[0].y" and "$z" are in the same
+ * function).  In fact, we have no effective method of distinguishing this case
+ * from "$x[$z].y", which triggers the events 'evaluate "$x"', 'evaluate "$z"',
+ * and 'evaluate ".y"'.
+ *
+ * We handle this by leaving the failed "$x[0].y" on the stack for now.  Once
+ * the function containing "$x[0].y" and "$z" returns, the same checks that
+ * handle the previous two cases will notice that "$x[0].y" has failed and will
+ * clean up its entry in the stack.  The only potential issue to worry about
+ * is that the entire template rendering process might end after "$z" without
+ * evaluating any more placeholders.  We handle this by logging everything left
+ * on the stack at the time of FinishRequest() as having failed during
+ * evaluation.
+ *
+ *
+ * So our exception handling strategy has three parts:
+ *  - During StartPlaceholder, if the top of the stack has a pythonStackFrame
+ *    that points to a frame that has returned (is not live), run stack
+ *    cleanup.  (Stack cleanup finds any items on the activePlaceholders stack
+ *    whose pythonStackPointers point to Python stack frames that have
+ *    returned, and logs each one as a failed evaluation.)
+ *  - In CurrentPlaceholderMatches, if the top of the stack does not match the
+ *    provided information, run stack cleanup (and check again).
+ *  - In FinishRequest, assume all remaining PlaceholderInfos on the stack have
+ *    failed evaluation, and log them all accordingly.
+ */
+
+
+/* Check if a Python stack frame is live.  Returns 1 if it is still live (part
+ * of the Python callstack whose top is 'currentFrame'), and 0 if it is not
+ * (due to returning or raising an exception).  This is optimized with the
+ * expectation that most calls will return 'true'. */
+int isStackFrameLive(PyFrameObject *targetFrame, PyFrameObject *currentFrame) {
+    while (currentFrame != targetFrame && currentFrame != NULL) {
+        currentFrame = currentFrame->f_back;
+    }
+
+    return (currentFrame == targetFrame);
+}
+
+/* Search a stack of PlaceholderInfos for the last one whose pythonStackPointer
+ * points to a non-live Python frame. */
+struct PlaceholderInfo* findLastDead(PyFrameObject *frame,
+        struct PlaceholderInfo *placeholderBegin, struct PlaceholderInfo *placeholderEnd) {
+    struct PlaceholderInfo* lastDead;
+
+    /* Recursively descend the Python callstack until we run out of callstack
+     * or we find placeholderEnd->pythonStackPointer. */
+
+    /* If we ran out of Python stack, we're done.  For the way back up, start
+     * by assuming every PlaceholderInfo in the list has a dead stack frame. */
+    if (frame == NULL)
+        return placeholderEnd;
+
+    /* If 'frame' is the stack frame for placeholderEnd, then we can stop
+     * walking the Python stack early. */
+    if (placeholderEnd >= placeholderBegin && frame == placeholderEnd->pythonStackPointer) {
+        lastDead = placeholderEnd - 1;
+    } else {
+        /* Continue descending the Python callstack. */
+        lastDead = findLastDead(frame->f_back, placeholderBegin, placeholderEnd);
+    }
+
+    /* As we head back up the callstack, move 'lastDead' backward (to higher
+     * PlaceholderStack items) as long as its pythonStackPointer points to a
+     * live frame. */
+
+    /* If the current 'frame' is the stack frame for 'lastDead', then
+     * 'lastDead' actually points to a PlaceholderInfo with a live stack frame.
+     * Adjust 'lastDead' until that's no longer the case.  (This is a loop
+     * because there may be multiple placeholders with the same frame.) */
+    while (lastDead >= placeholderBegin && frame == lastDead->pythonStackPointer)
+        --lastDead;
+
+    return lastDead;
+}
+
+/* Remove all PlaceholderInfos with non-live Python stack frames from the top
+ * of the activePlaceholders stack.  We log all such placeholders as
+ * EVAL_FAILURE, since we know control can never reach a corresponding FLUSH
+ * call. */
+void cleanupStack(void) {
+    if (placeholderStackIsEmpty(&activePlaceholders))
+        return;
+
+    struct PlaceholderInfo *lastDead = findLastDead(PyEval_GetFrame(),
+            activePlaceholders.current, placeholderStackGetBottom(&activePlaceholders));
+
+    while (activePlaceholders.current <= lastDead) {
+        instrumentLogPlaceholder(EVAL_FAILURE);
+    }
+}
+
 
 /* Indicate the start of evaluation for the placeholder with the given ID. */
 void instrumentStartPlaceholder(int placeholderID) {
@@ -791,6 +1006,11 @@ void instrumentStartPlaceholder(int placeholderID) {
         return;
 
     START(Placeholder);
+
+    if (!placeholderStackIsEmpty(&activePlaceholders) &&
+            !isStackFrameLive(activePlaceholders.current->pythonStackPointer, PyEval_GetFrame())) {
+        cleanupStack();
+    }
 
     /* Add a new PlaceholderInfo to the stack, or do nothing if the stack is
      * full. */
@@ -815,17 +1035,32 @@ void instrumentStartPlaceholder(int placeholderID) {
  * true, then it is guaranteed that activePlaceholders.current contains data on
  * the placeholder with the provided ID being evaluated in the current Python
  * stack frame. */
-int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
-    /* We make the placeholderID argument a uint16_t (like the placeholderID
-     * field of PlaceholderInfo) because if the argument was signed, we would
-     * run into problems with negative IDs (which are used to indicate calls to
-     * Cheetah.Template.getVar / .hasVar). */
-    START(Placeholder);
-    int result =
+
+int instrumentCurrentPlaceholderMatchesInternal(uint16_t placeholderID) {
+    /* Make the actual check and return the result. */
+    return
         instrumentationEnabled &&
         !placeholderStackIsEmpty(&activePlaceholders) &&
         activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
         activePlaceholders.current->placeholderID == placeholderID;
+}
+
+int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
+    START(Placeholder);
+    /* Make the check, and if it fails, run stack cleanup and try again. */
+    int result = 0;
+    if (instrumentationEnabled && !placeholderStackIsEmpty(&activePlaceholders)) {
+        result = activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
+                activePlaceholders.current->placeholderID == placeholderID;
+
+        if (!result) {
+            cleanupStack();
+            result = instrumentationEnabled &&
+                    !placeholderStackIsEmpty(&activePlaceholders) &&
+                    activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
+                    activePlaceholders.current->placeholderID == placeholderID;
+        }
+    }
     END(Placeholder, 0);
     return result;
 }
@@ -866,44 +1101,57 @@ void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) 
     END(Placeholder, 0);
 }
 
-/* Constants to indicate success or failure of a placeholder evaluation. */
-#define FP_SUCCESS  1
-#define FP_ERROR    0
-
-/* Indicate the end of evaluation of the placeholder with the given ID.  The
- * 'status' argument is one of FP_SUCCESS or FP_ERROR, indicating that the
- * placeholder evaluation succeeded or aborted due to an error.  The
- * PlaceholderInfo for the current placeholder is converted to a LogItem and
- * stored in the LogBuffer, and then popped from the stack.  If the provided
- * placeholder ID doesn't match the current the placeholder on stack, this
- * function does nothing. */
-void instrumentFinishPlaceholder(int placeholderID, int status) {
+/* Indicate the successful completion of evaluation of the placeholder with the
+ * given ID.  The placeholder will be logged as EVAL_SUCCESS and popped from
+ * the activePlaceholders stack. */
+void instrumentFinishPlaceholder(int placeholderID) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
     START(Placeholder);
 
-    if (status != FP_SUCCESS) {
-        activePlaceholders.current->lookupCount |= 0x80;
+    instrumentLogPlaceholder(EVAL_SUCCESS);
+
+    END(Placeholder, 0);
+}
+
+/* We make one optimization on top of the basic exception handling mechanism.
+ * In some cases we are informed that a placeholder evaluation has died with an
+ * exception.  In those cases, we clean up that placeholder, and we also clean
+ * up all placeholders with the same pythonStackPointer at the top of the
+ * placeholder stack.  This lets us sometimes avoid an entire stack cleanup,
+ * which can be rather expensive.
+ *
+ * There are only two ways we can have multiple placeholder stack entries with
+ * the same pythonStackPointer:
+ *  1) We are evaluating a nested placeholder, such as the "$y" in "$x[$y].z".
+ *     The optimization is correct here because an exception while evalutating
+ *     the inner placeholder will also abort evaluation of the outer
+ *     placeholder.
+ *  2) There was an exception during a previous placeholder evaluation in the
+ *     same function, which was caught.  (Example #3 from the main exception
+ *     handling comment.)  In this case, the additional PlaceholderInfos will
+ *     be cleaned up at some point in the future, so it's fine for this
+ *     optimization to clean them up a bit early instead.
+ */
+
+/* Indicate that evaluation of the placeholder has aborted due to some kind of
+ * error.  This will log the aborted placeholder and all others from the same
+ * stack frame as EVAL_FAILURE. */
+void instrumentAbortPlaceholder(int placeholderID) {
+    if (!instrumentCurrentPlaceholderMatches(placeholderID))
+        return;
+
+    START(Placeholder);
+
+    PyFrameObject *targetFrame = activePlaceholders.current->pythonStackPointer;
+    while (!placeholderStackIsEmpty(&activePlaceholders) &&
+            activePlaceholders.current->pythonStackPointer == targetFrame) {
+        instrumentLogPlaceholder(EVAL_FAILURE);
+        COUNT(Placeholder);
     }
 
-    struct LogItem item;
-    logItemInit(&item, activePlaceholders.current);
-
-    if (!bloomFilterContainsAndInsert(&dedupeFilter, &item)) {
-        /* The item was not already present. */
-        logBufferInsert(&buffer, &item);
-
-        if (dedupeFilter.itemCount > BLOOM_FILTER_MAX_ITEMS) {
-            /* Clear out the filter once it hits MAX_ITEMS, to avoid
-             * increasing the false positive rate. */
-            bloomFilterInit(&dedupeFilter);
-        }
-    }
-
-    placeholderStackPop(&activePlaceholders);
-
-    END(Placeholder, 1);
+    END(Placeholder, 0);
 }
 
 
@@ -1048,7 +1296,6 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
     int i;
     char *currentKey;
     int currentFlags;
-    int placeholderIsCurrent;
     PyObject *currentVal = NULL;
     PyObject *nextVal = NULL;
 
@@ -1164,7 +1411,7 @@ static PyObject *namemapper_valueForName(PYARGS)
     }
 
     if (theValue == NULL) {
-        instrumentFinishPlaceholder(placeholderID, FP_ERROR);
+        instrumentAbortPlaceholder(placeholderID);
     }
 
     return theValue;
@@ -1228,7 +1475,7 @@ done:
     if (theValue == NULL) {
         /* An error of some kind occurred.  We are done with this placeholder,
          * since its evaluation has raised some kind of exception. */
-        instrumentFinishPlaceholder(placeholderID, FP_ERROR);
+        instrumentAbortPlaceholder(placeholderID);
     }
 
     return theValue;
@@ -1304,7 +1551,7 @@ done:
     free(nameCopy);
 
     if (theValue == NULL) {
-        instrumentFinishPlaceholder(placeholderID, FP_ERROR);
+        instrumentAbortPlaceholder(placeholderID);
     }
 
     return theValue;
@@ -1355,7 +1602,7 @@ done:
     free(nameCopy);
 
     if (theValue == NULL) {
-        instrumentFinishPlaceholder(placeholderID, FP_ERROR);
+        instrumentAbortPlaceholder(placeholderID);
     }
 
     return theValue;
@@ -1373,7 +1620,7 @@ static PyObject *namemapper_flushPlaceholderInfo(PyObject *self, PyObject *args,
         return NULL;
     }
 
-    instrumentFinishPlaceholder(placeholderID, FP_SUCCESS);
+    instrumentFinishPlaceholder(placeholderID);
 
     /* Python doesn't automatically increment the reference count of the
      * function's return value, so we have to do it manually. */
@@ -1881,7 +2128,7 @@ void testInstrumentation(void) {
     instrumentCurrentPlaceholderMatches(42);
     instrumentRecordNameSpaceIndex(42, 3);
     instrumentRecordLookup(42, DID_AUTOCALL);
-    instrumentFinishPlaceholder(42, FP_SUCCESS);
+    instrumentFinishPlaceholder(42);
     CHECK_THAT("placeholder evaluation before first StartRequest didn't crash",
             1);
 
@@ -1898,17 +2145,17 @@ void testInstrumentation(void) {
             instrumentCurrentPlaceholderMatches(99) &&
             !instrumentCurrentPlaceholderMatches(42));
 
-    instrumentFinishPlaceholder(42, FP_SUCCESS);
+    instrumentFinishPlaceholder(42);
     CHECK_THAT("FinishPlaceholder with wrong ID is ignored",
             instrumentCurrentPlaceholderMatches(99) &&
             !instrumentCurrentPlaceholderMatches(42));
 
-    instrumentFinishPlaceholder(99, FP_SUCCESS);
+    instrumentFinishPlaceholder(99);
     CHECK_THAT("only old ID matches after finishing nested evaluation",
             instrumentCurrentPlaceholderMatches(42) &&
             !instrumentCurrentPlaceholderMatches(99));
 
-    instrumentFinishPlaceholder(42, FP_SUCCESS);
+    instrumentFinishPlaceholder(42);
     CHECK_THAT("no IDs match after finishing outer evaluations",
             !instrumentCurrentPlaceholderMatches(42) &&
             !instrumentCurrentPlaceholderMatches(99));
@@ -1922,7 +2169,7 @@ void testInstrumentation(void) {
     instrumentStartPlaceholder(42);
     instrumentRecordNameSpaceIndex(42, 3);
     instrumentRecordLookup(42, DID_AUTOCALL);
-    instrumentFinishPlaceholder(42, FP_SUCCESS);
+    instrumentFinishPlaceholder(42);
 
     mockLogLineLength = -1;
     instrumentFinishRequest();
@@ -1941,7 +2188,7 @@ void testInstrumentation(void) {
     instrumentRecordNameSpaceIndex(99, 7);
     instrumentRecordLookup(42, DID_AUTOCALL);
     instrumentRecordLookup(99, DID_AUTOKEY);
-    instrumentFinishPlaceholder(42, FP_SUCCESS);
+    instrumentFinishPlaceholder(42);
 
     mockLogLineLength = -1;
     instrumentFinishRequest();
@@ -1968,7 +2215,7 @@ void testInstrumentation(void) {
         instrumentStartPlaceholder(42);
         instrumentRecordNameSpaceIndex(42, 3);
         instrumentRecordLookup(42, DID_AUTOCALL);
-        instrumentFinishPlaceholder(42, FP_SUCCESS);
+        instrumentFinishPlaceholder(42);
     }
 
     mockLogLineLength = -1;
@@ -1987,7 +2234,7 @@ void testInstrumentation(void) {
         instrumentRecordLookup(i, DID_AUTOCALL);
     }
     for (i = 999; i >= 0; --i) {
-        instrumentFinishPlaceholder(i, FP_SUCCESS);
+        instrumentFinishPlaceholder(i);
     }
 
     instrumentFinishRequest();
@@ -2002,7 +2249,7 @@ void testInstrumentation(void) {
         instrumentStartPlaceholder(i);
         instrumentRecordNameSpaceIndex(i, 3);
         instrumentRecordLookup(i, DID_AUTOCALL);
-        instrumentFinishPlaceholder(i, FP_SUCCESS);
+        instrumentFinishPlaceholder(i);
     }
 
     instrumentFinishRequest();
@@ -2027,7 +2274,7 @@ static struct PyMethodDef pythonTestInstrumentationMethodDef = {
     "pythonTestInstrumentation", (PyCFunction)pythonTestInstrumentation, METH_VARARGS
 };
 
-void runTestInstrumentation() {
+void runTestInstrumentation(void) {
     PyObject* testInstrumentationObject = PyCFunction_New(&pythonTestInstrumentationMethodDef, NULL);
     PyObject* locals = Py_BuildValue("{s:O}", "run", testInstrumentationObject);
     PyObject* globals = Py_BuildValue("{s:O}", "__builtins__", PyImport_ImportModule("__builtin__"));
@@ -2035,7 +2282,7 @@ void runTestInstrumentation() {
     PyRun_String("run()", Py_file_input, globals, locals);
 }
 
-int main() {
+int main(void) {
 #ifndef TEST_WITH_VALGRIND
     Py_Initialize();
 #endif
