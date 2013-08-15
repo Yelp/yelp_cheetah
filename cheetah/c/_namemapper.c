@@ -555,7 +555,7 @@ static int pythonInitState = INSTR_NOT_INITED;
  * initialization until the first call to 'startLogging'. */
 
 /* Initialize native data structures. */
-static int instrumentInitNative(void) {
+static void instrumentInitNative(void) {
     /* Make sure we don't segfault if instrumented functions are called before
      * instrumentStartRequest. */
     placeholderStackInit(&activePlaceholders);
@@ -1657,6 +1657,11 @@ DL_EXPORT(void) init_namemapper(void)
     pprintMod_pformat = PyObject_GetAttrString(pprintMod, "pformat");
     Py_DECREF(pprintMod);
 
+    instrumentInitNative();
+    /* Suppress a warning about bloomFilterContains being unused.  (It's used
+     * only in the test code.) */
+    (void)bloomFilterContains;
+
     /* check for errors */
     if (PyErr_Occurred()) {
         Py_FatalError("Can't initialize module _namemapper");
@@ -2066,10 +2071,10 @@ static void testInstrumentation(void) {
     DEFINE_COUNTERS();
     int i;
 
-    if (!instrumentInitNative()) {
-        if (PyErr_Occurred())
-            PyErr_PrintEx(0);
-        printf("Error occurred during instrumentInit\n");
+    instrumentInitNative();
+    if (PyErr_Occurred()) {
+        PyErr_PrintEx(0);
+        printf("Error occurred during instrumentInitNative\n");
         return;
     }
 
