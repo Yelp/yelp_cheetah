@@ -1689,16 +1689,16 @@ DL_EXPORT(void) init_namemapper(void)
  * The tests have passed if you see "0 / ## assertions failed" for each
  * section, and the test program exits successfully (without segfault or other
  * errors).
- * 
- * To run the tests with valgrind:
- *      gcc -DBUILD_TESTS -DTEST_WITH_VALGRIND -O2 -I/usr/include/python2.6 -lpython2.6 _namemapper.c
- *      valgrind ./a.out
- * The tests have passed if you see "0 / ## assertions failed" for each
- * section, and valgrind reports no errors.
  *
- * (The -DTEST_WITH_VALGRIND flag disables tests which call into Python, since
- * the Python interpreter generates tons of valgrind errors.)
- */
+ * Some tests just check that certain patterns of calls don't cause overflows
+ * of various data structures.  (These are the ones that look like
+ * 'TEST_ASSERT("doing xyz doesn't crash", 1)'.)  These tests will likely fail
+ * by causing a segfault.  If you want to be extra sure, you can run the test
+ * program under valgrind (with the Python-provided suppression file from
+ * http://svn.python.org/projects/python/trunk/Misc/valgrind-python.supp) and
+ * make sure there are no reported errors (aside from the ones from
+ * PyObject_Free and PyObject_Realloc, which seem to slip past the suppression
+ * rules for some reason).  */
 
 #ifdef BUILD_TESTS
 
@@ -1708,6 +1708,7 @@ DL_EXPORT(void) init_namemapper(void)
 #define TEST_ASSERT(what, cond) \
     do {\
         printf("%-70s   ", what);\
+        fflush(stdout);\
         if (cond) {\
             printf("[  OK  ]\n");\
             ++asserts_passed;\
@@ -1820,7 +1821,6 @@ void testLogItem(void) {
             foundTemplateName == NULL);
 
 
-#ifndef TEST_WITH_VALGRIND
     struct PlaceholderInfo placeholderInfo;
     struct LogItem logItem;
 
@@ -1849,7 +1849,6 @@ void testLogItem(void) {
             logItem.templateNameHash == hashString(badFilename));
 
     deleteMockStackFrame(placeholderInfo.pythonStackPointer);
-#endif
 
     SUMMARIZE();
 }
@@ -2064,7 +2063,6 @@ static struct PyMethodDef mockLogMethodDef = {
 };
 
 void testInstrumentation(void) {
-#ifndef TEST_WITH_VALGRIND
     DEFINE_COUNTERS();
     int i;
 
@@ -2221,7 +2219,6 @@ void testInstrumentation(void) {
 
 
     SUMMARIZE();
-#endif
 }
 
 /* This horrible mess is necessary to run testInstrumentation with an active
@@ -2246,9 +2243,7 @@ void runTestInstrumentation(void) {
 }
 
 int main(void) {
-#ifndef TEST_WITH_VALGRIND
     Py_Initialize();
-#endif
     testPlaceholderStack();
     testLogItem();
     testLogBuffer();
