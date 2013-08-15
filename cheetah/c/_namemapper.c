@@ -123,7 +123,7 @@ struct PlaceholderStack {
 };
 
 /* Initialize a PlaceholderStack.  The stack starts out empty. */
-void placeholderStackInit(struct PlaceholderStack *stack) {
+static void placeholderStackInit(struct PlaceholderStack *stack) {
     stack->current = &stack->items[PLACEHOLDER_STACK_SIZE];
 }
 
@@ -131,7 +131,7 @@ void placeholderStackInit(struct PlaceholderStack *stack) {
  * element is left uninitialized - the caller is expected to initialize it.
  * This function returns 1 on success and 0 on failure (if the stack is full).
  */
-int placeholderStackPush(struct PlaceholderStack *stack) {
+static int placeholderStackPush(struct PlaceholderStack *stack) {
     if (stack->current == &stack->items[0]) {
         /* The stack is full.  Tell the caller about this so they know not to
          * try to initialize stack->current. */
@@ -144,7 +144,7 @@ int placeholderStackPush(struct PlaceholderStack *stack) {
 
 /* Remove an element from the stack.  Returns 1 on success and 0 on failure (if
  * the stack is already empty). */
-int placeholderStackPop(struct PlaceholderStack *stack) {
+static int placeholderStackPop(struct PlaceholderStack *stack) {
     if (stack->current == &stack->items[PLACEHOLDER_STACK_SIZE]) {
         /* The stack is already empty.  This probably indicates a bug. */
         return 0;
@@ -155,14 +155,14 @@ int placeholderStackPop(struct PlaceholderStack *stack) {
 }
 
 /* Check if the stack is empty. */
-int placeholderStackIsEmpty(struct PlaceholderStack *stack) {
+static int placeholderStackIsEmpty(struct PlaceholderStack *stack) {
     return (stack->current == &stack->items[PLACEHOLDER_STACK_SIZE]);
 }
 
 /* Get a pointer to the bottommost element on the stack.  The result points to
  * a valid PlaceholderInfo only if the stack is non-empty (or equivalently,
  * only if Bottom(&stack) >= stack.current). */
-struct PlaceholderInfo* placeholderStackBottom(struct PlaceholderStack *stack) {
+static struct PlaceholderInfo* placeholderStackBottom(struct PlaceholderStack *stack) {
     return &stack->items[PLACEHOLDER_STACK_SIZE - 1];
 }
 
@@ -204,7 +204,7 @@ struct LogItem {
 
 /* Simple hash for strings.  We use this for hashing template filenames, so we
  * don't have to log the whole name. */
-uint32_t hashString(const char* str) {
+static uint32_t hashString(const char* str) {
     uint32_t hash = 0;
     while (*str != '\0') {
         hash = hash * 37 + (uint8_t)(*str);
@@ -215,7 +215,7 @@ uint32_t hashString(const char* str) {
 
 /* Given a filename, find the template name relative to yelp-main/ or the
  * deploy directory. */
-const char* findTemplateName(const char *filename) {
+static const char* findTemplateName(const char *filename) {
     const char *foundDeploy;
     const char *foundYelpMain;
     const char *foundSlash = NULL;
@@ -253,7 +253,7 @@ const char* findTemplateName(const char *filename) {
 }
 
 /* Construct a LogItem containing the same data as a PlaceholderInfo. */
-void logItemInit(struct LogItem *logItem, struct PlaceholderInfo *placeholderInfo) {
+static void logItemInit(struct LogItem *logItem, struct PlaceholderInfo *placeholderInfo) {
     /* Populate the templateNameHash field. */
     PyObject *pyFileName = placeholderInfo->pythonStackPointer->f_code->co_filename;
     const char *fileName = PyString_AsString(pyFileName);
@@ -303,12 +303,12 @@ struct LogBuffer {
     int insertAttempts;
 };
 
-void logBufferInit(struct LogBuffer *buffer) {
+static void logBufferInit(struct LogBuffer *buffer) {
     buffer->nextSlot = &buffer->items[0];
     buffer->insertAttempts = 0;
 }
 
-void logBufferInsert(struct LogBuffer *buffer, struct LogItem *item) {
+static void logBufferInsert(struct LogBuffer *buffer, struct LogItem *item) {
     ++buffer->insertAttempts;
 
     if (buffer->nextSlot == &buffer->items[LOG_BUFFER_SIZE]) {
@@ -322,7 +322,7 @@ void logBufferInsert(struct LogBuffer *buffer, struct LogItem *item) {
     ++buffer->nextSlot;
 }
 
-int logBufferGetCount(struct LogBuffer *buffer) {
+static int logBufferGetCount(struct LogBuffer *buffer) {
     return (buffer->nextSlot - &buffer->items[0]);
 }
 
@@ -405,7 +405,7 @@ static const int PRIMES[BLOOM_FILTER_HASHES * 5] = {
  * calling this function, the array will be filled with values in the range
  * 0 <= h < BLOOM_FILTER_SIZE.
  */
-void bloomFilterHash(struct LogItem *item, uint32_t* hashOutput) {
+static void bloomFilterHash(struct LogItem *item, uint32_t* hashOutput) {
     int i;
     uint32_t hash;
 
@@ -424,7 +424,7 @@ void bloomFilterHash(struct LogItem *item, uint32_t* hashOutput) {
 }
 
 /* Initialize a bloom filter to an empty state. */
-void bloomFilterInit(struct BloomFilter *bloomFilter) {
+static void bloomFilterInit(struct BloomFilter *bloomFilter) {
     /* Fill the 'data' array with all zeros. */
     memset(&bloomFilter->data, 0, sizeof(bloomFilter->data));
 
@@ -434,7 +434,7 @@ void bloomFilterInit(struct BloomFilter *bloomFilter) {
 /* The primary operation on a bloom filter: check if an item is present, and
  * optionally add it if it's not.  Having this combined operation avoids code
  * duplication between the 'contains' and 'insert' operations. */
-int bloomFilterOperate(struct BloomFilter *filter, struct LogItem* item,
+static int bloomFilterOperate(struct BloomFilter *filter, struct LogItem* item,
         int shouldInsert) {
     int i;
     uint32_t hash[BLOOM_FILTER_HASHES];
@@ -474,12 +474,12 @@ int bloomFilterOperate(struct BloomFilter *filter, struct LogItem* item,
  * Returns true if the item was present before the call, and false if it was
  * not.  Regardless, after this function returns, the item is guaranteed to be
  * present in the bloom filter. */
-int bloomFilterContainsAndInsert(struct BloomFilter *filter, struct LogItem* item) {
+static int bloomFilterContainsAndInsert(struct BloomFilter *filter, struct LogItem* item) {
     return bloomFilterOperate(filter, item, 1);
 }
 
 /* Check if a LogItem is present in the bloom filter. */
-int bloomFilterContains(struct BloomFilter *filter, struct LogItem* item) {
+static int bloomFilterContains(struct BloomFilter *filter, struct LogItem* item) {
     return bloomFilterOperate(filter, item, 0);
 }
 
@@ -503,16 +503,16 @@ int bloomFilterContains(struct BloomFilter *filter, struct LogItem* item) {
  */
 
 /* The stack of placeholders we are currently evaluating. */
-struct PlaceholderStack activePlaceholders;
+static struct PlaceholderStack activePlaceholders;
 
 /* A Bloom filter for deduplicating LogItems. */
-struct BloomFilter dedupeFilter; 
+static struct BloomFilter dedupeFilter; 
 
 /* The buffer of LogItems we have decided to record. */
-struct LogBuffer buffer;
+static struct LogBuffer buffer;
 
 /* Flag to indicate whether we should do instrumentation. */
-int instrumentationEnabled = 0;
+static int instrumentationEnabled = 0;
 
 
 /* Python functions we call.
@@ -533,7 +533,7 @@ static PyObject *clogLogLine = NULL;
  * get it out of a Python module, so we put it in with the rest of the Python
  * stuff. */
 #define DEPLOY_SHA_SIZE 10
-char deploySHA[DEPLOY_SHA_SIZE + 1];
+static char deploySHA[DEPLOY_SHA_SIZE + 1];
 
 /* We need to keep track of whether Python initialization failed or not, so
  * that we don't retry if it doesn't work the first time. */
@@ -555,7 +555,7 @@ static int pythonInitState = INSTR_NOT_INITED;
  * initialization until the first call to 'startLogging'. */
 
 /* Initialize native data structures. */
-int instrumentInitNative(void) {
+static int instrumentInitNative(void) {
     /* Make sure we don't segfault if instrumented functions are called before
      * instrumentStartRequest. */
     placeholderStackInit(&activePlaceholders);
@@ -567,7 +567,7 @@ int instrumentInitNative(void) {
 
 /* Helper function to do "from module import func".  Returns a new reference,
  * or NULL if an error occurred. */
-PyObject* importPythonFunction(const char *moduleName, const char *funcName) {
+static PyObject* importPythonFunction(const char *moduleName, const char *funcName) {
     PyObject *module = PyImport_ImportModule(moduleName);
     if (module == NULL)
         return NULL;
@@ -583,7 +583,7 @@ PyObject* importPythonFunction(const char *moduleName, const char *funcName) {
 /* Helper function to clean up after a failure in 'instrumentInitPython',
  * making sure everything is in a state that won't cause serious problems
  * later. */
-void pythonInitFailed(void) {
+static void pythonInitFailed(void) {
     /* Release any references we've acquired, and set everything to Py_None so
      * that we get TypeErrors instead of segfaults if we accidentally try to
      * call one of these later. */
@@ -612,7 +612,7 @@ void pythonInitFailed(void) {
 
 /* Initialize pointers to Python functions, and deploySHA (which comes from a
  * Python module). */
-int instrumentInitPython(void) {
+static int instrumentInitPython(void) {
     if (pythonInitState != INSTR_NOT_INITED) {
         return (pythonInitState == INSTR_INITED);
     }
@@ -676,7 +676,7 @@ int instrumentInitPython(void) {
 }
 
 /* Prototype for instrumentLogPlaceholder, since it's used in several places. */
-void instrumentLogPlaceholder(int result);
+static void instrumentLogPlaceholder(int result);
 
 /* Constants to indicate success or failure of a placeholder evaluation, for
  * use with instrumentLogPlaceholder. */
@@ -685,7 +685,7 @@ void instrumentLogPlaceholder(int result);
 
 /* Indicate the start of an instrumented request.  This resets the main data
  * structures and enables instrumentation of placeholder evaluations. */
-void instrumentStartRequest(void) {
+static void instrumentStartRequest(void) {
     /* Make sure Python stuff is initialized. */
     if (!instrumentInitPython())
         return;
@@ -699,7 +699,7 @@ void instrumentStartRequest(void) {
 
 /* Helper function for actually writing the LogBuffer contents to Scribe.  This
  * is a separate function to make the error handling less horrible. */
-void writeBufferToScribe(void) {
+static void writeBufferToScribe(void) {
     /* Convert the raw placeholder data into a nicer format for writing to
      * Scribe.
      *
@@ -767,7 +767,7 @@ cleanup:
 /* Indicate the end of an instrumented request.  This disables instrumentation
  * of placeholder evaluations and logs all the data collected during the
  * request. */
-void instrumentFinishRequest(void) {
+static void instrumentFinishRequest(void) {
     if (!instrumentationEnabled) {
         return;
     }
@@ -891,7 +891,7 @@ void instrumentFinishRequest(void) {
  * of the Python callstack whose top is 'currentFrame'), and 0 if it is not
  * (due to returning or raising an exception).  This is optimized with the
  * expectation that most calls will return 'true'. */
-int isStackFrameLive(PyFrameObject *targetFrame, PyFrameObject *currentFrame) {
+static int isStackFrameLive(PyFrameObject *targetFrame, PyFrameObject *currentFrame) {
     while (currentFrame != targetFrame && currentFrame != NULL) {
         currentFrame = currentFrame->f_back;
     }
@@ -901,7 +901,7 @@ int isStackFrameLive(PyFrameObject *targetFrame, PyFrameObject *currentFrame) {
 
 /* Search a stack of PlaceholderInfos for the last one whose pythonStackPointer
  * points to a non-live Python frame. */
-struct PlaceholderInfo* findLastDead(PyFrameObject *frame,
+static struct PlaceholderInfo* findLastDead(PyFrameObject *frame,
         struct PlaceholderInfo *placeholderBegin, struct PlaceholderInfo *placeholderEnd) {
     struct PlaceholderInfo* lastDead;
 
@@ -940,7 +940,7 @@ struct PlaceholderInfo* findLastDead(PyFrameObject *frame,
  * of the activePlaceholders stack.  We log all such placeholders as
  * EVAL_FAILURE, since we know control can never reach a corresponding FLUSH
  * call. */
-void cleanupStack(void) {
+static void cleanupStack(void) {
     if (placeholderStackIsEmpty(&activePlaceholders))
         return;
 
@@ -954,7 +954,7 @@ void cleanupStack(void) {
 
 
 /* Indicate the start of evaluation for the placeholder with the given ID. */
-void instrumentStartPlaceholder(int placeholderID) {
+static void instrumentStartPlaceholder(int placeholderID) {
     if (!instrumentationEnabled)
         return;
 
@@ -990,7 +990,7 @@ void instrumentStartPlaceholder(int placeholderID) {
  * true, then it is guaranteed that activePlaceholders.current contains data on
  * the placeholder with the provided ID being evaluated in the current Python
  * stack frame. */
-int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
+static int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
     /* Make the check, and if there is a mismatch, run stack cleanup and check
      * again. */
     int result = 0;
@@ -1012,7 +1012,7 @@ int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
 /* Record the flags for a lookup step of the current placeholder.  If the
  * provided placeholder ID doesn't match the placeholder on top of the stack,
  * this function does nothing. */
-void instrumentRecordLookup(uint16_t placeholderID, int flags) {
+static void instrumentRecordLookup(uint16_t placeholderID, int flags) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
@@ -1030,7 +1030,7 @@ void instrumentRecordLookup(uint16_t placeholderID, int flags) {
 /* Record the namespace index for the first lookup step of the current
  * placeholder.  If the provided placeholder ID doesn't match the current
  * the placeholder on stack, this function does nothing. */
-void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) {
+static void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
@@ -1041,7 +1041,7 @@ void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) 
  * corresponding LogItem to the buffer.  'result' should be EVAL_SUCCESS or
  * EVAL_FAILURE, to indicate whether the placeholder evaluation succeeded or
  * failed with an exception. */
-void instrumentLogPlaceholder(int result) {
+static void instrumentLogPlaceholder(int result) {
     if (result != EVAL_SUCCESS) {
         activePlaceholders.current->lookupCount |= 0x80;
     }
@@ -1067,7 +1067,7 @@ void instrumentLogPlaceholder(int result) {
 /* Indicate the successful completion of evaluation of the placeholder with the
  * given ID.  The placeholder will be logged as EVAL_SUCCESS and popped from
  * the activePlaceholders stack. */
-void instrumentFinishPlaceholder(int placeholderID) {
+static void instrumentFinishPlaceholder(int placeholderID) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
@@ -1077,7 +1077,7 @@ void instrumentFinishPlaceholder(int placeholderID) {
 /* Indicate that evaluation of the placeholder has aborted due to some kind of
  * error.  This will log the aborted placeholder and all others from the same
  * stack frame as EVAL_FAILURE. */
-void instrumentAbortPlaceholder(int placeholderID) {
+static void instrumentAbortPlaceholder(int placeholderID) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
@@ -1724,7 +1724,7 @@ DL_EXPORT(void) init_namemapper(void)
                 asserts_total - asserts_passed, asserts_total);\
     } while(0)
 
-void testPlaceholderStack(void) {
+static void testPlaceholderStack(void) {
     DEFINE_COUNTERS();
     struct PlaceholderStack stack;
     int i;
@@ -1779,7 +1779,7 @@ void testPlaceholderStack(void) {
     SUMMARIZE();
 }
 
-PyFrameObject* newMockStackFrame(const char *filename) {
+static PyFrameObject* newMockStackFrame(const char *filename) {
     PyFrameObject* frame = malloc(sizeof(PyFrameObject));
     PyCodeObject* code = malloc(sizeof(PyCodeObject));
     PyObject* string = PyString_FromString(filename);
@@ -1788,13 +1788,13 @@ PyFrameObject* newMockStackFrame(const char *filename) {
     return frame;
 }
 
-void deleteMockStackFrame(PyFrameObject *frame) {
+static void deleteMockStackFrame(PyFrameObject *frame) {
     Py_DECREF(frame->f_code->co_filename);
     free(frame->f_code);
     free(frame);
 }
 
-void testLogItem(void) {
+static void testLogItem(void) {
     DEFINE_COUNTERS();
 
     const char *deployFilename = "/nail/live/versions/r201308091019-61e5d1d574-deploy-breaking-bread/templates/blank.py";
@@ -1853,7 +1853,7 @@ void testLogItem(void) {
     SUMMARIZE();
 }
 
-void testLogBuffer(void) {
+static void testLogBuffer(void) {
     DEFINE_COUNTERS();
 
     struct LogBuffer buffer;
@@ -1899,7 +1899,7 @@ void testLogBuffer(void) {
     SUMMARIZE();
 }
 
-int countOnesInFilter(struct BloomFilter *filter) {
+static int countOnesInFilter(struct BloomFilter *filter) {
     int i;
     uint8_t *data = (uint8_t*)&filter->data;
     int totalCount = 0;
@@ -1916,7 +1916,7 @@ int countOnesInFilter(struct BloomFilter *filter) {
     return totalCount;
 }
 
-int countEqual(uint32_t* hash1, uint32_t* hash2) {
+static int countEqual(uint32_t* hash1, uint32_t* hash2) {
     int i;
     int numEqual = 0;
     for (i = 0; i < BLOOM_FILTER_HASHES; ++i) {
@@ -1926,7 +1926,7 @@ int countEqual(uint32_t* hash1, uint32_t* hash2) {
     return numEqual;
 }
 
-void testBloomFilter(void) {
+static void testBloomFilter(void) {
     DEFINE_COUNTERS();
 
     struct BloomFilter filter;
@@ -2062,7 +2062,7 @@ static struct PyMethodDef mockLogMethodDef = {
     "mockLog", (PyCFunction)mockLog, METH_VARARGS
 };
 
-void testInstrumentation(void) {
+static void testInstrumentation(void) {
     DEFINE_COUNTERS();
     int i;
 
@@ -2234,7 +2234,7 @@ static struct PyMethodDef pythonTestInstrumentationMethodDef = {
     "pythonTestInstrumentation", (PyCFunction)pythonTestInstrumentation, METH_VARARGS
 };
 
-void runTestInstrumentation(void) {
+static void runTestInstrumentation(void) {
     PyObject* testInstrumentationObject = PyCFunction_New(&pythonTestInstrumentationMethodDef, NULL);
     PyObject* locals = Py_BuildValue("{s:O}", "run", testInstrumentationObject);
     PyObject* globals = Py_BuildValue("{s:O}", "__builtins__", PyImport_ImportModule("__builtin__"));
