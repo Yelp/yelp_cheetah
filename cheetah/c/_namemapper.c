@@ -1155,7 +1155,6 @@ void instrumentAbortPlaceholder(int placeholderID) {
     while (!placeholderStackIsEmpty(&activePlaceholders) &&
             activePlaceholders.current->pythonStackPointer == targetFrame) {
         instrumentLogPlaceholder(EVAL_FAILURE);
-        COUNT(Placeholder);
     }
 
     END(Placeholder, 0);
