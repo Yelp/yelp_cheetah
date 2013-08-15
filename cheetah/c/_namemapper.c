@@ -25,56 +25,6 @@ extern "C" {
 
 
 
-static inline unsigned long long rdtsc(void)
-{
-  unsigned hi, lo;
-  __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
-  return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
-}
-
-struct Timer {
-    uint64_t start;
-    uint64_t total;
-    uint32_t count;
-};
-
-void timerStart(struct Timer* timer) {
-    timer->start = rdtsc();
-}
-
-void timerEnd(struct Timer* timer, int incrementCount) {
-    uint64_t diff = rdtsc() - timer->start;
-    timer->total += diff;
-    if (incrementCount)
-        timer->count += 1;
-}
-
-void timerIncrementCount(struct Timer* timer) {
-    timer->count += 1;
-}
-
-uint64_t timerAverage(struct Timer* timer) {
-    uint32_t count = timer->count;
-    if (count == 0)
-        return 0;
-    return timer->total / count;
-}
-
-void timerInit(struct Timer* timer) {
-    timer->total = 0;
-    timer->count = 0;
-}
-
-#define START(what)     (timerStart(&time##what))
-#define END(what,inc)   (timerEnd(&time##what, inc))
-#define COUNT(what)     (timerIncrementCount(&time##what))
-#define SEEN(what)      (time##what.count)
-#define TIME(what)      (timerAverage(&time##what))
-
-struct Timer timeStart, timePlaceholder, timeFinish, timeLog;
-
-
-
 static PyObject *NotFound;   /* locally-raised exception */
 static PyObject *TooManyPeriods;   /* locally-raised exception */
 static PyObject* pprintMod_pformat; /* used for exception formatting */
@@ -736,14 +686,6 @@ void instrumentLogPlaceholder(int result);
 /* Indicate the start of an instrumented request.  This resets the main data
  * structures and enables instrumentation of placeholder evaluations. */
 void instrumentStartRequest(void) {
-
-    timerInit(&timeStart);
-    timerInit(&timePlaceholder);
-    timerInit(&timeFinish);
-    timerInit(&timeLog);
-
-    START(Start);
-
     /* Make sure Python stuff is initialized. */
     if (!instrumentInitPython())
         return;
@@ -753,8 +695,6 @@ void instrumentStartRequest(void) {
     logBufferInit(&buffer);
 
     instrumentationEnabled = 1;
-
-    END(Start, 1);
 }
 
 /* Helper function for actually writing the LogBuffer contents to Scribe.  This
@@ -811,12 +751,8 @@ void writeBufferToScribe(void) {
     if (formattedLine == NULL)
         goto cleanup;
 
-    START(Log);
-
     /* Log the actual line. */
     PyObject_CallFunction(clogLogLine, "sO", "tmp_namemapper_placeholder_uses", formattedLine);
-
-    END(Log, 1);
 
 cleanup:
     /* Release any references that we successfully acquired. */
@@ -836,8 +772,6 @@ void instrumentFinishRequest(void) {
         return;
     }
 
-    START(Finish);
-
     /* Anything left on the stack as of the end of the request is assumed to
      * have failed during evaluation. */
     while (!placeholderStackIsEmpty(&activePlaceholders)) {
@@ -853,18 +787,6 @@ void instrumentFinishRequest(void) {
 
     /* Actually write to Scribe. */
     writeBufferToScribe();
-    END(Finish, 1);
-
-    /* Log timer results */
-#ifndef BUILD_TESTS
-    char buf[256];
-    snprintf(buf, 256, "times: %lu %lu(%lu/%u) %lu %lu (%u)",
-            TIME(Start), TIME(Placeholder),
-            timePlaceholder.total, timePlaceholder.count,
-            TIME(Finish), TIME(Log), logBufferGetCount(&buffer));
-
-    PyObject_CallFunction(clogLogLine, "ss", "tmp_namemapper_placeholder_uses", buf);
-#endif
 }
 
 
@@ -1036,8 +958,6 @@ void instrumentStartPlaceholder(int placeholderID) {
     if (!instrumentationEnabled)
         return;
 
-    START(Placeholder);
-
     if (!placeholderStackIsEmpty(&activePlaceholders) &&
             !isStackFrameLive(activePlaceholders.current->pythonStackPointer, PyEval_GetFrame())) {
         cleanupStack();
@@ -1063,8 +983,6 @@ void instrumentStartPlaceholder(int placeholderID) {
         activePlaceholders.current->lookupCount = 0;
         activePlaceholders.current->flags = 0;
     }
-
-    END(Placeholder, 0);
 }
 
 /* Check if the current placeholder (the top of the stack) matches the provided
@@ -1073,7 +991,6 @@ void instrumentStartPlaceholder(int placeholderID) {
  * the placeholder with the provided ID being evaluated in the current Python
  * stack frame. */
 int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
-    START(Placeholder);
     /* Make the check, and if there is a mismatch, run stack cleanup and check
      * again. */
     int result = 0;
@@ -1089,7 +1006,6 @@ int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
                     activePlaceholders.current->placeholderID == placeholderID;
         }
     }
-    END(Placeholder, 0);
     return result;
 }
 
@@ -1100,8 +1016,6 @@ void instrumentRecordLookup(uint16_t placeholderID, int flags) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
-    START(Placeholder);
-
     int index = activePlaceholders.current->lookupCount;
     ++activePlaceholders.current->lookupCount;
     if (index >= 16)
@@ -1111,8 +1025,6 @@ void instrumentRecordLookup(uint16_t placeholderID, int flags) {
         return;
 
     activePlaceholders.current->flags |= (flags & 3) << (index * 2);
-
-    END(Placeholder, 0);
 }
 
 /* Record the namespace index for the first lookup step of the current
@@ -1122,11 +1034,7 @@ void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) 
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
-    START(Placeholder);
-
     activePlaceholders.current->nameSpaceIndex = nameSpaceIndex;
-
-    END(Placeholder, 0);
 }
 
 /* Pop the topmost PlaceholderInfo from the activePlaceholders stack, and log a
@@ -1154,7 +1062,6 @@ void instrumentLogPlaceholder(int result) {
 
     Py_DECREF(activePlaceholders.current->pythonStackPointer);
     placeholderStackPop(&activePlaceholders);
-    COUNT(Placeholder);
 }
 
 /* Indicate the successful completion of evaluation of the placeholder with the
@@ -1164,11 +1071,7 @@ void instrumentFinishPlaceholder(int placeholderID) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
 
-    START(Placeholder);
-
     instrumentLogPlaceholder(EVAL_SUCCESS);
-
-    END(Placeholder, 0);
 }
 
 /* Indicate that evaluation of the placeholder has aborted due to some kind of
@@ -1177,8 +1080,6 @@ void instrumentFinishPlaceholder(int placeholderID) {
 void instrumentAbortPlaceholder(int placeholderID) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
-
-    START(Placeholder);
 
     /* We make one optimization on top of the basic exception handling
      * mechanism.  In some cases we are informed that a placeholder evaluation
@@ -1206,8 +1107,6 @@ void instrumentAbortPlaceholder(int placeholderID) {
             activePlaceholders.current->pythonStackPointer == targetFrame) {
         instrumentLogPlaceholder(EVAL_FAILURE);
     }
-
-    END(Placeholder, 0);
 }
 
 
