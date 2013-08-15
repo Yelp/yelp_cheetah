@@ -211,8 +211,8 @@ int placeholderStackIsEmpty(struct PlaceholderStack *stack) {
 
 /* Get a pointer to the bottommost element on the stack.  The result points to
  * a valid PlaceholderInfo only if the stack is non-empty (or equivalently,
- * only if GetBottom(&stack) >= stack.current). */
-struct PlaceholderInfo* placeholderStackGetBottom(struct PlaceholderStack *stack) {
+ * only if Bottom(&stack) >= stack.current). */
+struct PlaceholderInfo* placeholderStackBottom(struct PlaceholderStack *stack) {
     return &stack->items[PLACEHOLDER_STACK_SIZE - 1];
 }
 
@@ -535,7 +535,7 @@ int bloomFilterContains(struct BloomFilter *filter, struct LogItem* item) {
 
 
 
-/*** High-level placeholder tracking functions ***/
+/*** High-level placeholder tracking ***/
 
 /* The placeholder tracking system has two main components:
  *  - A stack of PlaceholderInfos for all placeholders that are currently being
@@ -552,7 +552,6 @@ int bloomFilterContains(struct BloomFilter *filter, struct LogItem* item) {
  * instrumented request, the contents of the buffer are logged to Scribe.
  */
 
-
 /* The stack of placeholders we are currently evaluating. */
 struct PlaceholderStack activePlaceholders;
 
@@ -565,15 +564,11 @@ struct LogBuffer buffer;
 /* Flag to indicate whether we should do instrumentation. */
 int instrumentationEnabled = 0;
 
-/* We get the deploy SHA from util.version on startup, then save it here so we
- * can include it in our log lines.*/
-#define DEPLOY_SHA_SIZE 10
-char deploySHA[DEPLOY_SHA_SIZE + 1];
 
 /* Python functions we call.
  *
- * These need to be initialized to NULL, or else the instrumentInit error
- * handling code would be even *more* ugly. */
+ * These need to be initialized to NULL, for the sake of InitPython's error
+ * handling. */
 
 /* zlib.compress: For compressing the log data. */
 static PyObject *zlibCompress = NULL;
@@ -584,58 +579,94 @@ static PyObject *base64Encode = NULL;
 /* clog.log_line: Used to perform the actual logging. */
 static PyObject *clogLogLine = NULL;
 
+/* The (partial) SHA of the current deployment.  This isn't a function, but we
+ * get it out of a Python module, so we put it in with the rest of the Python
+ * stuff. */
+#define DEPLOY_SHA_SIZE 10
+char deploySHA[DEPLOY_SHA_SIZE + 1];
+
+/* We need to keep track of whether Python initialization failed or not, so
+ * that we don't retry if it doesn't work the first time. */
 #define INSTR_NOT_INITED    0
 #define INSTR_INITED        1
 #define INSTR_INIT_FAILED   2
-static int instrumentInitState = INSTR_NOT_INITED;
+static int pythonInitState = INSTR_NOT_INITED;
 
-/* Perform one-time setup for instrumentation.  Returns 1 on success and 0 on
- * failure.  After the first call, subsequent calls will return the same value
- * without trying to re-initialize. */
 
-int instrumentInitPythonObjects(void);
+/* Initialization is divided into two parts.  'instrumentInitNative'
+ * initializes the native C data structures (activePlaceholders, dedupeFilter,
+ * etc.).  This should be super safe since it's mostly just a bunch of 'memset'
+ * calls.  The other part, 'instrumentInitPython', imports some Python modules
+ * and collects pointers to some of their functions (zlibCompress,
+ * base64Encode, etc.).  This is less safe, because it might raise a Python
+ * exception in some contexts (such as when 'util.version' is not available).
+ * We want the instrumented Cheetah to work as a drop-in replacement for
+ * ordinary Cheetah as much as possible, so we delay that part of the
+ * initialization until the first call to 'startLogging'. */
 
-int instrumentInit(void) {
-    /* If initialization has already been attempted, don't try it again. */
-    if (instrumentInitState == INSTR_INITED) {
-        return 1;
-    } else if (instrumentInitState == INSTR_INIT_FAILED) {
-        return 0;
-    }
-
+/* Initialize native data structures. */
+int instrumentInitNative(void) {
     /* Make sure we don't segfault if instrumented functions are called before
      * instrumentStartRequest. */
     placeholderStackInit(&activePlaceholders);
     bloomFilterInit(&dedupeFilter);
     logBufferInit(&buffer);
+
     instrumentationEnabled = 0;
-
-    int result = instrumentInitPythonObjects();
-
-    if (result == 0) {
-        /* Clean up any object references that were successfully obtained
-         * before the error occurred.  (XDECREF is like DECREF but does nothing
-         * if the argument is NULL.)*/
-        Py_XDECREF(zlibCompress);
-        zlibCompress = NULL;
-
-        Py_XDECREF(base64Encode);
-        base64Encode = NULL;
-
-        Py_XDECREF(clogLogLine);
-        clogLogLine = NULL;
-
-        instrumentInitState = INSTR_INIT_FAILED;
-        return 0;
-    } else {
-        instrumentInitState = INSTR_INITED;
-        return 1;
-    }
 }
 
-/* Get pointers to the necessary Python functions.  This is only separate from
- * instrumentInit because it makes the error handling less horrible. */
-int instrumentInitPythonObjects(void) {
+/* Helper function to do "from module import func".  Returns a new reference,
+ * or NULL if an error occurred. */
+PyObject* importPythonFunction(const char *moduleName, const char *funcName) {
+    PyObject *module = PyImport_ImportModule(moduleName);
+    if (module == NULL)
+        return NULL;
+
+    PyObject *func = PyObject_GetAttrString(module, funcName);
+    /* We don't need the module any more, regardless of whether or not 'func'
+     * was found successfully. */
+    Py_DECREF(module);
+
+    return func;
+}
+
+/* Helper function to clean up after a failure in 'instrumentInitPython',
+ * making sure everything is in a state that won't cause serious problems
+ * later. */
+void pythonInitFailed(void) {
+    /* Release any references we've acquired, and set everything to Py_None so
+     * that we get TypeErrors instead of segfaults if we accidentally try to
+     * call one of these later. */
+
+    /* Use XDECREF to skip over NULL PyObject*s.  This requires that all these
+     * pointers be initialized to NULL, so that we do the right thing when
+     * 'zlibCompress' fails and 'base64Encode' is still in its initial state.
+     */
+    Py_XDECREF(zlibCompress);
+    zlibCompress = Py_None;
+
+    Py_XDECREF(base64Encode);
+    base64Encode = Py_None;
+
+    Py_XDECREF(clogLogLine);
+    clogLogLine = Py_None;
+
+    /* Make sure deploySHA contains a valid string. */
+    strncpy(deploySHA, "0000000000", sizeof(deploySHA));
+    deploySHA[sizeof(deploySHA) - 1] = '\0';
+
+    /* Record that we failed to initialize the Python stuff, so we don't waste
+     * time trying again later. */
+    pythonInitState = INSTR_INIT_FAILED;
+}
+
+/* Initialize pointers to Python functions, and deploySHA (which comes from a
+ * Python module). */
+int instrumentInitPython(void) {
+    if (pythonInitState != INSTR_NOT_INITED) {
+        return (pythonInitState == INSTR_INITED);
+    }
+
     /* Ugh.  Using return codes to indicate errors makes me sad :(
      *
      * The general strategy here is to have as few live Python objects as
@@ -648,50 +679,41 @@ int instrumentInitPythonObjects(void) {
      * GetAttrString(zlibMod, ...) succeeded.)  This looks a bit strange but is
      * perfectly safe. */
 
-    PyObject *zlibMod = PyImport_ImportModule("zlib");
-    if (zlibMod == NULL)
+    zlibCompress = importPythonFunction("zlib", "compress");
+    if (zlibCompress == NULL) {
+        pythonInitFailed();
         return 0;
+    }
 
-    zlibCompress = PyObject_GetAttrString(zlibMod, "compress");
-    Py_DECREF(zlibMod);
-    if (zlibCompress == NULL)
+    base64Encode = importPythonFunction("base64", "b64encode");
+    if (base64Encode == NULL) {
+        pythonInitFailed();
         return 0;
+    }
 
-
-    PyObject *base64Mod = PyImport_ImportModule("base64");
-    if (base64Mod == NULL)
+    clogLogLine = importPythonFunction("clog", "log_line");
+    if (clogLogLine == NULL) {
+        pythonInitFailed();
         return 0;
-
-    base64Encode = PyObject_GetAttrString(base64Mod, "b64encode");
-    Py_DECREF(base64Mod);
-    if (base64Encode == NULL)
-        return 0;
-
-
-    PyObject *clogMod = PyImport_ImportModule("clog");
-    if (clogMod == NULL)
-        return  0;
-
-    clogLogLine = PyObject_GetAttrString(clogMod, "log_line");
-    Py_DECREF(clogMod);
-    if (clogLogLine == NULL)
-        return 0;
+    }
 
 
     /* Get the current deploy SHA. */
-    PyObject* utilVersionMod = PyImport_ImportModule("util.version");
-    if (utilVersionMod == NULL)
-        return 0;
 
-    PyObject* versionSHAFunc = PyObject_GetAttrString(utilVersionMod, "version_sha");
-    Py_DECREF(utilVersionMod);
-    if (versionSHAFunc == NULL)
+    PyObject *versionSHAFunc = importPythonFunction("util.version", "version_sha");
+    if (versionSHAFunc == NULL) {
+        pythonInitFailed();
         return 0;
+    }
 
     PyObject* pythonDeploySHA = PyObject_CallObject(versionSHAFunc, NULL);
+    /* We need to DECREF versionSHAFunc, regardless of whether the call
+     * succeeded or not. */
     Py_DECREF(versionSHAFunc);
-    if (pythonDeploySHA == NULL)
+    if (pythonDeploySHA == NULL) {
+        pythonInitFailed();
         return 0;
+    }
 
     strncpy(deploySHA, PyString_AsString(pythonDeploySHA), sizeof(deploySHA));
     /* strncpy does not guarantee that the destination will be null-terminated,
@@ -699,6 +721,7 @@ int instrumentInitPythonObjects(void) {
     deploySHA[sizeof(deploySHA) - 1] = '\0';
     Py_DECREF(pythonDeploySHA);
 
+    pythonInitState = INSTR_INITED;
     return 1;
 }
 
@@ -709,34 +732,6 @@ void instrumentLogPlaceholder(int result);
  * use with instrumentLogPlaceholder. */
 #define EVAL_SUCCESS    1
 #define EVAL_FAILURE    0
-
-/* Pop the topmost PlaceholderInfo from the activePlaceholders stack, and log a
- * corresponding LogItem to the buffer.  'result' should be EVAL_SUCCESS or
- * EVAL_FAILURE, to indicate whether the placeholder evaluation succeeded or
- * failed with an exception. */
-void instrumentLogPlaceholder(int result) {
-    if (result != EVAL_SUCCESS) {
-        activePlaceholders.current->lookupCount |= 0x80;
-    }
-
-    struct LogItem item;
-    logItemInit(&item, activePlaceholders.current);
-
-    if (!bloomFilterContainsAndInsert(&dedupeFilter, &item)) {
-        /* The item was not already present. */
-        logBufferInsert(&buffer, &item);
-
-        if (dedupeFilter.itemCount > BLOOM_FILTER_MAX_ITEMS) {
-            /* Clear out the filter once it hits MAX_ITEMS, to avoid
-             * increasing the false positive rate. */
-            bloomFilterInit(&dedupeFilter);
-        }
-    }
-
-    Py_DECREF(activePlaceholders.current->pythonStackPointer);
-    placeholderStackPop(&activePlaceholders);
-    COUNT(Placeholder);
-}
 
 /* Indicate the start of an instrumented request.  This resets the main data
  * structures and enables instrumentation of placeholder evaluations. */
@@ -749,21 +744,88 @@ void instrumentStartRequest(void) {
 
     START(Start);
 
-    /* We defer initialization until the start of the first instrumented
-     * request.  The benefit of this is that we can still use the instrumented
-     * namemapper without having access to the instrumentation dependencies
-     * (particularly 'util.version'), as long as there are no calls to
-     * '_namemapper.startLogging()'.  The downside is that we won't see any
-     * namemapper initialization errors until the first instrumented request
-     * happens. */
-    if (!instrumentInit())
+    /* Make sure Python stuff is initialized. */
+    if (!instrumentInitPython())
         return;
 
     placeholderStackInit(&activePlaceholders);
     bloomFilterInit(&dedupeFilter);
     logBufferInit(&buffer);
+
     instrumentationEnabled = 1;
+
     END(Start, 1);
+}
+
+/* Helper function for actually writing the LogBuffer contents to Scribe.  This
+ * is a separate function to make the error handling less horrible. */
+void writeBufferToScribe(void) {
+    /* Convert the raw placeholder data into a nicer format for writing to
+     * Scribe.
+     *
+     * Each log line has three fields, separated by spaces:
+     *  - Deploy SHA
+     *  - Number of log attempts (which may be greater than the number of items
+     *    logged, if we overflowed the LogBuffer)
+     *  - The raw log contents, copied from buffer.items, then gzipped and
+     *    base64-encoded.
+     */
+
+    PyObject *rawLog = NULL;
+    PyObject *gzippedLog = NULL;
+    PyObject *base64EncodedLog = NULL;
+    PyObject *formatString = NULL;
+    PyObject *formatArgs = NULL;
+    PyObject *formattedLine = NULL;
+
+
+    rawLog = PyString_FromStringAndSize((const char*)&buffer.items,
+            logBufferGetCount(&buffer) * sizeof(struct LogItem));
+    if (rawLog == NULL)
+        /* Yes, it's an actual 'goto'.  Unfortunately this code requires
+         * multiple PyObjects to be live at the same time, so "clean up after
+         * use but before error checking" doesn't work, and we aren't using any
+         * globals, so we can't have a separate cleanup function like
+         * instrumentInitPython does.  'goto' is the least horrible way of
+         * doing the error handling. */
+        goto cleanup;
+
+    gzippedLog = PyObject_CallFunction(zlibCompress, "O", rawLog);
+    if (gzippedLog == NULL)
+        goto cleanup;
+
+    base64EncodedLog = PyObject_CallFunction(base64Encode, "O", gzippedLog);
+    if (base64EncodedLog == NULL)
+        goto cleanup;
+
+
+    formatString = PyString_FromString("%s %d %s");
+    if (formatString == NULL)
+        goto cleanup;
+
+    formatArgs = Py_BuildValue("siO", deploySHA, buffer.insertAttempts, base64EncodedLog);
+    if (formatArgs == NULL)
+        goto cleanup;
+
+    formattedLine = PyString_Format(formatString, formatArgs);
+    if (formattedLine == NULL)
+        goto cleanup;
+
+    START(Log);
+
+    /* Log the actual line. */
+    PyObject_CallFunction(clogLogLine, "sO", "tmp_namemapper_placeholder_uses", formattedLine);
+
+    END(Log, 1);
+
+cleanup:
+    /* Release any references that we successfully acquired. */
+    Py_XDECREF(rawLog);
+    Py_XDECREF(gzippedLog);
+    Py_XDECREF(base64EncodedLog);
+    Py_XDECREF(formatString);
+    Py_XDECREF(formatArgs);
+    Py_XDECREF(formattedLine);
 }
 
 /* Indicate the end of an instrumented request.  This disables instrumentation
@@ -789,43 +851,12 @@ void instrumentFinishRequest(void) {
         return;
     }
 
-    /* Convert the raw placeholder data into a format we can write to scribe.
-     *
-     * Each log line has three fields, separated by spaces:
-     *  - Deploy SHA
-     *  - Number of log attempts
-     *  - The raw log contents, copied from buffer.items, then gzipped and
-     *    base64-encoded.
-     */
-    PyObject *rawLog = PyString_FromStringAndSize((const char*)&buffer.items,
-            logBufferGetCount(&buffer) * sizeof(struct LogItem));
-
-    /* TODO: error checking */
-    PyObject *gzippedLog = PyObject_CallFunction(zlibCompress, "O", rawLog);
-    PyObject *base64EncodedLog = PyObject_CallFunction(base64Encode, "O", gzippedLog);
-
-    PyObject *formatString = PyString_FromString("%s %d %s");
-    PyObject *formatArgs = Py_BuildValue("siO", deploySHA, buffer.insertAttempts, base64EncodedLog);
-
-    PyObject *formattedLine = PyString_Format(formatString, formatArgs);
-
-    /* Release all objects except for formattedLine. */
-    Py_DECREF(rawLog);
-    Py_DECREF(gzippedLog);
-    Py_DECREF(base64EncodedLog);
-    Py_DECREF(formatString);
-    Py_DECREF(formatArgs);
-
+    /* Actually write to Scribe. */
+    writeBufferToScribe();
     END(Finish, 1);
-    START(Log);
-
-    /* Log the actual line. */
-    PyObject_CallFunction(clogLogLine, "sO", "tmp_namemapper_placeholder_uses", formattedLine);
-    Py_DECREF(formattedLine);
-
-    END(Log, 1);
 
     /* Log timer results */
+#ifndef BUILD_TESTS
     char buf[256];
     snprintf(buf, 256, "times: %lu %lu(%lu/%u) %lu %lu (%u)",
             TIME(Start), TIME(Placeholder),
@@ -833,12 +864,11 @@ void instrumentFinishRequest(void) {
             TIME(Finish), TIME(Log), logBufferGetCount(&buffer));
 
     PyObject_CallFunction(clogLogLine, "ss", "tmp_namemapper_placeholder_uses", buf);
+#endif
 }
 
 
-/* Helper functions for dealing with exceptions
- *
- * It turns out dealing with exceptions is rather complicated.  Here are two
+/* It turns out dealing with exceptions is rather complicated.  Here are some
  * interesting examples:
  *
  *      #def f
@@ -858,6 +888,7 @@ void instrumentFinishRequest(void) {
  *  - Evaluate "$x" for "$x[0].y"
  *  - (An exception is thrown, then caught.  f returns.)
  *  - Evaluate ".w" for "$z[...].w"
+ *  - Finish evaluation for "$z[...].w"
  * We are actually done evaluating "$x[0].y", but we did not see any event to
  * indicate that.  We have to figure it out by looking at the stack during the
  * next observable event (the evaluation of ".w").  We handle this in
@@ -880,10 +911,10 @@ void instrumentFinishRequest(void) {
  *      $z
  *
  * In this example, we have the following events:
- *  - Evaluate "$f".  (Call f().)
+ *  - Evaluate "$f" completely.  (Call f().)
  *  - Evaluate "$x" for "$x[0].y"
  *  - (An exception is thrown, then caught.  f returns.)
- *  - Evaluate "$z"
+ *  - Evaluate "$z" completely
  * There is no call to CurrentPlaceholderMatches because "$z" just pushes a new
  * PlaceholderInfo instead of modifying an existing one.  To detect cases like
  * this, we check in StartPlaceholder if the pythonStackPointer for the
@@ -904,7 +935,7 @@ void instrumentFinishRequest(void) {
  * have the following events:
  *  - Evaluate "$x" for "$x[0].y"
  *  - (An exception is thrown, then caught.)
- *  - Evaluate "$z"
+ *  - Evaluate "$z" completely
  * Now there is no call to CurrentPlaceholderMatches, and the check in
  * StartPlaceholder will find that the pythonStackPointer of the topmost item
  * ("$x[0].y") is still live (since "$x[0].y" and "$z" are in the same
@@ -933,7 +964,6 @@ void instrumentFinishRequest(void) {
  *  - In FinishRequest, assume all remaining PlaceholderInfos on the stack have
  *    failed evaluation, and log them all accordingly.
  */
-
 
 /* Check if a Python stack frame is live.  Returns 1 if it is still live (part
  * of the Python callstack whose top is 'currentFrame'), and 0 if it is not
@@ -993,7 +1023,7 @@ void cleanupStack(void) {
         return;
 
     struct PlaceholderInfo *lastDead = findLastDead(PyEval_GetFrame(),
-            activePlaceholders.current, placeholderStackGetBottom(&activePlaceholders));
+            activePlaceholders.current, placeholderStackBottom(&activePlaceholders));
 
     while (activePlaceholders.current <= lastDead) {
         instrumentLogPlaceholder(EVAL_FAILURE);
@@ -1042,19 +1072,10 @@ void instrumentStartPlaceholder(int placeholderID) {
  * true, then it is guaranteed that activePlaceholders.current contains data on
  * the placeholder with the provided ID being evaluated in the current Python
  * stack frame. */
-
-int instrumentCurrentPlaceholderMatchesInternal(uint16_t placeholderID) {
-    /* Make the actual check and return the result. */
-    return
-        instrumentationEnabled &&
-        !placeholderStackIsEmpty(&activePlaceholders) &&
-        activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
-        activePlaceholders.current->placeholderID == placeholderID;
-}
-
 int instrumentCurrentPlaceholderMatches(uint16_t placeholderID) {
     START(Placeholder);
-    /* Make the check, and if it fails, run stack cleanup and try again. */
+    /* Make the check, and if there is a mismatch, run stack cleanup and check
+     * again. */
     int result = 0;
     if (instrumentationEnabled && !placeholderStackIsEmpty(&activePlaceholders)) {
         result = activePlaceholders.current->pythonStackPointer == PyEval_GetFrame() &&
@@ -1108,6 +1129,34 @@ void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) 
     END(Placeholder, 0);
 }
 
+/* Pop the topmost PlaceholderInfo from the activePlaceholders stack, and log a
+ * corresponding LogItem to the buffer.  'result' should be EVAL_SUCCESS or
+ * EVAL_FAILURE, to indicate whether the placeholder evaluation succeeded or
+ * failed with an exception. */
+void instrumentLogPlaceholder(int result) {
+    if (result != EVAL_SUCCESS) {
+        activePlaceholders.current->lookupCount |= 0x80;
+    }
+
+    struct LogItem item;
+    logItemInit(&item, activePlaceholders.current);
+
+    if (!bloomFilterContainsAndInsert(&dedupeFilter, &item)) {
+        /* The item was not already present. */
+        logBufferInsert(&buffer, &item);
+
+        if (dedupeFilter.itemCount > BLOOM_FILTER_MAX_ITEMS) {
+            /* Clear out the filter once it hits MAX_ITEMS, to avoid
+             * increasing the false positive rate. */
+            bloomFilterInit(&dedupeFilter);
+        }
+    }
+
+    Py_DECREF(activePlaceholders.current->pythonStackPointer);
+    placeholderStackPop(&activePlaceholders);
+    COUNT(Placeholder);
+}
+
 /* Indicate the successful completion of evaluation of the placeholder with the
  * given ID.  The placeholder will be logged as EVAL_SUCCESS and popped from
  * the activePlaceholders stack. */
@@ -1122,26 +1171,6 @@ void instrumentFinishPlaceholder(int placeholderID) {
     END(Placeholder, 0);
 }
 
-/* We make one optimization on top of the basic exception handling mechanism.
- * In some cases we are informed that a placeholder evaluation has died with an
- * exception.  In those cases, we clean up that placeholder, and we also clean
- * up all placeholders with the same pythonStackPointer at the top of the
- * placeholder stack.  This lets us sometimes avoid an entire stack cleanup,
- * which can be rather expensive.
- *
- * There are only two ways we can have multiple placeholder stack entries with
- * the same pythonStackPointer:
- *  1) We are evaluating a nested placeholder, such as the "$y" in "$x[$y].z".
- *     The optimization is correct here because an exception while evalutating
- *     the inner placeholder will also abort evaluation of the outer
- *     placeholder.
- *  2) There was an exception during a previous placeholder evaluation in the
- *     same function, which was caught.  (Example #3 from the main exception
- *     handling comment.)  In this case, the additional PlaceholderInfos will
- *     be cleaned up at some point in the future, so it's fine for this
- *     optimization to clean them up a bit early instead.
- */
-
 /* Indicate that evaluation of the placeholder has aborted due to some kind of
  * error.  This will log the aborted placeholder and all others from the same
  * stack frame as EVAL_FAILURE. */
@@ -1150,6 +1179,27 @@ void instrumentAbortPlaceholder(int placeholderID) {
         return;
 
     START(Placeholder);
+
+    /* We make one optimization on top of the basic exception handling
+     * mechanism.  In some cases we are informed that a placeholder evaluation
+     * has died with an exception.  In those cases, we clean up that
+     * placeholder, and we also clean up all placeholders with the same
+     * pythonStackPointer at the top of the placeholder stack.  This lets us
+     * sometimes avoid an entire stack cleanup, which can be rather expensive.
+     *
+     * There are only two ways we can have multiple placeholder stack entries
+     * with the same pythonStackPointer:
+     *  1) We are evaluating a nested placeholder, such as the "$y" in
+     *     "$x[$y].z".  The optimization is correct here because an exception
+     *     while evalutating the inner placeholder will also abort evaluation
+     *     of the outer placeholder.
+     *  2) There was an exception during a previous placeholder evaluation in
+     *     the same function, which was caught.  (Example #3 from the main
+     *     exception handling comment.)  In this case, the additional
+     *     PlaceholderInfos will be cleaned up at some point in the future, so
+     *     it's fine for this optimization to clean them up a bit early
+     *     instead.
+     */
 
     PyFrameObject *targetFrame = activePlaceholders.current->pythonStackPointer;
     while (!placeholderStackIsEmpty(&activePlaceholders) &&
@@ -1724,9 +1774,15 @@ DL_EXPORT(void) init_namemapper(void)
 
 
 
+
 /* *************************************************************************** */
 /* Tests for instrumentation code */
 /* *************************************************************************** */
+
+/* These are tests for the internal (static) functions, which would be
+ * difficult to test otherwise.  There are additional tests in
+ * test_instrumentation.py, which check for correct behavior during actual
+ * template rendering. */
 
 /* To run the tests:
  *      gcc -DBUILD_TESTS -O2 -I/usr/include/python2.6 -lpython2.6 _namemapper.c
@@ -1745,15 +1801,12 @@ DL_EXPORT(void) init_namemapper(void)
  * the Python interpreter generates tons of valgrind errors.)
  */
 
-#define BUILD_TESTS
 #ifdef BUILD_TESTS
-
-#include <assert.h>
 
 #define DEFINE_COUNTERS() \
     int asserts_passed = 0, asserts_total = 0
 
-#define CHECK_THAT(what, cond) \
+#define TEST_ASSERT(what, cond) \
     do {\
         printf("%-70s   ", what);\
         if (cond) {\
@@ -1778,21 +1831,21 @@ void testPlaceholderStack(void) {
 
     placeholderStackInit(&stack);
 
-    CHECK_THAT("the stack starts empty",
+    TEST_ASSERT("the stack starts empty",
             placeholderStackIsEmpty(&stack));
 
     struct PlaceholderInfo *current1 = stack.current;
     placeholderStackPush(&stack);
     struct PlaceholderInfo *current2 = stack.current;
-    CHECK_THAT("Push() changes the value of 'current'",
+    TEST_ASSERT("Push() changes the value of 'current'",
             current1 != current2);
 
-    CHECK_THAT("Push() makes the stack nonempty",
+    TEST_ASSERT("Push() makes the stack nonempty",
             !placeholderStackIsEmpty(&stack));
 
     placeholderStackPop(&stack);
     struct PlaceholderInfo *current3 = stack.current;
-    CHECK_THAT("Pop() after Push() restores the previous value to 'current'",
+    TEST_ASSERT("Pop() after Push() restores the previous value to 'current'",
             current1 == current3);
 
     int failedPushCount = 0;
@@ -1803,9 +1856,9 @@ void testPlaceholderStack(void) {
         else
             ++failedPushCount;
     }
-    CHECK_THAT("Push() succeeds at least some of the time",
+    TEST_ASSERT("Push() succeeds at least some of the time",
             succeededPushCount > 0);
-    CHECK_THAT("Push() indicates an error when it runs out of space",
+    TEST_ASSERT("Push() indicates an error when it runs out of space",
             failedPushCount > 0);
 
     int failedPopCount = 0;
@@ -1816,11 +1869,11 @@ void testPlaceholderStack(void) {
         else
             ++failedPopCount;
     }
-    CHECK_THAT("Pop() returns success once for every successful Push()",
+    TEST_ASSERT("Pop() returns success once for every successful Push()",
             succeededPopCount == succeededPushCount);
-    CHECK_THAT("Pop() indicates an error if the stack is empty",
+    TEST_ASSERT("Pop() indicates an error if the stack is empty",
             failedPopCount > 0);
-    CHECK_THAT("Pop() all elements leaves the stack empty",
+    TEST_ASSERT("Pop() all elements leaves the stack empty",
             placeholderStackIsEmpty(&stack));
 
     SUMMARIZE();
@@ -1852,19 +1905,19 @@ void testLogItem(void) {
 
     const char *foundTemplateName;
     foundTemplateName = findTemplateName(deployFilename);
-    CHECK_THAT("findTemplateName works on deploy directories",
+    TEST_ASSERT("findTemplateName works on deploy directories",
             foundTemplateName != NULL && !strcmp(foundTemplateName, templateName));
 
     foundTemplateName = findTemplateName(playgroundFilename);
-    CHECK_THAT("findTemplateName works on playground directories",
+    TEST_ASSERT("findTemplateName works on playground directories",
             foundTemplateName != NULL && !strcmp(foundTemplateName, templateName));
 
     foundTemplateName = findTemplateName(buildbotFilename);
-    CHECK_THAT("findTemplateName works on buildbot directories",
+    TEST_ASSERT("findTemplateName works on buildbot directories",
             foundTemplateName != NULL && !strcmp(foundTemplateName, templateName));
 
     foundTemplateName = findTemplateName(badFilename);
-    CHECK_THAT("findTemplateName returns null on failure",
+    TEST_ASSERT("findTemplateName returns null on failure",
             foundTemplateName == NULL);
 
 
@@ -1880,9 +1933,9 @@ void testLogItem(void) {
 
     memset(&logItem, 0, sizeof(logItem));
     logItemInit(&logItem, &placeholderInfo);
-    CHECK_THAT("logItemInit hashes the template name hash correctly",
+    TEST_ASSERT("logItemInit hashes the template name hash correctly",
             logItem.templateNameHash == hashString(templateName));
-    CHECK_THAT("logItemInit copies all other PlaceholderInfo fields",
+    TEST_ASSERT("logItemInit copies all other PlaceholderInfo fields",
             logItem.placeholderID == 0x1234 &&
             logItem.nameSpaceIndex == 0x56 &&
             logItem.lookupCount == 0x78 &&
@@ -1893,7 +1946,7 @@ void testLogItem(void) {
 
     memset(&logItem, 0, sizeof(logItem));
     logItemInit(&logItem, &placeholderInfo);
-    CHECK_THAT("logItemInit hashes the full filename if findTemplateName fails",
+    TEST_ASSERT("logItemInit hashes the full filename if findTemplateName fails",
             logItem.templateNameHash == hashString(badFilename));
 
     deleteMockStackFrame(placeholderInfo.pythonStackPointer);
@@ -1910,13 +1963,13 @@ void testLogBuffer(void) {
     int i;
 
     logBufferInit(&buffer);
-    CHECK_THAT("LogBuffer is initialized to be empty",
+    TEST_ASSERT("LogBuffer is initialized to be empty",
             logBufferGetCount(&buffer) == 0 && buffer.insertAttempts == 0);
 
     logBufferInsert(&buffer, &item);
-    CHECK_THAT("logBufferInsert increases the item count",
+    TEST_ASSERT("logBufferInsert increases the item count",
             logBufferGetCount(&buffer) == 1);
-    CHECK_THAT("logBufferInsert increases insertAttempts",
+    TEST_ASSERT("logBufferInsert increases insertAttempts",
             buffer.insertAttempts == 1);
 
     /* Reset the buffer */
@@ -1940,9 +1993,9 @@ void testLogBuffer(void) {
             }
         }
     }
-    CHECK_THAT("logBufferInsert stops inserting once the buffer is full",
+    TEST_ASSERT("logBufferInsert stops inserting once the buffer is full",
             sawFailedInsert && !sawIncreaseWhenFull);
-    CHECK_THAT("insertAttempts continues to increase after the buffer is full",
+    TEST_ASSERT("insertAttempts continues to increase after the buffer is full",
             buffer.insertAttempts == TEST_LOG_BUFFER_INSERT_COUNT);
 
     SUMMARIZE();
@@ -1982,7 +2035,7 @@ void testBloomFilter(void) {
     int i;
 
     bloomFilterInit(&filter);
-    CHECK_THAT("bloomFilterInit makes the filter empty",
+    TEST_ASSERT("bloomFilterInit makes the filter empty",
             filter.itemCount == 0 && countOnesInFilter(&filter) == 0);
 
     struct LogItem item;
@@ -1999,31 +2052,31 @@ void testBloomFilter(void) {
     bloomFilterHash(&item, oldHash);
     item.templateNameHash += 100;
     bloomFilterHash(&item, newHash);
-    CHECK_THAT("bloomFilterHash uses item.templateNameHash",
+    TEST_ASSERT("bloomFilterHash uses item.templateNameHash",
             countEqual(oldHash, newHash) == 0);
 
     bloomFilterHash(&item, oldHash);
     item.placeholderID += 100;
     bloomFilterHash(&item, newHash);
-    CHECK_THAT("bloomFilterHash uses item.placeholderID",
+    TEST_ASSERT("bloomFilterHash uses item.placeholderID",
             countEqual(oldHash, newHash) == 0);
 
     bloomFilterHash(&item, oldHash);
     item.nameSpaceIndex += 100;
     bloomFilterHash(&item, newHash);
-    CHECK_THAT("bloomFilterHash uses item.nameSpaceIndex",
+    TEST_ASSERT("bloomFilterHash uses item.nameSpaceIndex",
             countEqual(oldHash, newHash) == 0);
 
     bloomFilterHash(&item, oldHash);
     item.lookupCount += 100;
     bloomFilterHash(&item, newHash);
-    CHECK_THAT("bloomFilterHash uses item.lookupCount",
+    TEST_ASSERT("bloomFilterHash uses item.lookupCount",
             countEqual(oldHash, newHash) == 0);
 
     bloomFilterHash(&item, oldHash);
     item.flags += 100;
     bloomFilterHash(&item, newHash);
-    CHECK_THAT("bloomFilterHash uses item.flags",
+    TEST_ASSERT("bloomFilterHash uses item.flags",
             countEqual(oldHash, newHash) == 0);
 
 
@@ -2053,9 +2106,9 @@ void testBloomFilter(void) {
         oldBitsSet = newBitsSet;
     }
 
-    CHECK_THAT("inserting an element updates no more than NUM_HASHES bits",
+    TEST_ASSERT("inserting an element updates no more than NUM_HASHES bits",
             !sawTooManyBitsChange);
-    CHECK_THAT("Bloom filter counts insertions correctly",
+    TEST_ASSERT("Bloom filter counts insertions correctly",
             itemsInserted == filter.itemCount);
 
 
@@ -2069,7 +2122,7 @@ void testBloomFilter(void) {
         }
     }
 
-    CHECK_THAT("all inserted items were found in the bloom filter",
+    TEST_ASSERT("all inserted items were found in the bloom filter",
             foundItems == TEST_BLOOM_FILTER_NUM_ITEMS);
 
 
@@ -2083,7 +2136,7 @@ void testBloomFilter(void) {
         }
     }
 
-    CHECK_THAT("Bloom filter false positive rate is less than 0.01%",
+    TEST_ASSERT("Bloom filter false positive rate is less than 0.01%",
             falsePositives <= TEST_BLOOM_FILTER_NUM_ITEMS / 10000);
 
 
@@ -2116,17 +2169,12 @@ void testInstrumentation(void) {
     DEFINE_COUNTERS();
     int i;
 
-    if (!instrumentInit()) {
+    if (!instrumentInitNative()) {
         if (PyErr_Occurred())
             PyErr_PrintEx(0);
         printf("Error occurred during instrumentInit\n");
         return;
     }
-
-    /* Replace the instrumentation code's reference to clog.log_line with a
-     * reference to mockLog. */
-    clogLogLine = PyCFunction_New(&mockLogMethodDef, NULL);
-
 
     /* Run a fake placeholder evaluation before instrumentStartRequest and make
      * sure it doesn't crash. */
@@ -2135,34 +2183,44 @@ void testInstrumentation(void) {
     instrumentRecordNameSpaceIndex(42, 3);
     instrumentRecordLookup(42, DID_AUTOCALL);
     instrumentFinishPlaceholder(42);
-    CHECK_THAT("placeholder evaluation before first StartRequest didn't crash",
+    TEST_ASSERT("placeholder evaluation before first StartRequest didn't crash",
             1);
+
+    instrumentFinishRequest();
+    TEST_ASSERT("FinishRequest before first StartRequest didn't crash",
+            1);
+
+
+    /* Now actually initialize the Python stuff, so we can mock out
+     * clog.log_line. */
+    instrumentInitPython();
+    clogLogLine = PyCFunction_New(&mockLogMethodDef, NULL);
 
 
     /* Test instrumentCurrentPlaceholderMatches */
     instrumentStartRequest();
 
     instrumentStartPlaceholder(42);
-    CHECK_THAT("CurrentPlaceholderMatches same ID immediately after Start",
+    TEST_ASSERT("CurrentPlaceholderMatches same ID immediately after Start",
             instrumentCurrentPlaceholderMatches(42));
 
     instrumentStartPlaceholder(99);
-    CHECK_THAT("only new ID matches after starting nested evaluation",
+    TEST_ASSERT("only new ID matches after starting nested evaluation",
             instrumentCurrentPlaceholderMatches(99) &&
             !instrumentCurrentPlaceholderMatches(42));
 
     instrumentFinishPlaceholder(42);
-    CHECK_THAT("FinishPlaceholder with wrong ID is ignored",
+    TEST_ASSERT("FinishPlaceholder with wrong ID is ignored",
             instrumentCurrentPlaceholderMatches(99) &&
             !instrumentCurrentPlaceholderMatches(42));
 
     instrumentFinishPlaceholder(99);
-    CHECK_THAT("only old ID matches after finishing nested evaluation",
+    TEST_ASSERT("only old ID matches after finishing nested evaluation",
             instrumentCurrentPlaceholderMatches(42) &&
             !instrumentCurrentPlaceholderMatches(99));
 
     instrumentFinishPlaceholder(42);
-    CHECK_THAT("no IDs match after finishing outer evaluations",
+    TEST_ASSERT("no IDs match after finishing outer evaluations",
             !instrumentCurrentPlaceholderMatches(42) &&
             !instrumentCurrentPlaceholderMatches(99));
 
@@ -2181,7 +2239,7 @@ void testInstrumentation(void) {
     instrumentFinishRequest();
     int simpleLineLength = mockLogLineLength;
     uint32_t simpleLineHash = mockLogLineHash;
-    CHECK_THAT("simple placeholder evaluation was logged",
+    TEST_ASSERT("simple placeholder evaluation was logged",
             simpleLineLength > 0);
 
 
@@ -2199,7 +2257,7 @@ void testInstrumentation(void) {
     mockLogLineLength = -1;
     instrumentFinishRequest();
     uint32_t nonMatchingLineHash = mockLogLineHash;
-    CHECK_THAT("instrumentation data for non-matching placeholders is ignored",
+    TEST_ASSERT("instrumentation data for non-matching placeholders is ignored",
             nonMatchingLineHash == simpleLineHash);
 
 
@@ -2209,7 +2267,7 @@ void testInstrumentation(void) {
 
     mockLogLineLength = -1;
     instrumentFinishRequest();
-    CHECK_THAT("request with no placeholders logs nothing",
+    TEST_ASSERT("request with no placeholders logs nothing",
             mockLogLineLength == -1);
 
 
@@ -2227,7 +2285,7 @@ void testInstrumentation(void) {
     mockLogLineLength = -1;
     instrumentFinishRequest();
     uint32_t duplicateLineHash = mockLogLineHash;
-    CHECK_THAT("duplicate log entries are discarded",
+    TEST_ASSERT("duplicate log entries are discarded",
             duplicateLineHash == simpleLineHash);
 
 
@@ -2244,7 +2302,7 @@ void testInstrumentation(void) {
     }
 
     instrumentFinishRequest();
-    CHECK_THAT("placeholder stack overflow doesn't cause a crash",
+    TEST_ASSERT("placeholder stack overflow doesn't cause a crash",
             1);
 
 
@@ -2259,7 +2317,7 @@ void testInstrumentation(void) {
     }
 
     instrumentFinishRequest();
-    CHECK_THAT("log buffer overflow doesn't cause a crash",
+    TEST_ASSERT("log buffer overflow doesn't cause a crash",
             1);
 
 
