@@ -1685,8 +1685,8 @@ DL_EXPORT(void) init_namemapper(void)
 
 /* These are tests for the internal (static) functions, which would be
  * difficult to test otherwise.  There are additional tests in
- * test_instrumentation.py, which check for correct behavior during actual
- * template rendering. */
+ * cheetah/Tests/TestInstrumentation.py, which check for correct behavior
+ * during actual template rendering. */
 
 /* To run the tests:
  *      gcc -DBUILD_TESTS -O2 -I/usr/include/python2.6 -lpython2.6 _namemapper.c
