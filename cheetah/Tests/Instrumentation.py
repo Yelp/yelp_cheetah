@@ -44,8 +44,10 @@ class InstrumentationTestCase(unittest.TestCase):
             result.append(LogItem(*item_tuple))
         return result
 
-    def get_log_items_for_template(self, source):
-        logging_mock = LoggingMock()
+    def get_log_items_for_template(self, source, logging_mock=None):
+        if logging_mock is None:
+            logging_mock = LoggingMock()
+
         Cheetah._namemapper.setLoggingCallback(logging_mock)
 
         Cheetah._namemapper.startLogging()
@@ -217,6 +219,18 @@ class ExceptionTest(InstrumentationTestCase):
         self.assert_log_items_match(items, [
             (True, []),                            # $g
             ])
+
+    def test_propagation_through_finishLogging(self):
+        """Test propagation of exceptions from the logging callback through
+        finishLogging.
+        """
+        class DummyError(Exception): pass
+
+        def raising_callback(blob):
+            raise DummyError()
+
+        self.assertRaises(DummyError,
+            self.get_log_items_for_template, "$d.x", logging_mock=raising_callback)
 
 if __name__ == '__main__':
     unittest.main()

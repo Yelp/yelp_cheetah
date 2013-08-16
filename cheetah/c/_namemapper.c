@@ -578,9 +578,9 @@ static void instrumentStartRequest(void) {
 /* Indicate the end of an instrumented request.  This disables instrumentation
  * of placeholder evaluations and logs all the data collected during the
  * request. */
-static void instrumentFinishRequest(void) {
+static int instrumentFinishRequest(void) {
     if (!instrumentationEnabled) {
-        return;
+        return 1;
     }
 
     /* Anything left on the stack as of the end of the request is assumed to
@@ -593,12 +593,13 @@ static void instrumentFinishRequest(void) {
 
     /* If there is nothing recorded, don't bother logging anything. */
     if (buffer.insertAttempts == 0) {
-        return;
+        return 1;
     }
 
     /* Actually write out the contents of the LogBuffer. */
-    PyObject_CallFunction(loggingFunc, "s#",
+    PyObject *result = PyObject_CallFunction(loggingFunc, "s#",
             (const char*)&buffer.items, logBufferGetCount(&buffer) * sizeof(struct LogItem));
+    return (result != NULL);
 }
 
 
@@ -1419,8 +1420,10 @@ static PyObject *namemapper_startLogging(PyObject *self, PyObject *args, PyObjec
 
 static PyObject *namemapper_finishLogging(PyObject *self, PyObject *args, PyObject *keywds)
 {
-    instrumentFinishRequest();
-    return Py_None;
+    if (instrumentFinishRequest())
+        return Py_None;
+    else
+        return NULL;
 }
 
 
