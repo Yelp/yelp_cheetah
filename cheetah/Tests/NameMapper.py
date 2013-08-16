@@ -110,10 +110,10 @@ class NameMapperTest(unittest.TestCase):
         return self._testNamespace
 
     def VFN(self, name, autocall=True):
-        return valueForName(self.namespace(), name, autocall)
+        return valueForName(self.namespace(), name, -1, autocall)
 
     def VFS(self, searchList, name, autocall=True):
-        return valueFromSearchList(searchList, name, autocall)
+        return valueFromSearchList(searchList, name, -1, autocall)
 
     
     # alias to be overriden later
@@ -472,7 +472,7 @@ class VFF(VFN):
         aStr = ns['aStr'] 
         aFloat = ns['aFloat']
         none = 'some'
-        return valueFromFrame(name, autocall)
+        return valueFromFrame(name, -1, autocall)
 
     def setUp(self):
         """Mod some of the data
@@ -512,7 +512,7 @@ class VFFSL(VFS):
     def VFFSL(self, searchList, name, autocall=True):
         anInt = 1
         none = 'some'
-        return valueFromFrameOrSearchList(searchList, name, autocall)
+        return valueFromFrameOrSearchList(searchList, name, -1, autocall)
     
     def get(self, name, autocall=True):
         return self.VFFSL(self.searchList(), name, autocall)
