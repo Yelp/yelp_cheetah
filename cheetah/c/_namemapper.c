@@ -277,9 +277,9 @@ static void logItemInit(struct LogItem *logItem, struct PlaceholderInfo *placeho
 /*** Log Item Buffer ***/
 
 /* We keep a buffer of data we plan to log.  When the template rendering has
- * finished, we take the whole buffer and dump it into Scribe all at once.
- * This means we don't have the overhead of multiple Scribe calls, and we don't
- * need to worry about interleaving lines from different processes. */
+ * finished, we take the whole buffer and write it out all at once.  This means
+ * we don't have the overhead of multiple write calls, and we don't need to
+ * worry about interleaving lines from different processes. */
 
 /* The maximum number of PlaceholderInfos in the buffer.  Normally biz_details
  * produces about 5,000 entries after deduplication, so setting the size to
@@ -490,16 +490,17 @@ static int bloomFilterContains(struct BloomFilter *filter, struct LogItem* item)
 /* The placeholder tracking system has two main components:
  *  - A stack of PlaceholderInfos for all placeholders that are currently being
  *    evaluated.
- *  - A buffer of LogItems we plan to write to the Scribe log.  Each LogItem
- *    added to the buffer is checked against a bloom filter to prevent logging
- *    duplicate items.
+ *  - A buffer of LogItems we plan to write out.  Each LogItem added to the
+ *    buffer is checked against a bloom filter to prevent logging duplicate
+ *    items.
  *
  * When an instrumented request begins, both structures are cleared.  As each
  * placeholder starts evaluation, a corresponding PlaceholderInfo is pushed onto the
  * stack, and that PlaceholderInfo is updated as evaluation proceeds.  When
  * evaluation is finished, the PlaceholderInfo is popped from the stack,
  * converted to a LogItem, and added to the buffer.  At the end of the
- * instrumented request, the contents of the buffer are logged to Scribe.
+ * instrumented request, the contents of the buffer are written out using the
+ * logging function provided from the calling Python code.
  */
 
 /* The stack of placeholders we are currently evaluating. */
@@ -515,44 +516,21 @@ static struct LogBuffer buffer;
 static int instrumentationEnabled = 0;
 
 
-/* Python functions we call.
- *
- * These need to be initialized to NULL, for the sake of InitPython's error
- * handling. */
+/* Function to use to perform the actual logging. */
+static PyObject *loggingFunc = NULL;
 
-/* zlib.compress: For compressing the log data. */
-static PyObject *zlibCompress = NULL;
-
-/* base64.b64encode: For encoding the log data to ASCII. */
-static PyObject *base64Encode = NULL;
-
-/* clog.log_line: Used to perform the actual logging. */
-static PyObject *clogLogLine = NULL;
-
-/* The (partial) SHA of the current deployment.  This isn't a function, but we
- * get it out of a Python module, so we put it in with the rest of the Python
- * stuff. */
-#define DEPLOY_SHA_SIZE 10
-static char deploySHA[DEPLOY_SHA_SIZE + 1];
-
-/* We need to keep track of whether Python initialization failed or not, so
- * that we don't retry if it doesn't work the first time. */
-#define INSTR_NOT_INITED    0
-#define INSTR_INITED        1
-#define INSTR_INIT_FAILED   2
-static int pythonInitState = INSTR_NOT_INITED;
+/* Flag to indicate whether instrumentation is completely initialized. */
+static int instrumentationInitialized = 0;
 
 
 /* Initialization is divided into two parts.  'instrumentInitNative'
  * initializes the native C data structures (activePlaceholders, dedupeFilter,
- * etc.).  This should be super safe since it's mostly just a bunch of 'memset'
- * calls.  The other part, 'instrumentInitPython', imports some Python modules
- * and collects pointers to some of their functions (zlibCompress,
- * base64Encode, etc.).  This is less safe, because it might raise a Python
- * exception in some contexts (such as when 'util.version' is not available).
- * We want the instrumented Cheetah to work as a drop-in replacement for
- * ordinary Cheetah as much as possible, so we delay that part of the
- * initialization until the first call to 'startLogging'. */
+ * etc.).  This should always run when the module is loaded, to ensure that the
+ * data structures are in a consistent state in case instrumentation functions
+ * get called out of order.  The other part, 'instrumentInitPython', sets up
+ * the callback to Python code which we use for actual logging, and sets
+ * 'instrumentationInitialized' to indicate that the instrumentation system has
+ * everything it needs to operate. */
 
 /* Initialize native data structures. */
 static void instrumentInitNative(void) {
@@ -565,114 +543,11 @@ static void instrumentInitNative(void) {
     instrumentationEnabled = 0;
 }
 
-/* Helper function to do "from module import func".  Returns a new reference,
- * or NULL if an error occurred. */
-static PyObject* importPythonFunction(const char *moduleName, const char *funcName) {
-    PyObject *module = PyImport_ImportModule(moduleName);
-    if (module == NULL)
-        return NULL;
-
-    PyObject *func = PyObject_GetAttrString(module, funcName);
-    /* We don't need the module any more, regardless of whether or not 'func'
-     * was found successfully. */
-    Py_DECREF(module);
-
-    return func;
-}
-
-/* Helper function to clean up after a failure in 'instrumentInitPython',
- * making sure everything is in a state that won't cause serious problems
- * later. */
-static void pythonInitFailed(void) {
-    /* Release any references we've acquired, and set everything to Py_None so
-     * that we get TypeErrors instead of segfaults if we accidentally try to
-     * call one of these later. */
-
-    /* Use XDECREF to skip over NULL PyObject*s.  This requires that all these
-     * pointers be initialized to NULL, so that we do the right thing when
-     * 'zlibCompress' fails and 'base64Encode' is still in its initial state.
-     */
-    Py_XDECREF(zlibCompress);
-    zlibCompress = Py_None;
-
-    Py_XDECREF(base64Encode);
-    base64Encode = Py_None;
-
-    Py_XDECREF(clogLogLine);
-    clogLogLine = Py_None;
-
-    /* Make sure deploySHA contains a valid string. */
-    strncpy(deploySHA, "0000000000", sizeof(deploySHA));
-    deploySHA[sizeof(deploySHA) - 1] = '\0';
-
-    /* Record that we failed to initialize the Python stuff, so we don't waste
-     * time trying again later. */
-    pythonInitState = INSTR_INIT_FAILED;
-}
-
-/* Initialize pointers to Python functions, and deploySHA (which comes from a
- * Python module). */
-static int instrumentInitPython(void) {
-    if (pythonInitState != INSTR_NOT_INITED) {
-        return (pythonInitState == INSTR_INITED);
-    }
-
-    /* Ugh.  Using return codes to indicate errors makes me sad :(
-     *
-     * The general strategy here is to have as few live Python objects as
-     * possible, so we don't have to do as much cleanup in the error cases.
-     * Note that cleanup of globals is handled by the main instrumentInit
-     * function, so we don't need to clean up any of the globals (zlibCompress,
-     * etc.).  For everything else, we Py_DECREF things the very moment we're
-     * done with them, before even checking for errors that arose during their
-     * use.  (For example, we DECREF(zlibMod) before we check whether
-     * GetAttrString(zlibMod, ...) succeeded.)  This looks a bit strange but is
-     * perfectly safe. */
-
-    zlibCompress = importPythonFunction("zlib", "compress");
-    if (zlibCompress == NULL) {
-        pythonInitFailed();
-        return 0;
-    }
-
-    base64Encode = importPythonFunction("base64", "b64encode");
-    if (base64Encode == NULL) {
-        pythonInitFailed();
-        return 0;
-    }
-
-    clogLogLine = importPythonFunction("clog", "log_line");
-    if (clogLogLine == NULL) {
-        pythonInitFailed();
-        return 0;
-    }
-
-
-    /* Get the current deploy SHA. */
-
-    PyObject *versionSHAFunc = importPythonFunction("util.version", "version_sha");
-    if (versionSHAFunc == NULL) {
-        pythonInitFailed();
-        return 0;
-    }
-
-    PyObject* pythonDeploySHA = PyObject_CallObject(versionSHAFunc, NULL);
-    /* We need to DECREF versionSHAFunc, regardless of whether the call
-     * succeeded or not. */
-    Py_DECREF(versionSHAFunc);
-    if (pythonDeploySHA == NULL) {
-        pythonInitFailed();
-        return 0;
-    }
-
-    strncpy(deploySHA, PyString_AsString(pythonDeploySHA), sizeof(deploySHA));
-    /* strncpy does not guarantee that the destination will be null-terminated,
-     * so we have to make sure it is. */
-    deploySHA[sizeof(deploySHA) - 1] = '\0';
-    Py_DECREF(pythonDeploySHA);
-
-    pythonInitState = INSTR_INITED;
-    return 1;
+/* Initialize Python components.  Requires a callable which will be used for
+ * logging. */
+static void instrumentInitPython(PyObject *logger) {
+    loggingFunc = logger;
+    instrumentationInitialized = (logger != NULL && logger != Py_None);
 }
 
 /* Prototype for instrumentLogPlaceholder, since it's used in several places. */
@@ -686,8 +561,8 @@ static void instrumentLogPlaceholder(int result);
 /* Indicate the start of an instrumented request.  This resets the main data
  * structures and enables instrumentation of placeholder evaluations. */
 static void instrumentStartRequest(void) {
-    /* Make sure Python stuff is initialized. */
-    if (!instrumentInitPython())
+    /* Make sure the instrumentation system is initialized. */
+    if (!instrumentationInitialized)
         return;
 
     placeholderStackInit(&activePlaceholders);
@@ -695,73 +570,6 @@ static void instrumentStartRequest(void) {
     logBufferInit(&buffer);
 
     instrumentationEnabled = 1;
-}
-
-/* Helper function for actually writing the LogBuffer contents to Scribe.  This
- * is a separate function to make the error handling less horrible. */
-static void writeBufferToScribe(void) {
-    /* Convert the raw placeholder data into a nicer format for writing to
-     * Scribe.
-     *
-     * Each log line has three fields, separated by spaces:
-     *  - Deploy SHA
-     *  - Number of log attempts (which may be greater than the number of items
-     *    logged, if we overflowed the LogBuffer)
-     *  - The raw log contents, copied from buffer.items, then gzipped and
-     *    base64-encoded.
-     */
-
-    PyObject *rawLog = NULL;
-    PyObject *gzippedLog = NULL;
-    PyObject *base64EncodedLog = NULL;
-    PyObject *formatString = NULL;
-    PyObject *formatArgs = NULL;
-    PyObject *formattedLine = NULL;
-
-
-    rawLog = PyString_FromStringAndSize((const char*)&buffer.items,
-            logBufferGetCount(&buffer) * sizeof(struct LogItem));
-    if (rawLog == NULL)
-        /* Yes, it's an actual 'goto'.  Unfortunately this code requires
-         * multiple PyObjects to be live at the same time, so "clean up after
-         * use but before error checking" doesn't work, and we aren't using any
-         * globals, so we can't have a separate cleanup function like
-         * instrumentInitPython does.  'goto' is the least horrible way of
-         * doing the error handling. */
-        goto cleanup;
-
-    gzippedLog = PyObject_CallFunction(zlibCompress, "O", rawLog);
-    if (gzippedLog == NULL)
-        goto cleanup;
-
-    base64EncodedLog = PyObject_CallFunction(base64Encode, "O", gzippedLog);
-    if (base64EncodedLog == NULL)
-        goto cleanup;
-
-
-    formatString = PyString_FromString("%s %d %s");
-    if (formatString == NULL)
-        goto cleanup;
-
-    formatArgs = Py_BuildValue("siO", deploySHA, buffer.insertAttempts, base64EncodedLog);
-    if (formatArgs == NULL)
-        goto cleanup;
-
-    formattedLine = PyString_Format(formatString, formatArgs);
-    if (formattedLine == NULL)
-        goto cleanup;
-
-    /* Log the actual line. */
-    PyObject_CallFunction(clogLogLine, "sO", "tmp_namemapper_placeholder_uses", formattedLine);
-
-cleanup:
-    /* Release any references that we successfully acquired. */
-    Py_XDECREF(rawLog);
-    Py_XDECREF(gzippedLog);
-    Py_XDECREF(base64EncodedLog);
-    Py_XDECREF(formatString);
-    Py_XDECREF(formatArgs);
-    Py_XDECREF(formattedLine);
 }
 
 /* Indicate the end of an instrumented request.  This disables instrumentation
@@ -785,8 +593,9 @@ static void instrumentFinishRequest(void) {
         return;
     }
 
-    /* Actually write to Scribe. */
-    writeBufferToScribe();
+    /* Actually write out the contents of the LogBuffer. */
+    PyObject_CallFunction(loggingFunc, "s#",
+            (const char*)&buffer.items, logBufferGetCount(&buffer) * sizeof(struct LogItem));
 }
 
 
@@ -1029,7 +838,7 @@ static void instrumentRecordLookup(uint16_t placeholderID, int flags) {
 
 /* Record the namespace index for the first lookup step of the current
  * placeholder.  If the provided placeholder ID doesn't match the current
- * the placeholder on stack, this function does nothing. */
+ * placeholder on stack, this function does nothing. */
 static void instrumentRecordNameSpaceIndex(uint16_t placeholderID, int nameSpaceIndex) {
     if (!instrumentCurrentPlaceholderMatches(placeholderID))
         return;
@@ -1583,6 +1392,22 @@ static PyObject *namemapper_flushPlaceholderInfo(PyObject *self, PyObject *args,
     return obj;
 }
 
+static PyObject *namemapper_setLoggingCallback(PyObject *self, PyObject *args, PyObject *keywds)
+{
+    /* python function args */
+    PyObject* callback;
+
+    static char *kwlist[] = {"callback", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "O", kwlist, &callback)) {
+        return NULL;
+    }
+
+    instrumentInitPython(callback);
+
+    return Py_None;
+}
+
 static PyObject *namemapper_startLogging(PyObject *self, PyObject *args, PyObject *keywds)
 {
     instrumentStartRequest();
@@ -1607,6 +1432,7 @@ static struct PyMethodDef namemapper_methods[] = {
   {"valueFromFrame", (PyCFunction)namemapper_valueFromFrame,  METH_VARARGS|METH_KEYWORDS},
   {"valueFromFrameOrSearchList", (PyCFunction)namemapper_valueFromFrameOrSearchList,  METH_VARARGS|METH_KEYWORDS},
   {"flushPlaceholderInfo", (PyCFunction)namemapper_flushPlaceholderInfo,  METH_VARARGS|METH_KEYWORDS},
+  {"setLoggingCallback", (PyCFunction)namemapper_setLoggingCallback, METH_VARARGS|METH_KEYWORDS},
   {"startLogging", (PyCFunction)namemapper_startLogging,  METH_VARARGS|METH_KEYWORDS},
   {"finishLogging", (PyCFunction)namemapper_finishLogging,  METH_VARARGS|METH_KEYWORDS},
   {NULL,         NULL}
@@ -2051,14 +1877,14 @@ static int mockLogLineLength = 0;
 static uint32_t mockLogLineHash = 0;
 
 static PyObject *mockLog(PyObject *self, PyObject *args) {
-    const char *logName;
-    const char *line;
+    PyObject *line;
 
-    if (!PyArg_ParseTuple(args, "ss#", &logName, &line, &mockLogLineLength)) {
+    if (!PyArg_ParseTuple(args, "O", &line)) {
         return NULL;
     }
 
-    mockLogLineHash = hashString(line);
+    mockLogLineLength = PyObject_Length(line);
+    mockLogLineHash = PyObject_Hash(line);
 
     return Py_None;
 }
@@ -2093,10 +1919,9 @@ static void testInstrumentation(void) {
             1);
 
 
-    /* Now actually initialize the Python stuff, so we can mock out
-     * clog.log_line. */
-    instrumentInitPython();
-    clogLogLine = PyCFunction_New(&mockLogMethodDef, NULL);
+    /* Set the Python logging callback. */
+    PyObject *mockLogObject = PyCFunction_New(&mockLogMethodDef, NULL);
+    instrumentInitPython(mockLogObject);
 
 
     /* Test instrumentCurrentPlaceholderMatches */
