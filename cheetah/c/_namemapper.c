@@ -546,7 +546,10 @@ static void instrumentInitNative(void) {
 /* Initialize Python components.  Requires a callable which will be used for
  * logging. */
 static void instrumentInitPython(PyObject *logger) {
+    Py_XDECREF(loggingFunc);
     loggingFunc = logger;
+    Py_INCREF(loggingFunc);
+
     instrumentationInitialized = (logger != NULL && logger != Py_None);
 }
 
