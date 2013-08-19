@@ -533,8 +533,7 @@ static void instrumentInit(void) {
 /* Set the callback to use for logging instrumentation data.  This should
  * probably be done before enabling instrumentation - otherwise
  * instrumentFinishRequest will raise an exception and discard the recorded
- * data.  (Running instrumentation before setting the callback won't cause
- * segfaults or anything, but it's probably a waste of time.) */
+ * data. */
 static void instrumentSetLoggingCallback(PyObject *logger) {
     /* Replace the old reference with the new one, updating reference counts
      * appropriately. */
@@ -1888,6 +1887,7 @@ static struct PyMethodDef mockLogMethodDef = {
 static void testInstrumentation(void) {
     DEFINE_COUNTERS();
     int i;
+    int result;
 
     instrumentInit();
     if (PyErr_Occurred()) {
@@ -1897,18 +1897,33 @@ static void testInstrumentation(void) {
     }
 
     /* Run a fake placeholder evaluation before instrumentStartRequest and make
-     * sure it doesn't crash. */
+     * sure it doesn't crash.  (This should do nothing at all.) */
     instrumentStartPlaceholder(42);
     instrumentCurrentPlaceholderMatches(42);
     instrumentRecordNameSpaceIndex(42, 3);
     instrumentRecordLookup(42, DID_AUTOCALL);
     instrumentFinishPlaceholder(42);
     TEST_ASSERT("placeholder evaluation before first StartRequest didn't crash",
-            1);
+            !PyErr_Occurred());
 
-    instrumentFinishRequest();
+    result = instrumentFinishRequest();
     TEST_ASSERT("FinishRequest before first StartRequest didn't crash",
-            1);
+            result && !PyErr_Occurred());
+
+
+    /* Run a full request with no logging callback.  This should set a Python
+     * exception in FinishRequest, but it should not segfault. */
+    instrumentStartRequest();
+    instrumentStartPlaceholder(42);
+    instrumentRecordNameSpaceIndex(42, 3);
+    instrumentRecordLookup(42, DID_AUTOCALL);
+    instrumentFinishPlaceholder(42);
+    TEST_ASSERT("full request with no logging callback didn't crash",
+            !PyErr_Occurred());
+    result = instrumentFinishRequest();
+    TEST_ASSERT("FinishRequest with no logging callback raises exception",
+            !result && PyErr_Occurred());
+    PyErr_Clear();
 
 
     /* Set the Python logging callback. */
