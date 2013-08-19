@@ -24,7 +24,6 @@ extern "C" {
 #endif
 
 
-
 static PyObject *NotFound;   /* locally-raised exception */
 static PyObject *TooManyPeriods;   /* locally-raised exception */
 static PyObject* pprintMod_pformat; /* used for exception formatting */
@@ -516,24 +515,12 @@ static struct LogBuffer buffer;
 static int instrumentationEnabled = 0;
 
 
-/* Function to use to perform the actual logging. */
-static PyObject *loggingFunc = NULL;
-
-/* Flag to indicate whether instrumentation is completely initialized. */
-static int instrumentationInitialized = 0;
+/* Function to use to perform the actual logging.  This should never be null. */
+static PyObject *loggingFunc = Py_None;
 
 
-/* Initialization is divided into two parts.  'instrumentInitNative'
- * initializes the native C data structures (activePlaceholders, dedupeFilter,
- * etc.).  This should always run when the module is loaded, to ensure that the
- * data structures are in a consistent state in case instrumentation functions
- * get called out of order.  The other part, 'instrumentInitPython', sets up
- * the callback to Python code which we use for actual logging, and sets
- * 'instrumentationInitialized' to indicate that the instrumentation system has
- * everything it needs to operate. */
-
-/* Initialize native data structures. */
-static void instrumentInitNative(void) {
+/* Initialize instrumentation data structures. */
+static void instrumentInit(void) {
     /* Make sure we don't segfault if instrumented functions are called before
      * instrumentStartRequest. */
     placeholderStackInit(&activePlaceholders);
@@ -543,14 +530,17 @@ static void instrumentInitNative(void) {
     instrumentationEnabled = 0;
 }
 
-/* Initialize Python components.  Requires a callable which will be used for
- * logging. */
-static void instrumentInitPython(PyObject *logger) {
-    Py_XDECREF(loggingFunc);
+/* Set the callback to use for logging instrumentation data.  This should
+ * probably be done before enabling instrumentation - otherwise
+ * instrumentFinishRequest will raise an exception and discard the recorded
+ * data.  (Running instrumentation before setting the callback won't cause
+ * segfaults or anything, but it's probably a waste of time.) */
+static void instrumentSetLoggingCallback(PyObject *logger) {
+    /* Replace the old reference with the new one, updating reference counts
+     * appropriately. */
+    Py_DECREF(loggingFunc);
     loggingFunc = logger;
     Py_INCREF(loggingFunc);
-
-    instrumentationInitialized = (logger != NULL && logger != Py_None);
 }
 
 /* Prototype for instrumentLogPlaceholder, since it's used in several places. */
@@ -564,10 +554,6 @@ static void instrumentLogPlaceholder(int result);
 /* Indicate the start of an instrumented request.  This resets the main data
  * structures and enables instrumentation of placeholder evaluations. */
 static void instrumentStartRequest(void) {
-    /* Make sure the instrumentation system is initialized. */
-    if (!instrumentationInitialized)
-        return;
-
     placeholderStackInit(&activePlaceholders);
     bloomFilterInit(&dedupeFilter);
     logBufferInit(&buffer);
@@ -1407,7 +1393,7 @@ static PyObject *namemapper_setLoggingCallback(PyObject *self, PyObject *args, P
         return NULL;
     }
 
-    instrumentInitPython(callback);
+    instrumentSetLoggingCallback(callback);
 
     return Py_None;
 }
@@ -1489,7 +1475,7 @@ DL_EXPORT(void) init_namemapper(void)
     pprintMod_pformat = PyObject_GetAttrString(pprintMod, "pformat");
     Py_DECREF(pprintMod);
 
-    instrumentInitNative();
+    instrumentInit();
     /* Suppress a warning about bloomFilterContains being unused.  (It's used
      * only in the test code.) */
     (void)bloomFilterContains;
@@ -1903,10 +1889,10 @@ static void testInstrumentation(void) {
     DEFINE_COUNTERS();
     int i;
 
-    instrumentInitNative();
+    instrumentInit();
     if (PyErr_Occurred()) {
         PyErr_PrintEx(0);
-        printf("Error occurred during instrumentInitNative\n");
+        printf("Error occurred during instrumentInit\n");
         return;
     }
 
@@ -1927,7 +1913,7 @@ static void testInstrumentation(void) {
 
     /* Set the Python logging callback. */
     PyObject *mockLogObject = PyCFunction_New(&mockLogMethodDef, NULL);
-    instrumentInitPython(mockLogObject);
+    instrumentSetLoggingCallback(mockLogObject);
 
 
     /* Test instrumentCurrentPlaceholderMatches */
