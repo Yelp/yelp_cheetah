@@ -1139,7 +1139,7 @@ static PyObject *namemapper_valueForName(PYARGS)
     PyObject *obj;
     char *name;
     int executeCallables = 0;
-    int placeholderID;
+    int placeholderID = -1;
 
     char *nameCopy = NULL;
     char *tmpPntr1 = NULL;
@@ -1149,9 +1149,9 @@ static PyObject *namemapper_valueForName(PYARGS)
 
     PyObject *theValue;
 
-    static char *kwlist[] = {"obj", "name", "placeholderID", "executeCallables", NULL};
+    static char *kwlist[] = {"obj", "name", "executeCallables", "placeholderID", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Osi|i", kwlist,  &obj, &name, &placeholderID, &executeCallables)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|ii", kwlist,  &obj, &name, &executeCallables, &placeholderID)) {
         return NULL;
     }
 
@@ -1174,8 +1174,8 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
 {
     PyObject *searchList;
     char *name;
-    int placeholderID;
     int executeCallables = 0;
+    int placeholderID = -1;
 
     char *nameCopy = NULL;
     char *tmpPntr1 = NULL;
@@ -1188,9 +1188,9 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
     PyObject *theValue = NULL;
     PyObject *iterator = NULL;
 
-    static char *kwlist[] = {"searchList", "name", "placeholderID", "executeCallables", NULL};
+    static char *kwlist[] = {"searchList", "name", "executeCallables", "placeholderID", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Osi|i", kwlist, &searchList, &name, &placeholderID, &executeCallables)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|ii", kwlist, &searchList, &name, &executeCallables, &placeholderID)) {
         return NULL;
     }
 
@@ -1238,8 +1238,8 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
 {
     /* python function args */
     char *name;
-    int placeholderID;
     int executeCallables = 0;
+    int placeholderID = -1;
     PyObject *searchList = NULL;
 
     /* locals */
@@ -1255,10 +1255,10 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     PyObject *excString = NULL;
     PyObject *iterator = NULL;
 
-    static char *kwlist[] = {"searchList", "name", "placeholderID",  "executeCallables", NULL};
+    static char *kwlist[] = {"searchList", "name",  "executeCallables", "placeholderID", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "Osi|i", kwlist,  &searchList, &name, 
-                    &placeholderID, &executeCallables)) {
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "Os|ii", kwlist,  &searchList, &name, 
+                    &executeCallables, &placeholderID)) {
         return NULL;
     }
 
@@ -1314,8 +1314,8 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
 {
     /* python function args */
     char *name;
-    int placeholderID;
     int executeCallables = 0;
+    int placeholderID = -1;
 
     /* locals */
     char *tmpPntr1 = NULL;
@@ -1329,9 +1329,9 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
     PyObject *theValue = NULL;
     PyObject *excString = NULL;
 
-    static char *kwlist[] = {"name", "placeholderID", "executeCallables", NULL};
+    static char *kwlist[] = {"name", "executeCallables", "placeholderID", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "si|i", kwlist, &name, &placeholderID, &executeCallables)) {
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|ii", kwlist, &name, &executeCallables, &placeholderID)) {
         return NULL;
     }
 

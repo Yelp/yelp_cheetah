@@ -233,13 +233,13 @@ def _valueForName(obj, name, executeCallables=False):
             obj = nextObj
     return obj
 
-def valueForName(obj, name, placeholderID, executeCallables=False):
+def valueForName(obj, name, executeCallables=False, placeholderID=-1):
     try:
         return _valueForName(obj, name, executeCallables)
     except NotFound, e:
         _wrapNotFoundException(e, fullName=name, namespace=obj)
 
-def valueFromSearchList(searchList, name, placeholderID, executeCallables=False):
+def valueFromSearchList(searchList, name, executeCallables=False, placeholderID=-1):
     key = name.split('.')[0]
     for namespace in searchList:
         if hasKey(namespace, key):
@@ -255,7 +255,7 @@ def _namespaces(callerFrame, searchList=None):
     yield callerFrame.f_globals
     yield __builtins__
 
-def valueFromFrameOrSearchList(searchList, name, placeholderID, executeCallables=False,
+def valueFromFrameOrSearchList(searchList, name, executeCallables=False, placeholderID=-1,
                                frame=None):
     def __valueForName():
         try:
@@ -273,7 +273,7 @@ def valueFromFrameOrSearchList(searchList, name, placeholderID, executeCallables
     finally:
         del frame
 
-def valueFromFrame(name, placeholderID, executeCallables=False, frame=None):
+def valueFromFrame(name, executeCallables=False, placeholderID=-1, frame=None):
     # @@TR consider implementing the C version the same way
     # at the moment it provides a seperate but mirror implementation
     # to valueFromFrameOrSearchList
@@ -282,8 +282,8 @@ def valueFromFrame(name, placeholderID, executeCallables=False, frame=None):
             frame = inspect.stack()[1][0]
         return valueFromFrameOrSearchList(searchList=None,
                                           name=name,
-                                          placeholderID=placeholderID,
                                           executeCallables=executeCallables,
+                                          placeholderID=placeholderID,
                                           frame=frame)
     finally:
         del frame
@@ -298,7 +298,7 @@ def hasName(obj, name):
     if not hasKey(obj, key):
         return False
     try:
-        valueForName(obj, name, -1)
+        valueForName(obj, name, placeholderID=-1)
         return True
     except NotFound:
         return False
@@ -317,7 +317,7 @@ except:
 class Mixin:
     """@@ document me"""
     def valueForName(self, name):
-        return valueForName(self, name, -1)
+        return valueForName(self, name, placeholderID=-1)
 
     def valueForKey(self, key):
         return valueForKey(self, key)

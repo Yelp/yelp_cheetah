@@ -260,30 +260,30 @@ class GenUtils(object):
                 beforeFirstDot, afterDot = name[:firstDotIdx], name[firstDotIdx+1:]
                 pythonCode = ('VFN(' + beforeFirstDot +
                               ',"' + afterDot +
-                              '",' + str(placeholderID) +
-                              ',' + repr(defaultUseAC and useAC) + ')'
+                              '",' + repr(defaultUseAC and useAC) +
+                              ',' + str(placeholderID) + ')'
                               + remainder)
             else:
                 pythonCode = name+remainder
         elif self.setting('useStackFrames'):
             pythonCode = ('VFFSL(SL,'
                           '"'+ name + '",'
-                          + str(placeholderID) + ','
-                          + repr(defaultUseAC and useAC) + ')'
+                          + repr(defaultUseAC and useAC) + ','
+                          + str(placeholderID) + ')'
                           + remainder)
         else:
             pythonCode = ('VFSL([locals()]+SL+[globals(), builtin],'
                           '"'+ name + '",'
-                          + str(placeholderID) + ','
-                          + repr(defaultUseAC and useAC) + ')'
+                          + repr(defaultUseAC and useAC) + ','
+                          + str(placeholderID) + ')'
                           + remainder)
         ##    
         while nameChunks:
             name, useAC, remainder = nameChunks.pop()
             pythonCode = ('VFN(' + pythonCode +
                           ',"' + name +
-                          '",' + str(placeholderID) +
-                          ',' + repr(defaultUseAC and useAC) + ')'
+                          '",' + repr(defaultUseAC and useAC) +
+                          ',' + str(placeholderID) + ')'
                           + remainder)
 
         # Insert the FLUSH call before the final 'remainder' (if any), so that

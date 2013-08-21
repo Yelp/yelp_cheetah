@@ -1370,7 +1370,7 @@ class Template(Servlet):
         """
         
         try:
-            result = valueFromSearchList(self.searchList(), varName.replace('$', ''), -1, autoCall)
+            result = valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, -1)
             return flushPlaceholderInfo(result, -1)
         except NotFound:
             if default is not Unspecified:
@@ -1382,7 +1382,7 @@ class Template(Servlet):
         """Test if a variable name exists in the searchList.
         """
         try:
-            result = valueFromSearchList(self.searchList(), varName.replace('$', ''), -1, autoCall)
+            result = valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, -1)
             flushPlaceholderInfo(result, -1)
             return True
         except NotFound:
