@@ -1363,25 +1363,25 @@ class Template(Servlet):
             
     ## utility functions ##   
 
-    def getVar(self, varName, default=Unspecified, autoCall=True):        
+    def getVar(self, varName, default=Unspecified, autoCall=True, useDottedNotation=True):        
         """Get a variable from the searchList.  If the variable can't be found
         in the searchList, it returns the default value if one was given, or
         raises NameMapper.NotFound.
         """
         
         try:
-            return valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall)
+            return valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, useDottedNotation)
         except NotFound:
             if default is not Unspecified:
                 return default
             else:
                 raise
     
-    def varExists(self, varName, autoCall=True):
+    def varExists(self, varName, autoCall=True, useDottedNotation=True):
         """Test if a variable name exists in the searchList.
         """
         try:
-            valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall)
+            valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, useDottedNotation)
             return True
         except NotFound:
             return False

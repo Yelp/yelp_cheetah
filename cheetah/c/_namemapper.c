@@ -163,7 +163,7 @@ static PyObject *PyNamemapper_valueForKey(PyObject *obj, char *key)
     return theValue;
 }
 
-static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], int numChunks, int executeCallables)
+static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], int numChunks, int executeCallables, int useDottedNotation)
 {
     int i;
     char *currentKey;
@@ -180,7 +180,7 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
             return NULL;
         }
 
-        if (PyMapping_Check(currentVal) && PyMapping_HasKeyString(currentVal, currentKey)) {
+        if (useDottedNotation && PyMapping_Check(currentVal) && PyMapping_HasKeyString(currentVal, currentKey)) {
             nextVal = PyMapping_GetItemString(currentVal, currentKey);
         }
 
@@ -252,6 +252,7 @@ static PyObject *namemapper_valueForName(PYARGS)
     PyObject *obj;
     char *name;
     int executeCallables = 0;
+    int useDottedNotation = 1;
 
     char *nameCopy = NULL;
     char *tmpPntr1 = NULL;
@@ -261,15 +262,15 @@ static PyObject *namemapper_valueForName(PYARGS)
 
     PyObject *theValue;
 
-    static char *kwlist[] = {"obj", "name", "executeCallables", NULL};
+    static char *kwlist[] = {"obj", "name", "executeCallables", "useDottedNotation", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|i", kwlist,  &obj, &name, &executeCallables)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|ii", kwlist,  &obj, &name, &executeCallables, &useDottedNotation)) {
         return NULL;
     }
 
     createNameCopyAndChunks();  
 
-    theValue = PyNamemapper_valueForName(obj, nameChunks, numChunks, executeCallables);
+    theValue = PyNamemapper_valueForName(obj, nameChunks, numChunks, executeCallables, useDottedNotation);
     free(nameCopy);
     if (wrapInternalNotFoundException(name, obj)) {
         theValue = NULL;
@@ -282,6 +283,7 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
     PyObject *searchList;
     char *name;
     int executeCallables = 0;
+    int useDottedNotation = 1;
 
     char *nameCopy = NULL;
     char *tmpPntr1 = NULL;
@@ -293,9 +295,9 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
     PyObject *theValue = NULL;
     PyObject *iterator = NULL;
 
-    static char *kwlist[] = {"searchList", "name", "executeCallables", NULL};
+    static char *kwlist[] = {"searchList", "name", "executeCallables", "useDottedNotation", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|i", kwlist, &searchList, &name, &executeCallables)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|ii", kwlist, &searchList, &name, &executeCallables, &useDottedNotation)) {
         return NULL;
     }
 
@@ -333,6 +335,7 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     /* python function args */
     char *name;
     int executeCallables = 0;
+    int useDottedNotation = 1;
     PyObject *searchList = NULL;
 
     /* locals */
@@ -347,10 +350,10 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     PyObject *excString = NULL;
     PyObject *iterator = NULL;
 
-    static char *kwlist[] = {"searchList", "name", "executeCallables", NULL};
+    static char *kwlist[] = {"searchList", "name", "executeCallables", "useDottedNotation", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "Os|i", kwlist,  &searchList, &name, 
-                    &executeCallables)) {
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "Os|ii", kwlist,  &searchList, &name, 
+                    &executeCallables, &useDottedNotation)) {
         return NULL;
     }
 
@@ -398,6 +401,7 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
     /* python function args */
     char *name;
     int executeCallables = 0;
+    int useDottedNotation = 1;
 
     /* locals */
     char *tmpPntr1 = NULL;
@@ -411,9 +415,9 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
     PyObject *theValue = NULL;
     PyObject *excString = NULL;
 
-    static char *kwlist[] = {"name", "executeCallables", NULL};
+    static char *kwlist[] = {"name", "executeCallables", "useDottedNotation", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|i", kwlist, &name, &executeCallables)) {
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|ii", kwlist, &name, &executeCallables, &useDottedNotation)) {
         return NULL;
     }
 

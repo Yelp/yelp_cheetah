@@ -43,6 +43,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useSearchList', True, 'Enable the searchList, requires useNameMapper=True, if disabled, first portion of the $variable is a global, builtin, or local variable that doesn\'t need looking up in the searchList'),
     ('allowSearchListAsMethArg', True, ''),
     ('useAutocalling', True, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
+    ('useDottedNotation', True, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useStackFrames', True, 'Used for NameMapper.valueFromFrameOrSearchList rather than NameMapper.valueFromSearchList'),
     ('useErrorCatcher', False, 'Turn on the #errorCatcher directive for catching NameMapper errors, etc'),
     ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
@@ -248,6 +249,7 @@ class GenUtils(object):
         stack frame introspection.
         """
         defaultUseAC = self.setting('useAutocalling')
+        useDottedNotation = self.setting('useDottedNotation')
         useSearchList = self.setting('useSearchList')
 
         nameChunks.reverse()
@@ -257,29 +259,22 @@ class GenUtils(object):
             firstDotIdx = name.find('.')
             if firstDotIdx != -1 and firstDotIdx < len(name):
                 beforeFirstDot, afterDot = name[:firstDotIdx], name[firstDotIdx+1:]
-                pythonCode = ('VFN(' + beforeFirstDot +
-                              ',"' + afterDot +
-                              '",' + repr(defaultUseAC and useAC) + ')'
-                              + remainder)
+                pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (beforeFirstDot, afterDot,
+                        defaultUseAC and useAC, useDottedNotation, remainder)
             else:
                 pythonCode = name+remainder
         elif self.setting('useStackFrames'):
-            pythonCode = ('VFFSL(SL,'
-                          '"'+ name + '",'
-                          + repr(defaultUseAC and useAC) + ')'
-                          + remainder)
+            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (name,
+                    defaultUseAC and useAC, useDottedNotation, remainder)
         else:
-            pythonCode = ('VFSL([locals()]+SL+[globals(), builtin],'
-                          '"'+ name + '",'
-                          + repr(defaultUseAC and useAC) + ')'
-                          + remainder)
+            pythonCode = 'VFSL(%s, "%s", %s, %s)%s' % (
+                    '[locals()]+SL+[globals(), builtin]', name,
+                    defaultUseAC and useAC, useDottedNotation, remainder)
         ##    
         while nameChunks:
             name, useAC, remainder = nameChunks.pop()
-            pythonCode = ('VFN(' + pythonCode +
-                          ',"' + name +
-                          '",' + repr(defaultUseAC and useAC) + ')'
-                          + remainder)
+            pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (pythonCode, name,
+                    defaultUseAC and useAC, useDottedNotation, remainder)
         return pythonCode
     
 ##################################################
