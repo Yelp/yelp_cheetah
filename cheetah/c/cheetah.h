@@ -64,7 +64,11 @@
 
 #define checkForNameInNameSpaceAndReturnIfFound(namespace_decref) { \
     if ( PyNamemapper_hasKey(nameSpace, nameChunks[0]) ) {\
-        theValue = PyNamemapper_valueForName(nameSpace, nameChunks, numChunks, executeCallables, useDottedNotation);\
+        /* We always do the first lookup with useDottedNotation = 1, because
+         * otherwise looking up locals and globals (from the dicts locals() and
+         * globals()) would always fail. */ \
+        theValue = PyNamemapper_valueForName(nameSpace, &nameChunks[0], 1, executeCallables, 1); \
+        theValue = PyNamemapper_valueForName(theValue, &nameChunks[1], numChunks - 1, executeCallables, useDottedNotation);\
         if (namespace_decref) {\
             Py_DECREF(nameSpace);\
         }\
