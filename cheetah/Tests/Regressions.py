@@ -132,9 +132,11 @@ class Mantis_Issue_11_Regression_Test(unittest.TestCase):
     '''
     def test_FailingBehavior(self):
         import cgi
+        # This used to break because Cheetah.Servlet.request used to be a class property that
+        # was None and came up earlier in VFSSL than the things in teh search list
         template = Cheetah.Template.Template("$escape($request)", searchList=[{'escape' : cgi.escape, 'request' : 'foobar'}])
         assert template
-        self.failUnlessRaises(AttributeError, template.respond)
+        assert template.respond()
 
     def test_FailingBehaviorWithSetting(self):
         import cgi
