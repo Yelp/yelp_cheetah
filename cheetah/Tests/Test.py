@@ -50,4 +50,6 @@ if __name__ == '__main__':
         runner = xmlrunner.XMLTestRunner(filename='Cheetah-Tests.xml')
     
     results = runner.run(unittest.TestSuite(suites))
+    ret = 1 if results.errors or results.failures else 0
+    sys.exit(ret)
 
