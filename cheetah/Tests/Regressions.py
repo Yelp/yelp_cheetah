@@ -130,11 +130,14 @@ class Mantis_Issue_11_Regression_Test(unittest.TestCase):
           File "/usr/lib64/python2.6/cgi.py", line 1035, in escape
             s = s.replace("&", "&") # Must be done first! 
     '''
-    def test_FailingBehavior(self):
+    def test_RequestInSearchList(self):
         import cgi
+        # This used to break because Cheetah.Servlet.request used to be a class property that
+        # was None and came up earlier in VFSSL than the things in the search list.
+        # Currently, request is available when being passed through the search list.
         template = Cheetah.Template.Template("$escape($request)", searchList=[{'escape' : cgi.escape, 'request' : 'foobar'}])
         assert template
-        self.failUnlessRaises(AttributeError, template.respond)
+        assert template.respond()
 
     def test_FailingBehaviorWithSetting(self):
         import cgi

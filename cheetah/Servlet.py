@@ -13,7 +13,6 @@ class Servlet(object):
 
     transaction = None
     application = None
-    request = None
     session = None
 
     def respond(self, trans=None):
@@ -25,8 +24,6 @@ definition.""")
     def sleep(self, transaction):
         super(Servlet, self).sleep(transaction)
         self.session = None
-        self.request  = None
-        self._request  = None
         self.response = None
         self.transaction = None
 
