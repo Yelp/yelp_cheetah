@@ -60,7 +60,7 @@ from Cheetah.convertTmplPathToModuleName import convertTmplPathToModuleName
 from Cheetah.Utils.Misc import checkKeywords     # Used in Template.__init__
 from Cheetah.Utils.Indenter import Indenter      # Used in Template.__init__ and for
                                                  # placeholders
-from Cheetah.NameMapper import NotFound, valueFromSearchList
+from Cheetah.NameMapper import NotFound, valueFromSearchList, flushPlaceholderInfo
 from Cheetah.CacheStore import MemoryCacheStore, MemcachedCacheStore
 from Cheetah.CacheRegion import CacheRegion
 from Cheetah.DummyTransaction import DummyTransaction
@@ -1370,7 +1370,8 @@ class Template(Servlet):
         """
         
         try:
-            return valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall)
+            result = valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, -1)
+            return flushPlaceholderInfo(result, -1)
         except NotFound:
             if default is not Unspecified:
                 return default
@@ -1381,7 +1382,8 @@ class Template(Servlet):
         """Test if a variable name exists in the searchList.
         """
         try:
-            valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall)
+            result = valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, -1)
+            flushPlaceholderInfo(result, -1)
             return True
         except NotFound:
             return False

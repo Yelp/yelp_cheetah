@@ -134,6 +134,7 @@ __author__ = "Tavis Rudd <tavis@damnsimple.com>," +\
              "\nChuck Esterbrook <echuck@mindspring.com>"
 from pprint import pformat
 import inspect
+import sys
 
 _INCLUDE_NAMESPACE_REPR_IN_NOTFOUND_EXCEPTIONS = False
 _ALLOW_WRAPPING_OF_NOTFOUND_EXCEPTIONS = True
@@ -144,6 +145,7 @@ __all__ = ['NotFound',
            'valueFromSearchList',
            'valueFromFrameOrSearchList',
            'valueFromFrame',
+           'flushPlaceholderInfo',
            ]
 
 if not hasattr(inspect.imp, 'get_suffixes'):
@@ -231,13 +233,13 @@ def _valueForName(obj, name, executeCallables=False):
             obj = nextObj
     return obj
 
-def valueForName(obj, name, executeCallables=False):
+def valueForName(obj, name, executeCallables=False, placeholderID=-1):
     try:
         return _valueForName(obj, name, executeCallables)
     except NotFound, e:
         _wrapNotFoundException(e, fullName=name, namespace=obj)
 
-def valueFromSearchList(searchList, name, executeCallables=False):
+def valueFromSearchList(searchList, name, executeCallables=False, placeholderID=-1):
     key = name.split('.')[0]
     for namespace in searchList:
         if hasKey(namespace, key):
@@ -253,7 +255,7 @@ def _namespaces(callerFrame, searchList=None):
     yield callerFrame.f_globals
     yield __builtins__
 
-def valueFromFrameOrSearchList(searchList, name, executeCallables=False,
+def valueFromFrameOrSearchList(searchList, name, executeCallables=False, placeholderID=-1,
                                frame=None):
     def __valueForName():
         try:
@@ -271,7 +273,7 @@ def valueFromFrameOrSearchList(searchList, name, executeCallables=False,
     finally:
         del frame
 
-def valueFromFrame(name, executeCallables=False, frame=None):
+def valueFromFrame(name, executeCallables=False, placeholderID=-1, frame=None):
     # @@TR consider implementing the C version the same way
     # at the moment it provides a seperate but mirror implementation
     # to valueFromFrameOrSearchList
@@ -281,9 +283,13 @@ def valueFromFrame(name, executeCallables=False, frame=None):
         return valueFromFrameOrSearchList(searchList=None,
                                           name=name,
                                           executeCallables=executeCallables,
+                                          placeholderID=placeholderID,
                                           frame=frame)
     finally:
         del frame
+
+def flushPlaceholderInfo(obj, placeholderID):
+    return obj
 
 def hasName(obj, name):
     #Not in the C version
@@ -292,13 +298,14 @@ def hasName(obj, name):
     if not hasKey(obj, key):
         return False
     try:
-        valueForName(obj, name)
+        valueForName(obj, name, placeholderID=-1)
         return True
     except NotFound:
         return False
 try:
     from Cheetah._namemapper import NotFound, valueForKey, valueForName, \
-         valueFromSearchList, valueFromFrameOrSearchList, valueFromFrame
+         valueFromSearchList, valueFromFrameOrSearchList, valueFromFrame, \
+         flushPlaceholderInfo
     # it is possible with Jython or Windows, for example, that _namemapper.c hasn't been compiled
     C_VERSION = True
 except:
@@ -310,7 +317,7 @@ except:
 class Mixin:
     """@@ document me"""
     def valueForName(self, name):
-        return valueForName(self, name)
+        return valueForName(self, name, placeholderID=-1)
 
     def valueForKey(self, key):
         return valueForKey(self, key)

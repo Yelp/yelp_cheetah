@@ -62,9 +62,10 @@
     }\
 }
 
-#define checkForNameInNameSpaceAndReturnIfFound(namespace_decref) { \
+#define checkForNameInNameSpaceAndReturnIfFound(namespace_decref, currentSearchListIndex) { \
     if ( PyNamemapper_hasKey(nameSpace, nameChunks[0]) ) {\
-        theValue = PyNamemapper_valueForName(nameSpace, nameChunks, numChunks, executeCallables);\
+		instrumentRecordNameSpaceIndex(placeholderID, currentSearchListIndex);\
+        theValue = PyNamemapper_valueForName(nameSpace, nameChunks, numChunks, placeholderID, executeCallables);\
         if (namespace_decref) {\
             Py_DECREF(nameSpace);\
         }\
