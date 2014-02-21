@@ -215,11 +215,11 @@ def valueForKey(obj, key):
     else:
         _raiseNotFoundException(key, obj)
 
-def _valueForName(obj, name, executeCallables=False):
+def _valueForName(obj, name, executeCallables=False, useDottedNotation=True):
     nameChunks=name.split('.')
     for i in range(len(nameChunks)):
         key = nameChunks[i]
-        if hasattr(obj, 'has_key') and key in obj:
+        if useDottedNotation and hasattr(obj, 'has_key') and key in obj:
             nextObj = obj[key]
         else:
             try:
@@ -233,18 +233,19 @@ def _valueForName(obj, name, executeCallables=False):
             obj = nextObj
     return obj
 
-def valueForName(obj, name, executeCallables=False, placeholderID=-1):
+def valueForName(obj, name, executeCallables=False, useDottedNotation=True, placeholderID=-1):
     try:
-        return _valueForName(obj, name, executeCallables)
+        return _valueForName(obj, name, executeCallables, useDottedNotation)
     except NotFound, e:
         _wrapNotFoundException(e, fullName=name, namespace=obj)
 
-def valueFromSearchList(searchList, name, executeCallables=False, placeholderID=-1):
+def valueFromSearchList(searchList, name, executeCallables=False, useDottedNotation=True, placeholderID=-1):
     key = name.split('.')[0]
     for namespace in searchList:
         if hasKey(namespace, key):
             return _valueForName(namespace, name,
-                                executeCallables=executeCallables)
+                                executeCallables=executeCallables,
+                                useDottedNotation=useDottedNotation)
     _raiseNotFoundException(key, searchList)
 
 def _namespaces(callerFrame, searchList=None):
@@ -255,11 +256,12 @@ def _namespaces(callerFrame, searchList=None):
     yield callerFrame.f_globals
     yield __builtins__
 
-def valueFromFrameOrSearchList(searchList, name, executeCallables=False, placeholderID=-1,
+def valueFromFrameOrSearchList(searchList, name, executeCallables=False, useDottedNotation=True, placeholderID=-1,
                                frame=None):
     def __valueForName():
         try:
-            return _valueForName(namespace, name, executeCallables=executeCallables)
+            return _valueForName(namespace, name,
+                    executeCallables=executeCallables, useDottedNotation=useDottedNotation)
         except NotFound, e:
             _wrapNotFoundException(e, fullName=name, namespace=searchList)
     try:
@@ -273,7 +275,7 @@ def valueFromFrameOrSearchList(searchList, name, executeCallables=False, placeho
     finally:
         del frame
 
-def valueFromFrame(name, executeCallables=False, placeholderID=-1, frame=None):
+def valueFromFrame(name, executeCallables=False, useDottedNotation=True, placeholderID=-1, frame=None):
     # @@TR consider implementing the C version the same way
     # at the moment it provides a seperate but mirror implementation
     # to valueFromFrameOrSearchList
@@ -283,6 +285,7 @@ def valueFromFrame(name, executeCallables=False, placeholderID=-1, frame=None):
         return valueFromFrameOrSearchList(searchList=None,
                                           name=name,
                                           executeCallables=executeCallables,
+                                          useDottedNotation=useDottedNotation,
                                           placeholderID=placeholderID,
                                           frame=frame)
     finally:
