@@ -1378,7 +1378,7 @@ class Template(Servlet):
             else:
                 raise
 
-    def varExists(self, varName, autoCall=True, useDottedNotation=True):
+    def varExists(self, varName, autoCall=False, useDottedNotation=True):
         """Test if a variable name exists in the searchList.
         """
         try:
