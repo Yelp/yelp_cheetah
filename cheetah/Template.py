@@ -263,7 +263,6 @@ class Template(Servlet):
          'errorCatcher',
          'getVar',
          'varExists',
-         'capture',
          'getFileContents',
          'i18n',
          'runAsMainProgram',
