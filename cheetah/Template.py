@@ -263,7 +263,6 @@ class Template(Servlet):
          'errorCatcher',
          'getVar',
          'varExists',
-         'capture',
          'getFileContents',
          'i18n',
          'runAsMainProgram',
@@ -1390,49 +1389,6 @@ class Template(Servlet):
 
 
     hasVar = varExists
-
-    def capture(self, function, *args, **kwargs):
-        """Run a template function, but capture the results in a buffer rather
-        than writing them into the current transaction.
-
-        e.g.,
-
-            #set $foo = $self.capture('some_func', 42, arg=$whatever)
-
-        `function` may be either a function object or a string.  (You'll have
-        to use a string if `autoCall` is turned on.)  If a string, it will be
-        looked up with `$getVar`.
-
-        Note that the return value will be the rendered output of the called
-        function, and will pass through the template filter a second time if
-        interpolated.
-        """
-        current_transaction = self.transaction
-        try:
-            self.transaction = DummyTransaction()
-            if not callable(function):
-                function = self.getVar(function, autoCall=False)
-            retval = function(*args, **kwargs)
-            buffer = self.transaction.response().getvalue()
-
-            if retval is NO_CONTENT:
-                # Template functions using transactions always return no content.
-                return buffer
-            else:
-                # ...but this one didn't, which means either the function is a
-                # plain Python function, or it's a template function that used
-                # #return.
-                # In the latter case, check that it didn't /both/ use #return /and/
-                # try to write to the buffer.  Without $capture but with a
-                # transaction, such a function would normally write out /both/ its
-                # contents /and/ its return value, and we're not going to do that.
-                if buffer.strip():
-                    warnings.warn("Ignoring buffer contents due to use of #return in $capture(%r)" % function)
-
-                return retval
-        finally:
-            self.transaction = current_transaction
-
 
     def i18n(self, message,
              plural=None,
