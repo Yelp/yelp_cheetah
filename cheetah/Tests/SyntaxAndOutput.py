@@ -1043,6 +1043,28 @@ class NameMapper(OutputTest):
         self.verify("$anObj.methWithPercentSignDefaultArg",
                     "110%")
 
+    def test22a(self):
+        """nested dictionary access - NameMapper style, with dotted notation
+        disabled"""
+        try:
+            self.verify("#compiler-settings\n"
+                        "useDottedNotation = False\n"
+                        "#end compiler-settings\n"
+                        "$aDict.nestedDict.two",
+                        "nestedItem2")
+        except NotFound:
+            pass
+        else:
+            self.fail("useDottedNotation = False should disable dotted notation for dicts")
+
+    def test22b(self):
+        """nested dictionary access - NameMapper style, with dotted notation
+        disabled"""
+        self.verify("#compiler-settings\n"
+                    "useDottedNotation = False\n"
+                    "#end compiler-settings\n"
+                    "$aDict['nestedDict']['two']",
+                    "nestedItem2")
 
 #class NameMapperDict(OutputTest):
 #

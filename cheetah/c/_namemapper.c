@@ -1044,7 +1044,7 @@ static PyObject *PyNamemapper_valueForKey(PyObject *obj, char *key)
     return theValue;
 }
 
-static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], int numChunks, int placeholderID, int executeCallables)
+static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], int numChunks, int placeholderID, int executeCallables, int useDottedNotation)
 {
     int i;
     char *currentKey;
@@ -1063,7 +1063,7 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
             return NULL;
         }
 
-        if (PyMapping_Check(currentVal) && PyMapping_HasKeyString(currentVal, currentKey)) {
+        if (useDottedNotation && PyMapping_Check(currentVal) && PyMapping_HasKeyString(currentVal, currentKey)) {
             nextVal = PyMapping_GetItemString(currentVal, currentKey);
             currentFlags |= DID_AUTOKEY;
         }
@@ -1139,6 +1139,7 @@ static PyObject *namemapper_valueForName(PYARGS)
     PyObject *obj;
     char *name;
     int executeCallables = 0;
+    int useDottedNotation = 1;
     int placeholderID = -1;
 
     char *nameCopy = NULL;
@@ -1149,15 +1150,15 @@ static PyObject *namemapper_valueForName(PYARGS)
 
     PyObject *theValue;
 
-    static char *kwlist[] = {"obj", "name", "executeCallables", "placeholderID", NULL};
+    static char *kwlist[] = {"obj", "name", "executeCallables", "useDottedNotation", "placeholderID", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|ii", kwlist,  &obj, &name, &executeCallables, &placeholderID)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|iii", kwlist,  &obj, &name, &executeCallables, &useDottedNotation, &placeholderID)) {
         return NULL;
     }
 
     createNameCopyAndChunks();  
 
-    theValue = PyNamemapper_valueForName(obj, nameChunks, numChunks, placeholderID, executeCallables);
+    theValue = PyNamemapper_valueForName(obj, nameChunks, numChunks, placeholderID, executeCallables, useDottedNotation);
     free(nameCopy);
     if (wrapInternalNotFoundException(name, obj)) {
         theValue = NULL;
@@ -1175,6 +1176,7 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
     PyObject *searchList;
     char *name;
     int executeCallables = 0;
+    int useDottedNotation = 1;
     int placeholderID = -1;
 
     char *nameCopy = NULL;
@@ -1188,9 +1190,9 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
     PyObject *theValue = NULL;
     PyObject *iterator = NULL;
 
-    static char *kwlist[] = {"searchList", "name", "executeCallables", "placeholderID", NULL};
+    static char *kwlist[] = {"searchList", "name", "executeCallables", "useDottedNotation", "placeholderID", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|ii", kwlist, &searchList, &name, &executeCallables, &placeholderID)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Os|iii", kwlist, &searchList, &name, &executeCallables, &useDottedNotation, &placeholderID)) {
         return NULL;
     }
 
@@ -1239,6 +1241,7 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     /* python function args */
     char *name;
     int executeCallables = 0;
+    int useDottedNotation = 1;
     int placeholderID = -1;
     PyObject *searchList = NULL;
 
@@ -1255,10 +1258,10 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     PyObject *excString = NULL;
     PyObject *iterator = NULL;
 
-    static char *kwlist[] = {"searchList", "name",  "executeCallables", "placeholderID", NULL};
+    static char *kwlist[] = {"searchList", "name",  "executeCallables", "useDottedNotation", "placeholderID", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "Os|ii", kwlist,  &searchList, &name, 
-                    &executeCallables, &placeholderID)) {
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "Os|iii", kwlist,  &searchList, &name, 
+                    &executeCallables, &useDottedNotation, &placeholderID)) {
         return NULL;
     }
 
@@ -1315,6 +1318,7 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
     /* python function args */
     char *name;
     int executeCallables = 0;
+    int useDottedNotation = 1;
     int placeholderID = -1;
 
     /* locals */
@@ -1329,9 +1333,9 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
     PyObject *theValue = NULL;
     PyObject *excString = NULL;
 
-    static char *kwlist[] = {"name", "executeCallables", "placeholderID", NULL};
+    static char *kwlist[] = {"name", "executeCallables", "useDottedNotation", "placeholderID", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|ii", kwlist, &name, &executeCallables, &placeholderID)) {
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|iii", kwlist, &name, &executeCallables, &useDottedNotation, &placeholderID)) {
         return NULL;
     }
 
