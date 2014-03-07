@@ -6,8 +6,12 @@ import os
 import os.path
 
 import unittest
-from Cheetah.NameMapper import NotFound, valueForKey, \
-     valueForName, valueFromSearchList, valueFromFrame, valueFromFrameOrSearchList
+from Cheetah.NameMapper import NotFound
+from Cheetah.NameMapper import valueForKey
+from Cheetah.NameMapper import valueFromFrame
+from Cheetah.NameMapper import valueFromFrameOrSearchList
+from Cheetah.NameMapper import valueFromSearchList
+from Cheetah.NameMapper import valueForName
 
 
 class DummyClass(object):
@@ -539,6 +543,49 @@ class MapBuiltins(unittest.TestCase):
             #end def''', compilerSettings={'useStackFrames' : False})
         self.assertEquals(5, t.intify('5'))
 
+
+class SearchListObject(object):
+    class foo(object):
+        class bar(object):
+            baz = object()
+
+class RefCountTest(unittest.TestCase):
+    def _test_refcounting(self, getter_func, pass_searchlist, additional_locals):
+        # Update locals for VFF
+        locals().update(additional_locals)
+
+        # VFF has a differrent signature
+        if pass_searchlist:
+            SL = [SearchListObject]
+            args = (SL, 'foo.bar.baz', True, False, -1)
+        else:
+            args = ('foo.bar.baz', True, False, -1)
+
+        # Collect refcounts before
+        refcount_foo = sys.getrefcount(SearchListObject.foo)
+        refcount_bar = sys.getrefcount(SearchListObject.foo.bar)
+        refcount_baz = sys.getrefcount(SearchListObject.foo.bar.baz)
+        # Run the function
+        ret = getter_func(*args)
+        # Collect refcounts after
+        refcount_after_foo = sys.getrefcount(SearchListObject.foo)
+        refcount_after_bar = sys.getrefcount(SearchListObject.foo.bar)
+        refcount_after_baz = sys.getrefcount(SearchListObject.foo.bar.baz)
+
+        # The refcounts should remain the same except for the count to baz should
+        # increase (since ret now points to it)
+        assert refcount_foo == refcount_after_foo, (refcount_foo, refcount_after_foo)
+        assert refcount_bar == refcount_after_bar, (refcount_bar, refcount_after_bar)
+        assert refcount_baz + 1 == refcount_after_baz, (refcount_baz, refcount_after_baz)
+
+    def test_VFL(self):
+        self._test_refcounting(valueFromSearchList, True, {})
+
+    def test_VFFSL(self):
+        self._test_refcounting(valueFromFrameOrSearchList, True, {})
+
+    def test_VFF(self):
+        self._test_refcounting(valueFromFrame, False, vars(SearchListObject))
 
 
 ##################################################
