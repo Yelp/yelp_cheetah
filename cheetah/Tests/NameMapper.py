@@ -544,48 +544,93 @@ class MapBuiltins(unittest.TestCase):
         self.assertEquals(5, t.intify('5'))
 
 
-class SearchListObject(object):
+def DummyObject(object): pass
+
+class NameSpaceObject(object):
     class foo(object):
         class bar(object):
-            baz = object()
+            class baz(object):
+                pass
+
+class NameSpaceObject2(object):
+    """Exercise an edge case wherein the first reference is also the last."""
+    class foo(object):
+        class bar(object):
+            pass
+
+    foo.bar.baz = foo
+
 
 class RefCountTest(unittest.TestCase):
-    def _test_refcounting(self, getter_func, pass_searchlist, additional_locals):
-        # Update locals for VFF
-        locals().update(additional_locals)
+    def _test_refcounting(self, getter_func, namespace, style):
+        if style == 'frame':
+            locals().update(vars(namespace))
+            SL = None
+        elif style == 'searchlist':
+            SL = [namespace]
+        elif style == 'both':
+            locals().update(vars(namespace))
+            SL = []
+        else:
+            raise ValueError('Unknown style: %r' % style)
 
         # VFF has a differrent signature
-        if pass_searchlist:
-            SL = [SearchListObject]
-            args = (SL, 'foo.bar.baz', True, False, -1)
+        if SL is not None:
+            args = (SL, 'foo.bar.baz', True, False)
         else:
-            args = ('foo.bar.baz', True, False, -1)
+            args = ('foo.bar.baz', True, False)
 
         # Collect refcounts before
-        refcount_foo = sys.getrefcount(SearchListObject.foo)
-        refcount_bar = sys.getrefcount(SearchListObject.foo.bar)
-        refcount_baz = sys.getrefcount(SearchListObject.foo.bar.baz)
-        # Run the function
-        ret = getter_func(*args)
-        # Collect refcounts after
-        refcount_after_foo = sys.getrefcount(SearchListObject.foo)
-        refcount_after_bar = sys.getrefcount(SearchListObject.foo.bar)
-        refcount_after_baz = sys.getrefcount(SearchListObject.foo.bar.baz)
+        refcounts_before = get_refcount_tree(namespace)
 
-        # The refcounts should remain the same except for the count to baz should
-        # increase (since ret now points to it)
-        assert refcount_foo == refcount_after_foo, (refcount_foo, refcount_after_foo)
-        assert refcount_bar == refcount_after_bar, (refcount_bar, refcount_after_bar)
-        assert refcount_baz + 1 == refcount_after_baz, (refcount_baz, refcount_after_baz)
+        # Run the function
+        result = getter_func(*args)
+
+        # Collect refcounts after
+        refcounts_after = get_refcount_tree(namespace)
+
+        # Only the result should have one new reference.
+        for name, refcount in refcounts_after.items():
+            if name == '<global>.foo.bar.baz':
+                assert refcount == refcounts_before[name] + 1, (name, refcount, refcounts_before[name] + 1)
+            else:
+                assert refcount == refcounts_before[name], (name, refcount, refcounts_before[name])
 
     def test_VFL(self):
-        self._test_refcounting(valueFromSearchList, True, {})
+        self._test_refcounting(valueFromSearchList, NameSpaceObject, 'searchlist')
 
-    def test_VFFSL(self):
-        self._test_refcounting(valueFromFrameOrSearchList, True, {})
+    def test_VFFSL_searchlist(self):
+        self._test_refcounting(valueFromFrameOrSearchList, NameSpaceObject, 'searchlist')
+
+    def test_VFFSL_frame(self):
+        self._test_refcounting(valueFromFrameOrSearchList, NameSpaceObject, 'both')
 
     def test_VFF(self):
-        self._test_refcounting(valueFromFrame, False, vars(SearchListObject))
+        self._test_refcounting(valueFromFrame, NameSpaceObject, 'frame')
+
+def get_refcount_tree(obj):
+    """Return a mapping from objects to their current reference counts.
+
+    Traverses all contents of obj.__dict__, recursively.
+    """
+    refcounts = {}
+
+    stack = [ ("<global>", obj) ]
+    while stack:
+        name, obj = stack.pop()
+        refcounts[name] = sys.getrefcount(obj)
+
+        try:
+            for attr, obj in vars(obj).items():
+                if not attr.startswith('_'):
+                    stack.append(('%s.%s' % (name, attr), obj))
+        except:
+            print name
+            print obj
+            print
+            raise
+
+    return refcounts
 
 
 ##################################################
