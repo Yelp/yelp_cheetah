@@ -63,13 +63,16 @@
 }
 
 #define checkForNameInNameSpaceAndReturnIfFound(namespace_decref, currentSearchListIndex) { \
-    if ( PyNamemapper_hasKey(nameSpace, nameChunks[0]) ) {\
+    if (PyNamemapper_hasKey(nameSpace, nameChunks[0]) ) {\
 		instrumentRecordNameSpaceIndex(placeholderID, currentSearchListIndex);\
         /* We always do the first lookup with useDottedNotation = 1, because
          * otherwise looking up locals and globals (from the dicts locals() and
          * globals()) would always fail. */ \
-        theValue = PyNamemapper_valueForName(nameSpace, &nameChunks[0], 1, placeholderID, executeCallables, 1); \
+        theValue_tmp = theValue = PyNamemapper_valueForName(nameSpace, &nameChunks[0], 1, placeholderID, executeCallables, 1); \
         theValue = PyNamemapper_valueForName(theValue, &nameChunks[1], numChunks - 1, placeholderID, executeCallables, useDottedNotation);\
+        if (theValue != theValue_tmp) {\
+            Py_DECREF(theValue_tmp);\
+        }\
         if (namespace_decref) {\
             Py_DECREF(nameSpace);\
         }\
