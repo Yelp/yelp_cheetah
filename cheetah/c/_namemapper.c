@@ -1033,6 +1033,7 @@ static int PyNamemapper_hasKey(PyObject *obj, char *key)
 static PyObject *PyNamemapper_valueForKey(PyObject *obj, char *key)
 {
     PyObject *theValue = NULL;
+    PyObject *theValue_tmp = NULL;
 
     if (PyMapping_Check(obj) && PyMapping_HasKeyString(obj, key)) {
         theValue = PyMapping_GetItemString(obj, key);
@@ -1149,6 +1150,7 @@ static PyObject *namemapper_valueForName(PYARGS)
     int numChunks;
 
     PyObject *theValue;
+    PyObject *theValue_tmp = NULL;
 
     static char *kwlist[] = {"obj", "name", "executeCallables", "useDottedNotation", "placeholderID", NULL};
 
@@ -1188,6 +1190,7 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
 
     PyObject *nameSpace = NULL;
     PyObject *theValue = NULL;
+    PyObject *theValue_tmp = NULL;
     PyObject *iterator = NULL;
 
     static char *kwlist[] = {"searchList", "name", "executeCallables", "useDottedNotation", "placeholderID", NULL};
@@ -1255,6 +1258,7 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
 
     PyObject *nameSpace = NULL;
     PyObject *theValue = NULL;
+    PyObject *theValue_tmp = NULL;
     PyObject *excString = NULL;
     PyObject *iterator = NULL;
 
@@ -1331,6 +1335,7 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
 
     PyObject *nameSpace = NULL;
     PyObject *theValue = NULL;
+    PyObject *theValue_tmp = NULL;
     PyObject *excString = NULL;
 
     static char *kwlist[] = {"name", "executeCallables", "useDottedNotation", "placeholderID", NULL};
