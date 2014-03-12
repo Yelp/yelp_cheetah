@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Yelp/cheetah.png?branch=master)](https://travis-ci.org/Yelp/cheetah)
+
 Cheetah is an open source template engine and code generation tool.
 
 It can be used standalone or combined with other tools and frameworks. Web
