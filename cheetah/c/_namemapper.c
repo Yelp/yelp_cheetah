@@ -17,7 +17,7 @@ Last Revision Date: $Date: 2007/12/10 18:25:20 $
 #include <string.h>
 #include <stdlib.h>
 
-#include "cheetah.h"
+#include "namemapper.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -1033,7 +1033,6 @@ static int PyNamemapper_hasKey(PyObject *obj, char *key)
 static PyObject *PyNamemapper_valueForKey(PyObject *obj, char *key)
 {
     PyObject *theValue = NULL;
-    PyObject *theValue_tmp = NULL;
 
     if (PyMapping_Check(obj) && PyMapping_HasKeyString(obj, key)) {
         theValue = PyMapping_GetItemString(obj, key);
@@ -1150,7 +1149,6 @@ static PyObject *namemapper_valueForName(PYARGS)
     int numChunks;
 
     PyObject *theValue;
-    PyObject *theValue_tmp = NULL;
 
     static char *kwlist[] = {"obj", "name", "executeCallables", "useDottedNotation", "placeholderID", NULL};
 
