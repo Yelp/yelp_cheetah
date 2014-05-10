@@ -5,4 +5,7 @@ clean:
 	rm -rf *.egg-info
 	rm -rf bench/venv
 
+bench:
+	./bench/runbench
+
 # vim:noet:ts=4:

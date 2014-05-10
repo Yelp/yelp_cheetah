@@ -10,10 +10,10 @@ make clean
 virtualenv bench/venv --clear
 . bench/venv/bin/activate
 CHEETAH_C_EXT=false pip install .
-./bench/runbench.py | tee -a "$filename"
+python ./bench/_runbench.py | tee -a "$filename"
 
 make clean
 virtualenv bench/venv --clear
 . bench/venv/bin/activate
 CHEETAH_C_EXT=true pip install .
-./bench/runbench.py | tee -a "$filename"
+python ./bench/_runbench.py | tee -a "$filename"

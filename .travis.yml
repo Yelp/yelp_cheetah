@@ -7,7 +7,6 @@ python:
 install:
   - python setup.py install
 
-
 script:
-  - cheetah/Tests/Test.py
-  - bench/run_bench.sh
+  - ./cheetah/Tests/Test.py
+  - ./bench/runbench
