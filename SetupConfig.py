@@ -51,7 +51,6 @@ ext_modules=[
 ## Data Files and Scripts
 scripts = ('bin/cheetah-compile',
            'bin/cheetah',
-           'bin/cheetah-analyze',
         )
 
 data_files = ['recursive: cheetah *.tmpl *.txt LICENSE README TODO CHANGES',]
