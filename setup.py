@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import os
 import sys
 from setuptools import setup, Extension, Command
 from distutils.command.build_ext import build_ext
@@ -91,7 +92,19 @@ def run_setup(with_binary):
     )
 
 try:
-    run_setup(not IS_PYPY)
+    cext = os.environ.get('CHEETAH_C_EXT', 'auto')
+    if cext == 'true':
+        use_c_extensions = True
+    elif cext == 'false':
+        use_c_extensions = False
+    elif cext == 'auto':
+        use_c_extensions = not IS_PYPY
+    else:
+        raise ValueError(
+            'CHEETAH_C_EXT should be true/false/auto: {0!r}'.format(cext)
+        )
+
+    run_setup(use_c_extensions)
 except BuildFailed:
     BUILD_EXT_WARNING = (
         "WARNING: The C extension could not be compiled, "
