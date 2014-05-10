@@ -23,7 +23,6 @@ from Cheetah.Tests import Parser
 from Cheetah.Tests import Regressions
 from Cheetah.Tests import Unicode
 from Cheetah.Tests import CheetahWrapper
-from Cheetah.Tests import Analyzer
 from Cheetah.Tests import Instrumentation
 
 SyntaxAndOutput.install_eols()
@@ -38,7 +37,6 @@ suites = [
    unittest.findTestCases(Unicode),
    unittest.findTestCases(Misc),
    unittest.findTestCases(Parser),
-   unittest.findTestCases(Analyzer),
    unittest.findTestCases(Instrumentation),
 ]
 
