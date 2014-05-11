@@ -11,7 +11,7 @@ import re                         # used to define the internal delims regex
 import logging
 import string
 import os.path
-import time                       # used in the cache refresh code
+import time
 from random import randrange
 import imp
 import inspect
@@ -61,8 +61,6 @@ from Cheetah.Utils.Misc import checkKeywords     # Used in Template.__init__
 from Cheetah.Utils.Indenter import Indenter      # Used in Template.__init__ and for
                                                  # placeholders
 from Cheetah.NameMapper import NotFound, valueFromSearchList
-from Cheetah.CacheStore import MemoryCacheStore, MemcachedCacheStore
-from Cheetah.CacheRegion import CacheRegion
 from Cheetah.DummyTransaction import DummyTransaction
 from Cheetah.Utils.WebInputMixin import _Converter, _lookup, NonNumericInputError
 
@@ -272,20 +270,10 @@ class Template(Servlet):
          'serverSidePath',
          'generatedClassCode',
          'generatedModuleCode',
-
-         '_getCacheStore',
-         '_getCacheStoreIdPrefix',
-         '_createCacheRegion',
-         'getCacheRegion',
-         'getCacheRegions',
-         'refreshCache',
-
          '_handleCheetahInclude',
          '_getTemplateAPIClassForIncludeDirectiveCompilation',
          )
     _CHEETAH_requiredCheetahClassMethods = ('subclass',)
-    _CHEETAH_requiredCheetahClassAttributes = ('cacheRegionClass', 'cacheStore',
-                                               'cacheStoreIdPrefix', 'cacheStoreClass')
 
     ## the following are used by .compile(). Most are documented in its docstring.
     _CHEETAH_cacheModuleFilesForTracebacks = False
@@ -317,11 +305,6 @@ class Template(Servlet):
     ## The following attributes are used by instance methods:
     _CHEETAH_generatedModuleCode = None
     NonNumericInputError = NonNumericInputError
-    _CHEETAH_cacheRegionClass = CacheRegion
-    _CHEETAH_cacheStoreClass = MemoryCacheStore
-    #_CHEETAH_cacheStoreClass = MemcachedCacheStore
-    _CHEETAH_cacheStore = None
-    _CHEETAH_cacheStoreIdPrefix = None
 
     @classmethod
     def _getCompilerClass(klass, source=None, file=None):
@@ -995,12 +978,6 @@ class Template(Servlet):
                 meth = getattr(klass, classMethName)
                 setattr(concreteTemplateClass, classMethName, classmethod(meth.im_func))
 
-        for attrname in klass._CHEETAH_requiredCheetahClassAttributes:
-            attrname = '_CHEETAH_'+attrname
-            if not hasattr(concreteTemplateClass, attrname):
-                attrVal = getattr(klass, attrname)
-                setattr(concreteTemplateClass, attrname, attrVal)
-
         if (not hasattr(concreteTemplateClass, '__str__')
             or concreteTemplateClass.__str__ is object.__str__):
 
@@ -1290,66 +1267,6 @@ class Template(Servlet):
         """
         return self._CHEETAH__errorCatcher
 
-    ## cache methods ##
-    def _getCacheStore(self):
-        if not self._CHEETAH__cacheStore:
-            if self._CHEETAH_cacheStore is not None:
-                self._CHEETAH__cacheStore = self._CHEETAH_cacheStore
-            else:
-                # @@TR: might want to provide a way to provide init args
-                self._CHEETAH__cacheStore = self._CHEETAH_cacheStoreClass()
-
-        return self._CHEETAH__cacheStore
-
-    def _getCacheStoreIdPrefix(self):
-        if self._CHEETAH_cacheStoreIdPrefix is not None:
-            return self._CHEETAH_cacheStoreIdPrefix
-        else:
-            return str(id(self))
-
-    def _createCacheRegion(self, regionID):
-        return self._CHEETAH_cacheRegionClass(
-            regionID=regionID,
-            templateCacheIdPrefix=self._getCacheStoreIdPrefix(),
-            cacheStore=self._getCacheStore())
-
-    def getCacheRegion(self, regionID, cacheInfo=None, create=True):
-        cacheRegion = self._CHEETAH__cacheRegions.get(regionID)
-        if not cacheRegion and create:
-            cacheRegion = self._createCacheRegion(regionID)
-            self._CHEETAH__cacheRegions[regionID] = cacheRegion
-        return cacheRegion
-
-    def getCacheRegions(self):
-        """Returns a dictionary of the 'cache regions' initialized in a
-        template.
-
-        Each #cache directive block or $*cachedPlaceholder is a separate 'cache
-        region'.
-        """
-        # returns a copy to prevent users mucking it up
-        return self._CHEETAH__cacheRegions.copy()
-
-    def refreshCache(self, cacheRegionId=None, cacheItemId=None):
-        """Refresh a cache region or a specific cache item within a region.
-        """
-
-        if not cacheRegionId:
-            for cacheRegion in self.getCacheRegions().itervalues():
-                cacheRegion.clear()
-        else:
-            cregion = self._CHEETAH__cacheRegions.get(cacheRegionId)
-            if not cregion:
-                return
-            if not cacheItemId: # clear the desired region and all its cacheItems
-                cregion.clear()
-            else: # clear one specific cache of a specific region
-                cache = cregion.getCacheItem(cacheItemId)
-                if cache:
-                    cache.clear()
-
-    ## end cache methods ##
-
     def shutdown(self):
         """Break reference cycles before discarding a servlet.
         """
@@ -1493,7 +1410,6 @@ class Template(Servlet):
                 else:
                     self._CHEETAH__searchList.extend(list(searchList))
         self._CHEETAH__cheetahIncludes = {}
-        self._CHEETAH__cacheRegions = {}
         self._CHEETAH__indenter = Indenter()
 
         # @@TR: consider allowing simple callables as the filter argument
@@ -1527,10 +1443,6 @@ class Template(Servlet):
         self._CHEETAH__instanceInitialized = True
         self._CHEETAH__isBuffering = False
         self._CHEETAH__isControlledByWebKit = False
-
-        self._CHEETAH__cacheStore = None
-        if self._CHEETAH_cacheStore is not None:
-            self._CHEETAH__cacheStore = self._CHEETAH_cacheStore
 
     def _compile(self, source=None, file=None, compilerSettings=Unspecified,
                  moduleName=None, mainMethodName=None):

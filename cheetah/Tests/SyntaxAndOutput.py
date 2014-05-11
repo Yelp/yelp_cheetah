@@ -551,45 +551,6 @@ class Placeholders(OutputTest):
         """1 placeholder enclosed in [] + WS"""
         self.verify("$[ aStr   ]", "blarg")
 
-    def test10(self):
-        """1 placeholder enclosed in () + WS + * cache
-
-        Test to make sure that $*(<WS><identifier>.. matches
-        """
-        self.verify("$*( aStr   )", "blarg")
-
-    def test11(self):
-        """1 placeholder enclosed in {} + WS + *cache"""
-        self.verify("$*{ aStr   }", "blarg")
-
-    def test12(self):
-        """1 placeholder enclosed in [] + WS + *cache"""
-        self.verify("$*[ aStr   ]", "blarg")
-
-    def test13(self):
-        """1 placeholder enclosed in {} + WS + *<int>*cache"""
-        self.verify("$*5*{ aStr   }", "blarg")
-
-    def test14(self):
-        """1 placeholder enclosed in [] + WS + *<int>*cache"""
-        self.verify("$*5*[ aStr   ]", "blarg")
-
-    def test15(self):
-        """1 placeholder enclosed in {} + WS + *<float>*cache"""
-        self.verify("$*0.5d*{ aStr   }", "blarg")
-
-    def test16(self):
-        """1 placeholder enclosed in [] + WS + *<float>*cache"""
-        self.verify("$*.5*[ aStr   ]", "blarg")
-
-    def test17(self):
-        """1 placeholder + *<int>*cache"""
-        self.verify("$*5*aStr", "blarg")
-
-    def test18(self):
-        """1 placeholder *<float>*cache"""
-        self.verify("$*0.5h*aStr", "blarg")
-
     def test19(self):
         """1 placeholder surrounded by single quotes and multiple newlines"""
         self.verify("""'\n\n\n\n'$aStr'\n\n\n\n'""",
@@ -597,7 +558,7 @@ class Placeholders(OutputTest):
 
     def test20(self):
         """silent mode $!placeholders """
-        self.verify("$!aStr$!nonExistant$!*nonExistant$!{nonExistant}", "blarg")
+        self.verify("$!aStr$!nonExistant$!{nonExistant}", "blarg")
 
         try:
             self.verify("$!aStr$nonExistant",
@@ -607,26 +568,6 @@ class Placeholders(OutputTest):
         else:
             self.fail('should raise NotFound exception')
 
-    def test21(self):
-        """Make sure that $*caching is actually working"""
-        namesStr = 'You Me Them Everyone'
-        names = namesStr.split()
-
-        tmpl = Template.compile('#for name in $names: $name ', baseclass=dict)
-        assert str(tmpl({'names':names})).strip()==namesStr
-
-        tmpl = tmpl.subclass('#for name in $names: $*name ')
-        assert str(tmpl({'names':names}))=='You '*len(names)
-
-        tmpl = tmpl.subclass('#for name in $names: $*1*name ')
-        assert str(tmpl({'names':names}))=='You '*len(names)
-
-        tmpl = tmpl.subclass('#for name in $names: $*1*(name) ')
-        assert str(tmpl({'names':names}))=='You '*len(names)
-
-        if versionTuple > (2, 2):
-            tmpl = tmpl.subclass('#for name in $names: $*1*(name) ')
-            assert str(tmpl(names=names))=='You '*len(names)
 
 class Placeholders_Vals(OutputTest):
     convertEOLs = False
@@ -918,14 +859,6 @@ class Placeholders_Calls(OutputTest):
         self.verify("$[aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) ]",
                     "1")
 
-    def test24(self):
-        """deeply nested argstring, () enclosure + *cache"""
-        self.verify("$*(aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) )",
-                    "1")
-    def test25(self):
-        """deeply nested argstring, () enclosure + *15*cache"""
-        self.verify("$*15*(aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) )",
-                    "1")
 
     def test26(self):
         """a function call with the Python None kw."""
@@ -1076,68 +1009,6 @@ class NameMapper(OutputTest):
 #        self.verify("$update", "Yabba dabba doo!")
 #
 
-class CacheDirective(OutputTest):
-    
-    def test1(self):
-        r"""simple #cache """
-        self.verify("#cache:$anInt",
-                    "1")
-
-    def test2(self):
-        r"""simple #cache + WS"""
-        self.verify("  #cache  \n$anInt#end cache",
-                    "1")
-
-    def test3(self):
-        r"""simple #cache ... #end cache"""
-        self.verify("""#cache id='cache1', timer=150m
-$anInt
-#end cache
-$aStr""",
-                    "1\nblarg")
-        
-    def test4(self):
-        r"""2 #cache ... #end cache blocks"""
-        self.verify("""#slurp
-#def foo
-#cache ID='cache1', timer=150m
-$anInt
-#end cache
-#cache id='cache2', timer=15s
- #for $i in range(5)
-$i#slurp
- #end for
-#end cache
-$aStr#slurp
-#end def
-$foo$foo$foo$foo$foo""",
-                    "1\n01234blarg"*5)
-
-
-    def test5(self):
-        r"""nested #cache blocks"""
-        self.verify("""#slurp
-#def foo      
-#cache ID='cache1', timer=150m
-$anInt
-#cache id='cache2', timer=15s
- #for $i in range(5)
-$i#slurp
- #end for
-$*(6)#slurp
-#end cache
-#end cache
-$aStr#slurp
-#end def
-$foo$foo$foo$foo$foo""",
-                    "1\n012346blarg"*5)
-        
-    def test6(self):
-        r"""Make sure that partial directives don't match"""
-        self.verify("#cache_foo",
-                    "#cache_foo")
-        self.verify("#cached",
-                    "#cached")
 
 class CallDirective(OutputTest):
     
@@ -2129,26 +2000,6 @@ $testDict.two""",
         self.verify("   #set global $testVar = [1, 2, 3]  \n$testVar",
                     "[1, 2, 3]")
 
-    def test11(self):
-        """simple #set global with a list and *cache
-
-        Caching only works with global #set vars.  Local vars are not accesible
-        to the cache namespace.
-        """
-        
-        self.verify("   #set global $testVar = [1, 2, 3]  \n$*testVar",
-                    "[1, 2, 3]")
-
-    def test12(self):
-        """simple #set global with a list and *<int>*cache"""
-        self.verify("   #set global $testVar = [1, 2, 3]  \n$*5*testVar",
-                    "[1, 2, 3]")
-
-    def test13(self):
-        """simple #set with a list and *<float>*cache"""
-        self.verify("   #set global $testVar = [1, 2, 3]  \n$*.5*testVar",
-                    "[1, 2, 3]")
-
     def test14(self):
         """simple #set without NameMapper on"""
         self.verify("""#compiler useNameMapper = 0\n#set $testVar = 1 \n$testVar""",
@@ -2743,36 +2594,42 @@ if sys.platform.startswith('java'):
     del CompilerDirective
     del CompilerSettingsDirective
 
+
+class SyntaxAndOutput(Template):
+    def spacer(self):
+        return '<img src="spacer.gif" width="1" height="1" alt="" />'
+
+
 class ExtendsDirective(OutputTest):
 
     def test1(self):
-        """#extends Cheetah.Templates._SkeletonPage"""
-        self.verify("""#from Cheetah.Templates._SkeletonPage import _SkeletonPage
-#extends _SkeletonPage
+        """#extends Cheetah.Tests.SyntaxAndOutput"""
+        self.verify("""#from Cheetah.Tests.SyntaxAndOutput import SyntaxAndOutput
+#extends SyntaxAndOutput
 #implements respond
 $spacer()
 """,
                     '<img src="spacer.gif" width="1" height="1" alt="" />\n')
 
 
-        self.verify("""#from Cheetah.Templates._SkeletonPage import _SkeletonPage
-#extends _SkeletonPage
+        self.verify("""#from Cheetah.Tests.SyntaxAndOutput import SyntaxAndOutput
+#extends SyntaxAndOutput
 #implements respond(foo=1234)
 $spacer()$foo
 """,
                     '<img src="spacer.gif" width="1" height="1" alt="" />1234\n')
 
     def test2(self):
-        """#extends Cheetah.Templates.SkeletonPage without #import"""
-        self.verify("""#extends Cheetah.Templates.SkeletonPage
+        """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
+        self.verify("""#extends Cheetah.Tests.SyntaxAndOutput
 #implements respond
 $spacer()
 """,
                     '<img src="spacer.gif" width="1" height="1" alt="" />\n')
 
     def test3(self):
-        """#extends Cheetah.Templates.SkeletonPage.SkeletonPage without #import"""
-        self.verify("""#extends Cheetah.Templates.SkeletonPage.SkeletonPage
+        """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
+        self.verify("""#extends Cheetah.Tests.SyntaxAndOutput.SyntaxAndOutput
 #implements respond
 $spacer()
 """,
@@ -2780,7 +2637,7 @@ $spacer()
 
     def test4(self):
         """#extends with globals and searchList test"""
-        self.verify("""#extends Cheetah.Templates.SkeletonPage
+        self.verify("""#extends Cheetah.Tests.SyntaxAndOutput
 #set global g="Hello"
 #implements respond
 $g $numOne
