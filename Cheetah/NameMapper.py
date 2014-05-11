@@ -289,17 +289,6 @@ def valueFromFrame(name, executeCallables=False, useDottedNotation=True, frame=N
     finally:
         del frame
 
-def hasName(obj, name):
-    #Not in the C version
-    """Determine if 'obj' has the 'name' """
-    key = name.split('.')[0]
-    if not hasKey(obj, key):
-        return False
-    try:
-        valueForName(obj, name)
-        return True
-    except NotFound:
-        return False
 try:
     from Cheetah._namemapper import NotFound, valueForKey, valueForName, \
          valueFromSearchList, valueFromFrameOrSearchList, valueFromFrame

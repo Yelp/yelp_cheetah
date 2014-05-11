@@ -21,7 +21,6 @@ import codecs
 
 from Cheetah.Version import Version, VersionTuple
 from Cheetah.SettingsManager import SettingsManager
-from Cheetah.Utils.Indenter import indentize # an undocumented preprocessor
 from Cheetah import NameMapper
 from Cheetah.Parser import Parser, ParseError, specialVarRE, \
      SET_GLOBAL, SET_MODULE, \
@@ -1380,11 +1379,8 @@ class ModuleCompiler(SettingsManager, GenUtils):
             # by converting to string here we allow objects such as other Templates
             # to be passed in
 
-        # Handle the #indent directive by converting it to other directives.
-        # (Over the long term we'll make it a real directive.)
         if source == "":
             warnings.warn("You supplied an empty string for the source!", )
-
         else:
             unicodeMatch = unicodeDirectiveRE.search(source)
             encodingMatch = encodingDirectiveRE.search(source)
@@ -1404,9 +1400,6 @@ class ModuleCompiler(SettingsManager, GenUtils):
                     source = source.decode(encoding)
             else:
                 source = unicode(source)
-
-        if source.find('#indent') != -1: #@@TR: undocumented hack
-            source = indentize(source)
 
         self._parser = self.parserClass(source, filename=self._filePath, compiler=self)
         self._setupCompilerState()

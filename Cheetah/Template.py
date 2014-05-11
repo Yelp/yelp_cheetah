@@ -48,9 +48,6 @@ from Cheetah.Parser import ParseError, SourceReader
 from Cheetah.Compiler import Compiler
 from Cheetah import Filters                    # the output filters
 from Cheetah.convertTmplPathToModuleName import convertTmplPathToModuleName
-
-from Cheetah.Utils.Indenter import Indenter      # Used in Template.__init__ and for
-                                                 # placeholders
 from Cheetah.NameMapper import NotFound, valueFromSearchList
 from Cheetah.Unspecified import Unspecified
 
@@ -1348,7 +1345,6 @@ class Template(object):
                 else:
                     self._CHEETAH__searchList.extend(list(searchList))
         self._CHEETAH__cheetahIncludes = {}
-        self._CHEETAH__indenter = Indenter()
 
         # @@TR: consider allowing simple callables as the filter argument
         self._CHEETAH__filtersLib = filtersLib
