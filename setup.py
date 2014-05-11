@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import os
 import sys
-from setuptools import setup, Extension, Command
+from setuptools import setup, Extension
 from distutils.command.build_ext import build_ext
 from distutils.errors import CCompilerError
 from distutils.errors import DistutilsExecError

@@ -31,7 +31,7 @@ suites = [
    unittest.findTestCases(NameMapper),
    unittest.findTestCases(Filters),
    unittest.findTestCases(Template),
-   #unittest.findTestCases(Cheps),
+   unittest.findTestCases(Cheps),
    unittest.findTestCases(Regressions),
    unittest.findTestCases(Unicode),
    unittest.findTestCases(Misc),
@@ -43,10 +43,6 @@ if not sys.platform.startswith('java'):
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner()
-    if 'xml' in sys.argv:
-        import xmlrunner
-        runner = xmlrunner.XMLTestRunner(filename='Cheetah-Tests.xml')
-    
     results = runner.run(unittest.TestSuite(suites))
     ret = 1 if results.errors or results.failures else 0
     sys.exit(ret)

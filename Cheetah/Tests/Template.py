@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-import pdb
-import sys
-import types
 import os
 import os.path
-import tempfile
 import shutil
+import sys
+import tempfile
 import unittest
 from Cheetah.Template import Template
 
@@ -68,16 +66,15 @@ class ClassMethods_compile(TemplateTest):
 
     def test_moduleNameArg(self):
         klass = Template.compile(source='$foo', moduleName='foo99')
-        mod = sys.modules['foo99']
-        assert klass.__name__=='foo99'
+        assert 'foo99' in sys.modules
+        assert klass.__name__ == 'foo99'
         t = klass(namespaces={'foo':1234})
         assert str(t)=='1234'
-
 
         klass = Template.compile(source='$foo',
                                  moduleName='foo1',
                                  className='foo2')
-        mod = sys.modules['foo1']
+        assert 'foo1' in sys.modules
         assert klass.__name__=='foo2'
         t = klass(namespaces={'foo':1234})
         assert str(t)=='1234'
@@ -104,8 +101,6 @@ class ClassMethods_compile(TemplateTest):
         assert str(t)=='1234'
         assert t.testMeth()=='1234'
 
-
-
     def test_moduleGlobalsArg(self):
         klass = Template.compile(source='$foo',
                                  moduleGlobals={'foo':1234})
@@ -121,7 +116,6 @@ class ClassMethods_compile(TemplateTest):
                                   moduleGlobals={'Test1':dict, 'foo':1234})
         t = klass3()
         assert str(t)=='1234'
-
 
     def test_keepRefToGeneratedCodeArg(self):
         klass = Template.compile(source='$foo',
@@ -285,7 +279,7 @@ class TryExceptImportTest(TemplateTest):
             '''
         # This should raise an IndentationError (if the bug exists)
         klass = Template.compile(source=source, compilerSettings={'useLegacyImportMode' : False})
-        t = klass(namespaces={'foo' : 1234})
+        klass(namespaces={'foo' : 1234})
 
 class ClassMethodSupport(TemplateTest):
     def test_BasicDecorator(self):

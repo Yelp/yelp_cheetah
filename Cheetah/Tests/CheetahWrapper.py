@@ -13,7 +13,6 @@ Besides unittest usage, recognizes the following command-line options:
 '''
 import os
 import os.path
-import pdb
 import re                                     # Used by listTests.
 import shutil
 import sys
@@ -69,7 +68,6 @@ class CFBase(unittest.TestCase):
             os.environ['PYTHONPATH'] = pythonPath
         else:
             os.environ['PYTHONPATH'] = '%s:%s' % (os.environ['PYTHONPATH'], pythonPath)
-        I = self.inform
         # Step 1: Create the scratch directory and chdir into it.
         self.scratchDir = scratchDir = tempfile.mktemp() 
         os.mkdir(scratchDir)
@@ -166,7 +164,6 @@ Found %(result)r"""
         paths = os.getenv('PATH')
         if not paths:
             return cmd
-        parts = cmd.split(' ')
         paths = paths.split(':')
         for p in paths:
             p = os.path.join(p, cmd)

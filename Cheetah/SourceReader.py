@@ -1,7 +1,6 @@
 """SourceReader class for Cheetah's Parser and CodeGenerator
 """
 import re
-import sys
 
 EOLre = re.compile(r'[ \f\t]*(?:\r\n|\r|\n)')
 EOLZre = re.compile(r'(?:\r\n|\r|\n|\Z)')

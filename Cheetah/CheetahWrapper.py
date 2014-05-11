@@ -15,7 +15,12 @@ Last Revision Date: $Date: 2007/10/02 01:22:04 $
 __author__ = "Tavis Rudd <tavis@damnsimple.com> and Mike Orr <sluggoster@gmail.com>"
 __revision__ = "$Revision: 1.26 $"[11:-2]
 
-import getopt, glob, os, pprint, re, shutil, sys
+import glob
+import os
+import pprint
+import re
+import shutil
+import sys
 import cPickle as pickle
 from optparse import OptionParser
 
@@ -141,7 +146,7 @@ class CheetahWrapper(object):
 
         # Step 1: Determine the command and arguments.
         try:
-            self.progName = progName = os.path.basename(argv[0])
+            self.progName = os.path.basename(argv[0])
             self.command = command = optionDashesRE.sub("", argv[1])
             if command == 'test':
                 self.testOpts = argv[2:]
@@ -475,7 +480,6 @@ you do have write permission to and re-run the tests.""")
         flat = self.opts.flat
         idir = self.opts.idir
         iext = self.opts.iext
-        nobackup = self.opts.nobackup
         odir = self.opts.odir
         oext = self.opts.oext
         idirSlash = idir + os.sep
@@ -554,6 +558,7 @@ you do have write permission to and re-run the tests.""")
         def getkws(**kws):
             return kws
         if self.opts.compilerSettingsString:
+            settings = None
             try:
                 exec('settings = getkws(%s)'%self.opts.compilerSettingsString)
             except:                
@@ -591,7 +596,6 @@ you do have write permission to and re-run the tests.""")
         compilerSettings = self._getCompilerSettings()
         src = b.src
         dst = b.dst
-        base = b.base
         basename = b.basename
         dstDir = os.path.dirname(dst)
         what = self.isCompile and "Compiling" or "Filling"

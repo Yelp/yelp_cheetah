@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- encoding: utf8 -*-
-
-from Cheetah.Template import Template
-from Cheetah import CheetahWrapper
-from Cheetah import DummyTransaction
 import imp
 import os
 import sys
 import tempfile
 import unittest
+from Cheetah.Template import Template
+from Cheetah import CheetahWrapper
+
 
 class CommandLineTest(unittest.TestCase):
     def createAndCompile(self, source):
@@ -230,8 +229,6 @@ class InlineSpanishTest(unittest.TestCase):
                         'nombre' : '', 'numpedidos_bodega' : '',
                         'numpedidos_noconf' : ''}])
         self.assertTrue(unicode(template))
-
-
 
 if __name__ == '__main__':
     unittest.main()
