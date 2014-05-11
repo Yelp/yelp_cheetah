@@ -42,7 +42,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useNameMapper', True, 'Enable NameMapper for dotted notation and searchList support'),
     ('useSearchList', True, 'Enable the searchList, requires useNameMapper=True, if disabled, first portion of the $variable is a global, builtin, or local variable that doesn\'t need looking up in the searchList'),
     ('allowSearchListAsMethArg', True, ''),
-    ('useAutocalling', True, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
+    ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', True, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useStackFrames', True, 'Used for NameMapper.valueFromFrameOrSearchList rather than NameMapper.valueFromSearchList'),
     ('useErrorCatcher', False, 'Turn on the #errorCatcher directive for catching NameMapper errors, etc'),
