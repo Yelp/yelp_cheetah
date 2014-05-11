@@ -5,13 +5,18 @@ clean:
 	rm -rf *.egg-info
 	rm -rf bench/venv
 
-
 .PHONY: test tests
 tests: test
 test:
 	virtualenv --clear venv
-	pip install .
-	sh -c '. venv/bin/activate && cheetah/Tests/Test.py'
+	sh -c '\
+		. venv/bin/activate &&\
+		pip install . &&\
+		cheetah/Tests/Test.py \
+	'
 
+.PHONY: bench
+bench:
+	./bench/runbench
 
 # vim:noet:ts=4:
