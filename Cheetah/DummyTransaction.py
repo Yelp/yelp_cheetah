@@ -1,4 +1,5 @@
 """Provides Transactional buffering support for cheetah."""
+from __future__ import unicode_literals
 
 
 class DummyResponse(object):
@@ -9,7 +10,7 @@ class DummyResponse(object):
         self._outputChunks.append(value)
 
     def getvalue(self):
-        return u''.join(self._outputChunks)
+        return ''.join(self._outputChunks)
 
 
 class DummyTransaction(object):

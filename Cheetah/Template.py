@@ -1,8 +1,8 @@
-'''
-Provides the core API for Cheetah.
+"""Provides the core API for Cheetah.
 
 See the docstring in the Template class and the Users' Guide for more information
-'''
+"""
+from __future__ import unicode_literals
 
 import types
 

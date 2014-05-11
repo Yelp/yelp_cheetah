@@ -49,7 +49,7 @@ defaultTestNameSpace = {
     'aStr': 'blarg',
     'anInt': 1,
     'aFloat': 1.5,
-    'aList': [b'item0', b'item1', b'item2'],
+    'aList': ['item0', 'item1', 'item2'],
     'aDict': {
         'one': 'item1',
         'two': 'item2',
@@ -86,7 +86,7 @@ defaultTestNameSpace = {
     'nameList': [('john', 'doe'), ('jane', 'smith')],
     'letterList': ['a', 'b', 'c'],
     '_': lambda x: 'Translated: ' + x,
-    'unicodeData': u'aoeu12345\u1234',
+    'unicodeData': 'aoeu12345\u1234',
 }
 
 
@@ -370,7 +370,14 @@ class Placeholders_Vals(OutputTest):
 
     def test6(self):
         """list"""
-        self.verify("$aList", "['item0', 'item1', 'item2']")
+        if sys.version_info < (3,):
+            self.verify(  # pragma: no cover
+                "$aList", "[u'item0', u'item1', u'item2']"
+            )
+        else:
+            self.verify(  # pragma: no cover
+                "$aList", "['item0', 'item1', 'item2']"
+            )
 
     def test7(self):
         """None
@@ -418,7 +425,7 @@ class EncodingDirective(OutputTest):
     def test3(self):
         """basic #encoding """
         self.verify(b"#encoding utf-8\n\xe1\x88\xb4".decode('utf-8'),
-                    u'\u1234', outputEncoding='utf8')
+                    '\u1234', outputEncoding='utf8')
 
     def test4(self):
         """basic #encoding """
@@ -428,13 +435,13 @@ class EncodingDirective(OutputTest):
     def test5(self):
         """basic #encoding """
         self.verify("#encoding latin-1\nAndr\202",
-                    u'Andr\202')
+                    'Andr\202')
 
     def test6(self):
         '''Using #encoding on the second line'''
         self.verify(b"""### Comments on the first line
 #encoding utf-8\n\xe1\x88\xb4""".decode('utf-8'),
-                    u'\u1234', outputEncoding='utf8')
+                    '\u1234', outputEncoding='utf8')
 
 
 class Placeholders_Esc(OutputTest):
@@ -601,8 +608,14 @@ class NameMapper(OutputTest):
 
     def test4(self):
         """list slicing"""
-        self.verify("$aList[:2]",
-                    "['item0', 'item1']")
+        if sys.version_info < (3,):
+            self.verify(  # pragma: no cover
+                "$aList[:2]", "[u'item0', u'item1']"
+            )
+        else:
+            self.verify(  # pragma: no cover
+                "$aList[:2]", "['item0', 'item1']"
+            )
 
     def test5(self):
         """list slicing and subcription combined"""
@@ -650,13 +663,13 @@ class NameMapper(OutputTest):
 
     def test19(self):
         """object method access, followed by complex slice"""
-        self.verify("${anObj.meth1()[0: ((4/4*2)*2)/$anObj.meth1(2) ]}",
+        self.verify("${anObj.meth1()[0: ((4//4*2)*2)//$anObj.meth1(2) ]}",
                     "do")
 
     def test20(self):
         """object method access, followed by a very complex slice
         If it can pass this one, it's safe to say it works!!"""
-        self.verify("$( anObj.meth1()[0:\n (\n(4/4*2)*2)/$anObj.meth1(2)\n ] )",
+        self.verify("$( anObj.meth1()[0:\n (\n(4//4*2)*2)//$anObj.meth1(2)\n ] )",
                     "do")
 
     def test21(self):
@@ -746,7 +759,7 @@ $x$y#slurp
 3#slurp
 #end call 3
 #set two = 2
-#call self.meth2 y=10/two
+#call self.meth2 y=int(10/two)
 4#slurp
 #end call 4
 #end call 2
@@ -1388,14 +1401,13 @@ $testDict['two']""",
                     "123")
 
 
-class DelDirective(OutputTest):
-    def test(self):
-        self.verify(
-            "#set foo = {'a': '1', 'b': '2'}\n"
-            "#del foo['a']\n"
-            '${foo.keys()}\n',
-            "['b']\n",
-        )
+def test_del_directive():
+    cls = compile_to_class(
+        "#set foo = {'a': '1', 'b': '2'}\n"
+        "#del foo['a']\n"
+        '$len($foo.keys()) ${list(foo.keys())[0]}'
+    )
+    assert cls().respond() == "1 b"
 
 
 class IfDirective(OutputTest):
@@ -1900,10 +1912,10 @@ $g $numOne
 
 def test_super_directive(tmpdir):
     compile_file(
-        os.path.join(u'testing', u'templates', u'src', u'super_base.tmpl')
+        os.path.join('testing', 'templates', 'src', 'super_base.tmpl')
     )
     compile_file(
-        os.path.join(u'testing', u'templates', u'src', u'super_child.tmpl')
+        os.path.join('testing', 'templates', 'src', 'super_child.tmpl')
     )
 
     from testing.templates.src.super_child import super_child
@@ -2062,13 +2074,22 @@ def test_class_macros(macro_name):
         settings=MACRO_SETTINGS,
     )
 
-    assert cls().respond() == (
-        'before\n'
-        'Hello from {0}\n'
-        "arglist: hello='world'\n"
-        'source: macro source\n\n'
-        'after\n'.format(macro_name)
-    )
+    if sys.version_info < (3,):
+        assert cls().respond() == (
+            'before\n'
+            'Hello from {0}\n'
+            "arglist: hello=u'world'\n"
+            'source: macro source\n\n'
+            'after\n'.format(macro_name)
+        )
+    else:
+        assert cls().respond() == (
+            'before\n'
+            'Hello from {0}\n'
+            "arglist: hello='world'\n"
+            'source: macro source\n\n'
+            'after\n'.format(macro_name)
+        )
 
 
 def test_comment_directive_ambiguity():
@@ -2111,23 +2132,6 @@ def test_trivial_implements_template():
     assert cls().respond() == ''
 
 
-# TODO: there's probably a pytest way to do this
-def __add_eol_tests():
-    """Add tests for different end-of-line formats."""
-    import inspect
-    module = sys.modules[__name__]
-    for clsname, cls in vars(module).items():
-        if not (inspect.isclass(cls) and issubclass(cls, unittest.TestCase)):
-            continue
-
-        for eolname, eol in (
-            (b'Win32EOL', '\r\n'),
-            (b'MacEOL', '\r'),
-        ):
-            new_clsname = b'{0}_{1}'.format(clsname, eolname)
-            new_cls = type(new_clsname, (cls,), {'_EOLreplacement': eol})
-            setattr(module, new_clsname, new_cls)
-
-
-__add_eol_tests()
-del __add_eol_tests
+def test_bytes():
+    cls = compile_to_class("#set foo = b'bar'\n$foo")
+    assert cls().respond() == 'bar'

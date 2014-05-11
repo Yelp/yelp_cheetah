@@ -7,6 +7,7 @@
     If you are trying to grok this code start with Compiler.__init__,
     Compiler.compile, and Compiler.__getattr__.
 '''
+from __future__ import unicode_literals
 
 import copy
 import re
@@ -313,8 +314,7 @@ class MethodCompiler(GenUtils):
         i = 0
         out = []
         if reprstr.startswith('u'):
-            i = 1
-            out = ['u']
+            reprstr = reprstr[1:]
         body = escapedNewlineRE.sub('\\1\n', reprstr[i+1:-1])
 
         if reprstr[i] == "'":
@@ -476,7 +476,7 @@ class MethodCompiler(GenUtils):
 
     def nextCacheID(self):
         self._next_variable_id += 1
-        return u'_{0}'.format(self._next_variable_id)
+        return '_{0}'.format(self._next_variable_id)
 
     def nextCallRegionID(self):
         return self.nextCacheID()
@@ -547,7 +547,7 @@ class MethodCompiler(GenUtils):
             else:
                 # is string representing the name of a builtin filter
                 self.addChunk('filterName = ' + repr(theFilter))
-                self.addChunk('if self._CHEETAH__filters.has_key("' + theFilter + '"):')
+                self.addChunk('if {0!r} in self._CHEETAH__filters:'.format(theFilter))
                 self.indent()
                 self.addChunk('_filter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName]')
                 self.dedent()
@@ -1089,6 +1089,7 @@ class Compiler(SettingsManager, GenUtils):
 
         moduleDef = textwrap.dedent(
             """
+            from __future__ import unicode_literals
             %(imports)s
 
             %(constants)s

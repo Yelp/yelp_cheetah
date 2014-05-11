@@ -1,7 +1,15 @@
+from __future__ import unicode_literals
+
 import re
-from ConfigParser import ConfigParser
-from StringIO import StringIO
+from io import StringIO
 from tokenize import Number
+
+try:
+    # Python2
+    from ConfigParser import ConfigParser
+except ImportError:
+    # Python3
+    from configparser import ConfigParser
 
 
 numberRE = re.compile(Number)
@@ -13,7 +21,7 @@ def mergeNestedDictionaries(dict1, dict2):
     This little function is very handy for selectively overriding settings in a
     settings dictionary that has a nested structure.
     """
-    for key, val in dict2.iteritems():
+    for key, val in dict2.items():
         if key in dict1 and isinstance(val, dict) and isinstance(dict1[key], dict):
             dict1[key] = mergeNestedDictionaries(dict1[key], val)
         else:
@@ -51,6 +59,18 @@ class ConfigParserCaseSensitive(ConfigParser):
         return optionstr
 
 
+def convert_value(s):
+    if s.lower() == 'none':
+        return None
+    elif s.lower() == 'true':
+        return True
+    elif s.lower() == 'false':
+        return False
+    elif stringIsNumber(s):
+        return convStringToNum(s)
+    return s
+
+
 class _SettingsCollector(object):
     """An abstract base class that provides the methods SettingsManager uses to
     collect settings from config files and strings.
@@ -77,34 +97,12 @@ class _SettingsCollector(object):
         """
         p = self._ConfigParserClass()
         p.readfp(inFile)
-        sects = p.sections()
-        newSettings = {}
+        assert 'globals' in p.sections()
 
-        sects = p.sections()
-        newSettings = {}
-
-        for s in sects:
-            newSettings[s] = {}
-            for o in p.options(s):
-                assert o != '__name__'
-                newSettings[s][o] = p.get(s, o)
-
-        # loop through new settings -> deal with global settings, numbers,
-        # booleans
-        for sect, subDict in newSettings.items():
-            for key, val in subDict.items():
-                if val.lower() == 'true':
-                    subDict[key] = True
-                elif val.lower() == 'false':
-                    subDict[key] = False
-                elif stringIsNumber(val):
-                    subDict[key] = convStringToNum(val)
-
-            assert sect.lower() == 'globals'
-            newSettings.update(newSettings[sect])
-            del newSettings[sect]
-
-        return newSettings
+        return dict(
+            (k, convert_value(p.get('globals', k)))
+            for k in p.options('globals')
+        )
 
 
 class SettingsManager(_SettingsCollector):

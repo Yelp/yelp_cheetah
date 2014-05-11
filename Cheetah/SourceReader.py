@@ -1,5 +1,6 @@
-"""SourceReader class for Cheetah's Parser and CodeGenerator
-"""
+"""SourceReader class for Cheetah's Parser and CodeGenerator"""
+from __future__ import unicode_literals
+
 import re
 
 EOLre = re.compile(r'[ \f\t]*(?:\r\n|\r|\n)')
@@ -30,6 +31,9 @@ class SourceReader(object):
 
     def __len__(self):
         return self._breakPoint
+
+    def __getitem__(self, i):
+        return self._src[i]
 
     def __getslice__(self, i, j):
         i = max(i, 0)

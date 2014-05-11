@@ -8,16 +8,16 @@ def test_Chep_2_Conditionalized_Import_Behavior_InlineImport():
     template = '''
         #def funky($s)
             #try
-                #import urllib
+                #import os.path
             #except ImportError
                 #pass
             #end try
-            #return urllib.quote($s)
+            #return os.path.join('foo', $s)
         #end def
     '''
     template = compile_to_class(
         template, settings={'useLegacyImportMode': False}
     )
     template = template()
-    rc = template.funky('abc def')
-    assert rc == 'abc%20def'
+    rc = template.funky('abcdef')
+    assert rc == 'foo/abcdef'
