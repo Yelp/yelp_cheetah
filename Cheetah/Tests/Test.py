@@ -22,7 +22,6 @@ from Cheetah.Tests import Cheps
 from Cheetah.Tests import Parser
 from Cheetah.Tests import Regressions
 from Cheetah.Tests import Unicode
-from Cheetah.Tests import CheetahWrapper
 
 SyntaxAndOutput.install_eols()
 
@@ -37,9 +36,6 @@ suites = [
    unittest.findTestCases(Misc),
    unittest.findTestCases(Parser),
 ]
-
-if not sys.platform.startswith('java'):
-    suites.append(unittest.findTestCases(CheetahWrapper))
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner()
