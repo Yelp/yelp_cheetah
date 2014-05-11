@@ -12,7 +12,7 @@ If you're already using cheetah in a legacy project though, you might(?) find th
 
 Documentation
 ================================================================================
-For a high-level introduction to Cheetah please refer to the User\'s Guide
+For a high-level introduction to Cheetah please refer to the User's Guide
 at http://cheetahtemplate.org/learn.html
 
 Differences
