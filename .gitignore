@@ -3,6 +3,7 @@
 *.so
 *.swp
 /*.egg-info/
+/venv
 bench/venv
 build
 dist

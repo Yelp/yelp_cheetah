@@ -13,10 +13,7 @@ def die(reason):
     sys.exit(1)
 
 def useOrRaise(thing, errmsg=''):
-    """Raise 'thing' if it's a subclass of Exception.  Otherwise return it.
-
-    Called by: Cheetah.Servlet.cgiImport()
-    """
+    """Raise 'thing' if it's a subclass of Exception.  Otherwise return it."""
     if isinstance(thing, type) and issubclass(thing, Exception):
         raise thing(errmsg)
     return thing

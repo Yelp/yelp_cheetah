@@ -172,11 +172,8 @@ Template output mismatch:
             moduleCode = templateObj._CHEETAH_generatedModuleCode
         if self.DEBUGLEV >= 1:
             print(moduleCode)
-        try:
-            output = templateObj.respond() # rather than __str__, because of unicode
-            assert output==expectedOutput, self._outputMismatchReport(output, expectedOutput)
-        finally:
-            templateObj.shutdown()
+        output = templateObj.respond() # rather than __str__, because of unicode
+        assert output==expectedOutput, self._outputMismatchReport(output, expectedOutput)
 
     def _getCompilerSettings(self):
         return {}
@@ -2980,81 +2977,6 @@ class MiscComplexSyntax(OutputTest):
                     "0")
 
 
-class CGI(OutputTest):
-    """CGI scripts with(out) the CGI environment and with(out) GET variables.
-    """
-    convertEOLs=False
-    
-    def _beginCGI(self):  
-        os.environ['REQUEST_METHOD'] = "GET"
-    def _endCGI(self):  
-        try:
-            del os.environ['REQUEST_METHOD']
-        except KeyError:
-            pass
-    _guaranteeNoCGI = _endCGI
-
-
-    def test1(self):
-        """A regular template."""
-        self._guaranteeNoCGI()
-        source = "#extends Cheetah.Tools.CGITemplate\n" + \
-                 "#implements respond\n" + \
-                 "$cgiHeaders()#slurp\n" + \
-                 "Hello, world!" 
-        self.verify(source, "Hello, world!")
-
-
-    def test2(self):
-        """A CGI script."""
-        self._beginCGI()
-        source = "#extends Cheetah.Tools.CGITemplate\n" + \
-                 "#implements respond\n" + \
-                 "$cgiHeaders()#slurp\n" + \
-                 "Hello, world!" 
-        self.verify(source, "Content-type: text/html\n\nHello, world!")
-        self._endCGI()
-
-
-    def test3(self):
-        """A (pseudo) Webware servlet.
-           
-           This uses the Python syntax escape to set
-           self._CHEETAH__isControlledByWebKit.           
-           We could instead do '#silent self._CHEETAH__isControlledByWebKit = True',
-           taking advantage of the fact that it will compile unchanged as long
-           as there's no '$' in the statement.  (It won't compile with an '$'
-           because that would convert to a function call, and you can't assign
-           to a function call.)  Because this isn't really being called from
-           Webware, we'd better not use any Webware services!  Likewise, we'd
-           better not call $cgiImport() because it would be misled.
-        """
-        self._beginCGI()
-        source = "#extends Cheetah.Tools.CGITemplate\n" + \
-                 "#implements respond\n" + \
-                 "<% self._CHEETAH__isControlledByWebKit = True %>#slurp\n" + \
-                 "$cgiHeaders()#slurp\n" + \
-                 "Hello, world!"
-        self.verify(source, "Hello, world!")
-        self._endCGI()
-
-
-    def test4(self):
-        """A CGI script with a GET variable."""
-        self._beginCGI()
-        os.environ['QUERY_STRING'] = "cgiWhat=world"
-        source = "#extends Cheetah.Tools.CGITemplate\n" + \
-                 "#implements respond\n" + \
-                 "$cgiHeaders()#slurp\n" + \
-                 "#silent $webInput(['cgiWhat'])##slurp\n" + \
-                 "Hello, $cgiWhat!"
-        self.verify(source, 
-                    "Content-type: text/html\n\nHello, world!")
-        del os.environ['QUERY_STRING']
-        self._endCGI()
-
-
-
 class WhitespaceAfterDirectiveTokens(OutputTest):
     def _getCompilerSettings(self):
         return {'allowWhitespaceAfterDirectiveStartToken':True}
@@ -3234,11 +3156,6 @@ public class X
 
 ##################################################
 ## CREATE CONVERTED EOL VERSIONS OF THE TEST CASES
-
-if OutputTest._useNewStyleCompilation and versionTuple >= (2, 3):
-    extraCompileKwArgsForDiffBaseclass = {'baseclass':dict}
-else:
-    extraCompileKwArgsForDiffBaseclass = {'baseclass':object}
     
 
 def install_eols():
@@ -3250,11 +3167,6 @@ def install_eols():
             macSrc = r"class %(name)s_MacEOL(%(name)s): _EOLreplacement = '\r'"%locals()
             exec(win32Src, globals()) 
             exec(macSrc, globals())
-
-        if versionTuple >= (2, 3):
-            src = r"class %(name)s_DiffBaseClass(%(name)s): "%locals()
-            src += " _extraCompileKwArgs = extraCompileKwArgsForDiffBaseclass"
-            exec(src, globals())
 
         del name
         del klass

@@ -1352,7 +1352,6 @@ class _HighLevelParser(_LowLevelParser):
         """
         self._macros.clear()
         for macroname, macroDetails in self._macroDetails.items():
-            macroDetails.template.shutdown()
             del macroDetails.template
         self._macroDetails.clear()
 
