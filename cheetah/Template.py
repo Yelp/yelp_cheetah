@@ -48,8 +48,6 @@ else:
 
 from Cheetah.Version import convertVersionStringToTuple, MinCompatibleVersionTuple
 from Cheetah.Version import MinCompatibleVersion
-# Base classes for Template
-from Cheetah.Servlet import Servlet
 # More intra-package imports ...
 from Cheetah.Parser import ParseError, SourceReader
 from Cheetah.Compiler import Compiler, DEFAULT_COMPILER_SETTINGS
@@ -176,7 +174,7 @@ class TemplatePreprocessor(object):
         outputFile = None
         return outputSource, outputFile
 
-class Template(Servlet):
+class Template(object):
     '''
     This class provides a) methods used by templates at runtime and b)
     methods for compiling Cheetah source code into template classes.
@@ -266,8 +264,6 @@ class Template(Servlet):
          'getFileContents',
          'i18n',
          'runAsMainProgram',
-         'respond',
-         'shutdown',
          'webInput',
          'serverSidePath',
          'generatedClassCode',
@@ -1014,8 +1010,7 @@ class Template(Servlet):
                     return rc
                 def __unicode__(self):
                     return getattr(self, mainMethName)()
-            elif (hasattr(concreteTemplateClass, 'respond')
-                  and concreteTemplateClass.respond!=Servlet.respond):
+            elif hasattr(concreteTemplateClass, 'respond'):
                 def __str__(self):
                     rc = self.respond()
                     if isinstance(rc, unicode):
@@ -1350,16 +1345,6 @@ class Template(Servlet):
 
     ## end cache methods ##
 
-    def shutdown(self):
-        """Break reference cycles before discarding a servlet.
-        """
-        try:
-            Servlet.shutdown(self)
-        except:
-            pass
-        self._CHEETAH__searchList = None
-        self.__dict__ = {}
-
     ## utility functions ##
 
     def getVar(self, varName, default=Unspecified, autoCall=True, useDottedNotation=True):
@@ -1531,6 +1516,22 @@ class Template(Servlet):
         self._CHEETAH__cacheStore = None
         if self._CHEETAH_cacheStore is not None:
             self._CHEETAH__cacheStore = self._CHEETAH_cacheStore
+
+    def respond(self):
+        raise NotImplementedError
+
+    def serverSidePath(self, path=None,
+                       normpath=os.path.normpath,
+                       abspath=os.path.abspath
+                       ):
+
+        if path:
+            return normpath(abspath(path.replace("\\", '/')))
+        elif hasattr(self, '_filePath') and self._filePath:
+            return normpath(abspath(self._filePath))
+        else:
+            return None
+
 
     def _compile(self, source=None, file=None, compilerSettings=Unspecified,
                  moduleName=None, mainMethodName=None):
