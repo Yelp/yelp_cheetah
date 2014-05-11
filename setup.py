@@ -38,7 +38,7 @@ def run_setup(with_binary):
     if with_binary:
         kwargs = {
             'ext_modules': [
-                Extension("Cheetah._namemapper", ["cheetah/c/_namemapper.c"]),
+                Extension("Cheetah._namemapper", ["Cheetah/c/_namemapper.c"]),
             ],
             'cmdclass': {'build_ext': ve_build_ext},
         }
@@ -79,7 +79,6 @@ def run_setup(with_binary):
             'Cheetah.Tools',
             'Cheetah.Utils',
         ],
-        package_dir={'Cheetah': 'cheetah'},
         platforms=['linux'],
         entry_points={
             'console_scripts': [
