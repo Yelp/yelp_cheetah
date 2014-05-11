@@ -20,14 +20,6 @@ from Cheetah.Unspecified import Unspecified
 from Cheetah.Macros.I18n import I18n
 
 
-# TODO: you want re.escape guy
-def escapeRegexChars(txt,
-                     escapeRE=re.compile(r'([\$\^\*\+\.\?\{\}\[\]\(\)\|\\])')):
-    
-    """Return a txt with all special regular expressions chars escaped."""
-    
-    return escapeRE.sub(r'\\\1', txt)
-
 def group(*choices): return '(' + '|'.join(choices) + ')'
 def nongroup(*choices): return '(?:' + '|'.join(choices) + ')'
 def namedGroup(name, *choices): return '(P:<' + name +'>' + '|'.join(choices) + ')'
@@ -106,8 +98,8 @@ closurePairsRev= {'(':')','[':']','{':'}'}
 
 tripleQuotedStringREs = {}
 def makeTripleQuoteRe(start, end):
-    start = escapeRegexChars(start)
-    end = escapeRegexChars(end)
+    start = re.escape(start)
+    end = re.escape(end)
     return re.compile(r'(?:' + start + r').*?' + r'(?:' + end + r')', re.DOTALL)
 
 for start, end in tripleQuotedStringPairs.items():
@@ -387,25 +379,25 @@ class _LowLevelParser(SourceReader):
 
         self.cheetahVarStartRE = re.compile(
             escCharLookBehind +
-            r'(?P<startToken>'+escapeRegexChars(self.setting('cheetahVarStartToken'))+')'+
+            r'(?P<startToken>'+re.escape(self.setting('cheetahVarStartToken'))+')'+
             r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t\f]*))' + # allow WS after enclosure
             r'(?=[A-Za-z_])')
         validCharsLookAhead = r'(?=[A-Za-z_\*!\{\(\[])'
         self.cheetahVarStartToken = self.setting('cheetahVarStartToken')
         self.cheetahVarStartTokenRE = re.compile(
             escCharLookBehind +
-            escapeRegexChars(self.setting('cheetahVarStartToken'))
+            re.escape(self.setting('cheetahVarStartToken'))
             +validCharsLookAhead
             )
 
         self.cheetahVarInExpressionStartTokenRE = re.compile(
-            escapeRegexChars(self.setting('cheetahVarStartToken'))
+            re.escape(self.setting('cheetahVarStartToken'))
             +r'(?=[A-Za-z_])'
             )
 
         self.expressionPlaceholderStartRE = re.compile(
             escCharLookBehind +
-            r'(?P<startToken>' + escapeRegexChars(self.setting('cheetahVarStartToken')) + ')' +
+            r'(?P<startToken>' + re.escape(self.setting('cheetahVarStartToken')) + ')' +
             #r'\[[ \t\f]*'
             r'(?:\{|\(|\[)[ \t\f]*'
             + r'(?=[^\)\}\]])'
@@ -413,7 +405,7 @@ class _LowLevelParser(SourceReader):
 
         if self.setting('EOLSlurpToken'):
             self.EOLSlurpRE = re.compile(
-                escapeRegexChars(self.setting('EOLSlurpToken'))
+                re.escape(self.setting('EOLSlurpToken'))
                 + r'[ \t\f]*'
                 + r'(?:'+EOL+')'
                 )
@@ -423,13 +415,13 @@ class _LowLevelParser(SourceReader):
 
     def _makeCommentREs(self):
         """Construct the regex bits that are used in comment parsing."""
-        startTokenEsc = escapeRegexChars(self.setting('commentStartToken'))
+        startTokenEsc = re.escape(self.setting('commentStartToken'))
         self.commentStartTokenRE = re.compile(escCharLookBehind + startTokenEsc)
         del startTokenEsc
         
-        startTokenEsc = escapeRegexChars(
+        startTokenEsc = re.escape(
             self.setting('multiLineCommentStartToken'))
-        endTokenEsc = escapeRegexChars(
+        endTokenEsc = re.escape(
             self.setting('multiLineCommentEndToken'))
         self.multiLineCommentTokenStartRE = re.compile(escCharLookBehind +
                                                        startTokenEsc)
@@ -440,8 +432,8 @@ class _LowLevelParser(SourceReader):
         """Construct the regexs that are used in directive parsing."""
         startToken = self.setting('directiveStartToken')
         endToken = self.setting('directiveEndToken')
-        startTokenEsc = escapeRegexChars(startToken)
-        endTokenEsc = escapeRegexChars(endToken)
+        startTokenEsc = re.escape(startToken)
+        endTokenEsc = re.escape(endToken)
         validSecondCharsLookAhead = r'(?=[A-Za-z_@])'
         reParts = [escCharLookBehind, startTokenEsc]
         if self.setting('allowWhitespaceAfterDirectiveStartToken'):
@@ -453,10 +445,10 @@ class _LowLevelParser(SourceReader):
     def _makePspREs(self):
         """Setup the regexs for PSP parsing."""
         startToken = self.setting('PSPStartToken')
-        startTokenEsc = escapeRegexChars(startToken)
+        startTokenEsc = re.escape(startToken)
         self.PSPStartTokenRE = re.compile(escCharLookBehind + startTokenEsc)
         endToken = self.setting('PSPEndToken')
-        endTokenEsc = escapeRegexChars(endToken)
+        endTokenEsc = re.escape(endToken)
         self.PSPEndTokenRE = re.compile(escCharLookBehind + endTokenEsc)
 
     def _unescapeCheetahVars(self, theString):
