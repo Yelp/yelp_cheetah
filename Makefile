@@ -8,7 +8,7 @@ test:
 	sh -c '\
 		. venv/bin/activate &&\
 		pip install . &&\
-		cheetah/Tests/Test.py \
+		./Cheetah/Tests/Test.py \
 	'
 
 .PHONY: bench
