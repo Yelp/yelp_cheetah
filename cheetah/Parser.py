@@ -354,15 +354,6 @@ class _LowLevelParser(SourceReader):
     state management.
     """
 
-    def __init__(self, *args, **kwargs):
-        super(_LowLevelParser, self).__init__(*args, **kwargs)
-        self.nextPlaceholderID = 0
-
-    def getPlaceholderID(self):
-        result = self.nextPlaceholderID
-        self.nextPlaceholderID += 1
-        return result
-
     _settingsManager = None
 
     def setSettingsManager(self, settingsManager):
@@ -867,8 +858,7 @@ class _LowLevelParser(SourceReader):
             
     def getCheetahVarBody(self, plain=False):
         # @@TR: this should be in the compiler
-        nameChunks, placeholderID = self.getCheetahVarNameChunks()
-        return self._compiler.genCheetahVar(nameChunks, placeholderID, plain=plain)
+        return self._compiler.genCheetahVar(self.getCheetahVarNameChunks(), plain=plain)
         
     def getCheetahVarNameChunks(self):
         
@@ -897,9 +887,6 @@ class _LowLevelParser(SourceReader):
           ]
 
         """
-
-        placeholderID = self.getPlaceholderID()
-
         chunks = []
         while self.pos() < len(self):
             rest = ''
@@ -928,7 +915,7 @@ class _LowLevelParser(SourceReader):
                     autoCall = False
             chunks.append( (dottedName, autoCall, rest) )
 
-        return (chunks, placeholderID)
+        return chunks
     
 
     def getCallArgString(self,
@@ -983,7 +970,6 @@ class _LowLevelParser(SourceReader):
                 addBit(self.getc())
             elif self.matchCheetahVarInExpressionStartToken():
                 startPos = self.pos()
-                oldPlaceholderID = self.nextPlaceholderID
                 codeFor1stToken = self.getCheetahVar()
                 WS = self.getWhiteSpace()
                 if not self.atEnd() and self.peek() == '=':
@@ -991,12 +977,6 @@ class _LowLevelParser(SourceReader):
                     if nextToken == '=':
                         endPos = self.pos()
                         self.setPos(startPos)
-                        # We have rewound self.pos and are calling
-                        # getCheetahVar a second time at the same position as
-                        # 'startPos'.  We need to rewind self.nextPlaceholderID
-                        # as well to avoid using twice as many placeholder IDs
-                        # as normal for this CheetahVar.
-                        self.nextPlaceholderID = oldPlaceholderID
                         codeFor1stToken = self.getCheetahVar(plain=True)
                         self.setPos(endPos)
                         
@@ -1315,8 +1295,8 @@ class _LowLevelParser(SourceReader):
 
         filterArgs = None
         if self.matchIdentifier(): 
-            nameChunks, placeholderID = self.getCheetahVarNameChunks()
-            expr = self._compiler.genCheetahVar(nameChunks[:], placeholderID, plain=plain)
+            nameChunks = self.getCheetahVarNameChunks()
+            expr = self._compiler.genCheetahVar(nameChunks[:], plain=plain)
             restOfExpr = None
             if enclosures:
                 WS = self.getWhiteSpace()

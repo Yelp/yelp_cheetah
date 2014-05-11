@@ -29,12 +29,11 @@ from Cheetah.Parser import Parser, ParseError, specialVarRE, \
      STATIC_CACHE, REFRESH_CACHE, SET_LOCAL, SET_GLOBAL, SET_MODULE, \
      unicodeDirectiveRE, encodingDirectiveRE, escapedNewlineRE
 
-from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList, flushPlaceholderInfo
+from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList
 VFFSL=valueFromFrameOrSearchList
 VFSL=valueFromSearchList
 VFN=valueForName
 currentTime=time.time
-FLUSH=flushPlaceholderInfo
 
 class Error(Exception): pass
 
@@ -157,11 +156,11 @@ class GenUtils(object):
             cacheInfo[key] = val
         return cacheInfo
 
-    def genCheetahVar(self, nameChunks, placholderID, plain=False):
+    def genCheetahVar(self, nameChunks, plain=False):
         if nameChunks[0][0] in self.setting('gettextTokens'):
             self.addGetTextVar(nameChunks)
         if self.setting('useNameMapper') and not plain:
-            return self.genNameMapperVar(nameChunks, placholderID)
+            return self.genNameMapperVar(nameChunks)
         else:
             return self.genPlainVar(nameChunks)
 
@@ -192,7 +191,7 @@ class GenUtils(object):
             pythonCode = (pythonCode + '.' + chunk[0] + chunk[2])
         return pythonCode
 
-    def genNameMapperVar(self, nameChunks, placeholderID):
+    def genNameMapperVar(self, nameChunks):
         """Generate valid Python code for a Cheetah $var, using NameMapper
         (Unified Dotted Notation with the SearchList).
 
@@ -260,38 +259,22 @@ class GenUtils(object):
             firstDotIdx = name.find('.')
             if firstDotIdx != -1 and firstDotIdx < len(name):
                 beforeFirstDot, afterDot = name[:firstDotIdx], name[firstDotIdx+1:]
-                pythonCode = 'VFN(%s, "%s", %s, %s, %s)%s' % (beforeFirstDot, afterDot,
-                        defaultUseAC and useAC, useDottedNotation, placeholderID, remainder)
+                pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (beforeFirstDot, afterDot,
+                        defaultUseAC and useAC, useDottedNotation, remainder)
             else:
                 pythonCode = name+remainder
         elif self.setting('useStackFrames'):
-            pythonCode = 'VFFSL(SL, "%s", %s, %s, %s)%s' % (name,
-                    defaultUseAC and useAC, useDottedNotation, placeholderID, remainder)
+            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (name,
+                    defaultUseAC and useAC, useDottedNotation, remainder)
         else:
-            pythonCode = 'VFSL(%s, "%s", %s, %s, %s)%s' % (
+            pythonCode = 'VFSL(%s, "%s", %s, %s)%s' % (
                     '[locals()]+SL+[globals(), builtin]', name,
-                    defaultUseAC and useAC, useDottedNotation, placeholderID, remainder)
+                    defaultUseAC and useAC, useDottedNotation, remainder)
         ##
         while nameChunks:
             name, useAC, remainder = nameChunks.pop()
-            pythonCode = 'VFN(%s, "%s", %s, %s, %s)%s' % (pythonCode, name,
-                    defaultUseAC and useAC, useDottedNotation, placeholderID, remainder)
-
-        # Insert the FLUSH call before the final 'remainder' (if any), so that
-        # we properly handle cases like "#set $x[y] = 10" (we need the [y] to
-        # be outside the FLUSH, or else we end up with "FLUSH(...) = 10" which
-        # is not valid Python code).
-
-        # 'remainder' is still set from one of the pieces above.
-        if len(remainder) > 0:
-            assert pythonCode.endswith(remainder)
-            # Remove 'remainder', wrap in FLUSH(...), then add 'remainder' back on.
-            pythonCode = pythonCode[:-len(remainder)]
-
-        pythonCode = 'FLUSH(' + pythonCode + ',' + str(placeholderID) + ')'
-
-        if len(remainder) > 0:
-            pythonCode = pythonCode + remainder
+            pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (pythonCode, name,
+                    defaultUseAC and useAC, useDottedNotation, remainder)
 
         return pythonCode
 
@@ -1679,7 +1662,7 @@ class ModuleCompiler(SettingsManager, GenUtils):
             "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
             "from Cheetah.Template import Template",
             "from Cheetah.DummyTransaction import *",
-            "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList, flushPlaceholderInfo",
+            "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
             "from Cheetah.CacheRegion import CacheRegion",
             "import Cheetah.Filters as Filters",
             "import Cheetah.ErrorCatchers as ErrorCatchers",
@@ -1709,7 +1692,6 @@ class ModuleCompiler(SettingsManager, GenUtils):
             "VFSL=valueFromSearchList",
             "VFN=valueForName",
             "currentTime=time.time",
-            "FLUSH=flushPlaceholderInfo",
             ]
 
     def compile(self):
