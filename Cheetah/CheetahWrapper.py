@@ -22,7 +22,6 @@ from optparse import OptionParser
 from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
 from Cheetah.Version import Version
 from Cheetah.Template import Template
-from Cheetah.Utils.Misc import mkdirsWithPyInitFiles
 
 optionDashesRE = re.compile(  R"^-{1,2}"  )
 moduleNameRE = re.compile(  R"^[a-zA-Z_][a-zA-Z_0-9]*$"  )
@@ -37,6 +36,23 @@ def fprintfMessage(stream, format, *args):
     else:
         message = format
     stream.write(message)
+
+
+def mkdirsWithPyInitFiles(path):
+    """Same as os.makedirs (mkdir 'path' and all missing parent directories)
+       but also puts a Python '__init__.py' file in every directory it
+       creates.  Does nothing (without creating an '__init__.py' file) if the
+       directory already exists.  
+    """
+    dir, fil = os.path.split(path)
+    if dir and not os.path.exists(dir):
+        mkdirsWithPyInitFiles(dir)
+    if not os.path.exists(path):
+        os.mkdir(path)
+        init = os.path.join(path, "__init__.py")
+        f = open(init, 'w') # Open and close to produce empty file.
+        f.close()
+
 
 class Error(Exception):
     pass

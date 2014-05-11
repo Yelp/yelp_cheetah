@@ -94,7 +94,7 @@ class ClassMethods_compile(TemplateTest):
         assert t.testMeth()=='1234'
 
         klass = Template.compile(source='$foo',
-                                 moduleName='fooXXX',                                 
+                                 moduleName='fooXXX',
                                  className='foo123',
                                  mainMethodName='testMeth',
                                  baseclass=dict)
@@ -240,7 +240,6 @@ class Preprocessors(TemplateTest):
             klass = Template.compile(src, preprocessors=arg)
             assert str(klass())=='120'
 
-
     def test_complexUsage(self):
         src='''\
         %set foo = @a
@@ -258,8 +257,6 @@ class Preprocessors(TemplateTest):
             klass = Template.compile(src, preprocessors=arg)
             t = klass()
             assert str(t)=='990\n--***--99'
-
-
 
     def test_i18n(self):
         src='''\
