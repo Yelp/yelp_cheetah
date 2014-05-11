@@ -1,0 +1,30 @@
+================================================================================
+SHA = b4c678f68a57b53b30cfebaeaa8edf4c8559294f
+C_VERSION = False
+BEST_OF = 5
+ITERATIONS = 10
+TIME_PER_TEST = 200
+bogomips	: 5386.00
+bogomips	: 5386.00
+bogomips	: 5386.00
+bogomips	: 5386.00
+--------------------------------------------------------------------------------
+vffsl_frame                       57 iterations
+vffsl_sl                          57 iterations
+vffsl_template                    55 iterations
+--------------------------------------------------------------------------------
+================================================================================
+SHA = b4c678f68a57b53b30cfebaeaa8edf4c8559294f
+C_VERSION = True
+BEST_OF = 5
+ITERATIONS = 10
+TIME_PER_TEST = 200
+bogomips	: 5386.00
+bogomips	: 5386.00
+bogomips	: 5386.00
+bogomips	: 5386.00
+--------------------------------------------------------------------------------
+vffsl_frame                     19595 iterations
+vffsl_sl                        20772 iterations
+vffsl_template                  12745 iterations
+--------------------------------------------------------------------------------

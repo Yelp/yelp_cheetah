@@ -8,4 +8,6 @@ install:
   - python setup.py install
 
 
-script: cheetah/Tests/Test.py
+script:
+  - cheetah/Tests/Test.py
+  - bench/run_bench.sh

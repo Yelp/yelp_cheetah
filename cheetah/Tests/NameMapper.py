@@ -575,9 +575,9 @@ class RefCountTest(unittest.TestCase):
 
         # VFF has a differrent signature
         if SL is not None:
-            args = (SL, 'foo.bar.baz', True, False, -1)
+            args = (SL, 'foo.bar.baz', True, False)
         else:
-            args = ('foo.bar.baz', True, False, -1)
+            args = ('foo.bar.baz', True, False)
 
         # Collect refcounts before
         refcounts_before = get_refcount_tree(namespace)

@@ -1,7 +1,8 @@
-*.pyc
-*.swp
-*.so
-build
 *.py.bak
+*.pyc
+*.so
+*.swp
 /*.egg-info/
+bench/venv
+build
 dist
