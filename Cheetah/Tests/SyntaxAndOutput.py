@@ -11,24 +11,16 @@ TODO
 - #silent
 '''
 
-
-##################################################
-## DEPENDENCIES ##
-
-import sys
-import types
-import re
-from copy import deepcopy
 import os
 import os.path
-import warnings
+import sys
 import unittest
+import warnings
 
 from Cheetah.NameMapper import NotFound
-from Cheetah.NameMapper import C_VERSION as NameMapper_C_VERSION
 from Cheetah.Template import Template
 from Cheetah.Parser import ParseError
-from Cheetah.Compiler import Compiler, DEFAULT_COMPILER_SETTINGS
+from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
 
 class Unspecified(object):
     pass
@@ -493,7 +485,7 @@ class Comments_MultiLine(OutputTest):
         self.verify("foo\nfoo bar #* #for $i in range(15) *# foo\n",
                     "foo\nfoo bar  foo\n")
 
-    def test9(self):
+    def test9_point_5(self):
         """ text around #* *# containing #for directive and trailing whitespace
         which should be gobbled
         """
@@ -1101,7 +1093,6 @@ $x$y#slurp
         "12345")
 
 
-
 class I18nDirective(OutputTest):   
     def test1(self):
         r"""simple #call """
@@ -1170,7 +1161,6 @@ class SlurpDirective(OutputTest):
         Should eat the garbage"""
         self.verify(" 1234 #slurp garbage   \n",
                     " 1234 ")
-
 
 
 class EOLSlurpToken(OutputTest):
@@ -2422,7 +2412,6 @@ class RaiseDirective(OutputTest):
                     "blarg\n")
 
 
-
 class ImportDirective(OutputTest):
     def test1(self):
         """#import math
@@ -2831,7 +2820,6 @@ class WhitespaceAfterDirectiveTokens(OutputTest):
                     "0123456789")
 
 
-
 class DefmacroDirective(OutputTest):
     def _getCompilerSettings(self):
         def aMacro(src):
@@ -2848,8 +2836,6 @@ class DefmacroDirective(OutputTest):
 $i""",
                     "2")
 
-
-
         self.verify("""\
 #defmacro test
 #for i in range(10): @src
@@ -2865,7 +2851,6 @@ $i""",
 #test: $i-foo
 #for i in range(3): $i""",
   "0-foo\n1-foo\n2-foo\n3-foo\n4-foo\n5-foo\n6-foo\n7-foo\n8-foo\n9-foo\n012")
-
 
         self.verify("""\
 #defmacro test: #for i in range(10): @src

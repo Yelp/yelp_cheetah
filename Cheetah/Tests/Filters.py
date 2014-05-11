@@ -66,8 +66,9 @@ def foo(self):
         assert template, (template, 'We should have some content here...')
 
 
+class UniqueError(ValueError):
+    pass
 
-class UniqueError(ValueError): pass
 
 class UniqueFilter(Cheetah.Filters.Filter):
     """A dummy filter that tries to notice when it's been called twice on the

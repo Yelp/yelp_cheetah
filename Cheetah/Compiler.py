@@ -104,7 +104,6 @@ _DEFAULT_COMPILER_SETTINGS = [
 DEFAULT_COMPILER_SETTINGS = dict([(v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS])
 
 
-
 class GenUtils(object):
     """An abstract baseclass for the Compiler classes that provides methods that
     perform generic utility functions or generate pieces of output code from

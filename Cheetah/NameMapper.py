@@ -134,7 +134,6 @@ __author__ = "Tavis Rudd <tavis@damnsimple.com>," +\
              "\nChuck Esterbrook <echuck@mindspring.com>"
 from pprint import pformat
 import inspect
-import sys
 
 _INCLUDE_NAMESPACE_REPR_IN_NOTFOUND_EXCEPTIONS = False
 _ALLOW_WRAPPING_OF_NOTFOUND_EXCEPTIONS = True
@@ -307,53 +306,3 @@ class Mixin:
 
     def valueForKey(self, key):
         return valueForKey(self, key)
-
-##################################################
-## if run from the command line ##
-
-def example():
-    class A(Mixin):
-        classVar = 'classVar val'
-        def method(self,arg='method 1 default arg'):
-            return arg
-
-        def method2(self, arg='meth 2 default arg'):
-            return {'item1':arg}
-
-        def method3(self, arg='meth 3 default'):
-            return arg
-
-    class B(A):
-        classBvar = 'classBvar val'
-
-    a = A()
-    a.one = 'valueForOne'
-    def function(whichOne='default'):
-        values = {
-            'default': 'default output',
-            'one': 'output option one',
-            'two': 'output option two'
-            }
-        return values[whichOne]
-
-    a.dic = {
-        'func': function,
-        'method': a.method3,
-        'item': 'itemval',
-        'subDict': {'nestedMethod':a.method3}
-        }
-    b = 'this is local b'
-
-    print(valueForKey(a.dic, 'subDict'))
-    print(valueForName(a, 'dic.item'))
-    print(valueForName(vars(), 'b'))
-    print(valueForName(__builtins__, 'dir')())
-    print(valueForName(vars(), 'a.classVar'))
-    print(valueForName(vars(), 'a.dic.func', executeCallables=True))
-    print(valueForName(vars(), 'a.method2.item1', executeCallables=True))
-
-if __name__ == '__main__':
-    example()
-
-
-

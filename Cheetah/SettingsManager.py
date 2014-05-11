@@ -1,13 +1,10 @@
-import sys
 import os.path
 import copy as copyModule
-from ConfigParser import ConfigParser 
 import re
-from tokenize import Intnumber, Floatnumber, Number
 import types
-import time
+from ConfigParser import ConfigParser 
 from StringIO import StringIO # not cStringIO because of unicode support
-import imp                 # used by SettingsManager.updateSettingsFromPySrcFile()
+from tokenize import Number
 
 
 numberRE = re.compile(Number)

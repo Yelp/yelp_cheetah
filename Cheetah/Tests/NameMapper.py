@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 
 import sys
-import types
-import os
-import os.path
 
 import unittest
 from Cheetah.NameMapper import NotFound
-from Cheetah.NameMapper import valueForKey
 from Cheetah.NameMapper import valueFromFrame
 from Cheetah.NameMapper import valueFromFrameOrSearchList
 from Cheetah.NameMapper import valueFromSearchList
@@ -208,15 +204,6 @@ class VFN(NameMapperTest):
         """anObj in dict lookup in a loop"""
         for i in range(10):
             self.check('anObj')
-
-    def test17(self):
-        """aDict in dict lookup"""
-        self.check('aDict')
-
-    def test18(self):
-        """aDict in dict lookup in a loop"""
-        for i in range(10):
-            self.check('aDict')
 
     def test17(self):
         """aDict in dict lookup"""
@@ -476,6 +463,7 @@ class VFF(VFN):
         aStr = ns['aStr'] 
         aFloat = ns['aFloat']
         none = 'some'
+        _, _, _, _ = (ns, aStr, aFloat, none)  # pyflakes
         return valueFromFrame(name, autocall)
 
     def setUp(self):
@@ -516,6 +504,7 @@ class VFFSL(VFS):
     def VFFSL(self, searchList, name, autocall=True):
         anInt = 1
         none = 'some'
+        _, _ = (anInt, none)  # pyflakes
         return valueFromFrameOrSearchList(searchList, name, autocall)
     
     def get(self, name, autocall=True):

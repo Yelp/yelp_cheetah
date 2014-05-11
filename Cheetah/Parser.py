@@ -9,18 +9,13 @@ Classes:
   Parser === _HighLevelParser (an alias)
 """
 
-import os
 import sys
 import re
-from re import DOTALL, MULTILINE
 import types
-import time
 from tokenize import pseudoprog
 import inspect
-import traceback
 
 from Cheetah.SourceReader import SourceReader
-from Cheetah import Filters
 from Cheetah.Unspecified import Unspecified
 from Cheetah.Macros.I18n import I18n
 
@@ -390,16 +385,6 @@ class _LowLevelParser(SourceReader):
     def _makeCheetahVarREs(self):
         """Setup the regexs for Cheetah $var parsing."""
 
-        num = r'[0-9\.]+'
-        interval =   (r'(?P<interval>' + 
-                      num + r's|' +
-                      num + r'm|' +
-                      num + r'h|' +
-                      num + r'd|' +
-                      num + r'w|' +
-                      num + ')' 
-                      )
-    
         self.cheetahVarStartRE = re.compile(
             escCharLookBehind +
             r'(?P<startToken>'+escapeRegexChars(self.setting('cheetahVarStartToken'))+')'+
@@ -1205,6 +1190,8 @@ class _LowLevelParser(SourceReader):
 
         startPos = self.pos()
         lineCol = self.getRowCol(startPos)
+        # TODO: the following variable is unused, but I assume the function has
+        # a side-effect
         startToken = self.getCheetahVarStartToken()
             
         if self.peek() in '({[':         
@@ -1327,11 +1314,8 @@ class _HighLevelParser(_LowLevelParser):
         for directiveName in self.setting('closeableDirectives', []):
             self._closeableDirectives.append(directiveName)
 
-
-
         macroDirectives = self.setting('macroDirectives', {})
         macroDirectives['i18n'] = I18n
-
 
         for macroName, callback in macroDirectives.items():
             if isinstance(callback, type):
@@ -2062,6 +2046,8 @@ class _HighLevelParser(_LowLevelParser):
             self.getWhiteSpace()
             style = SET_MODULE
 
+        # TODO: the following variable is unused but I assume the function has
+        # a side-effect
         startsWithDollar = self.matchCheetahVarStart()
         startPos = self.pos()
         LVALUE = self.getExpression(pyTokensToBreakAt=assignmentOps, useNameMapper=False).strip()

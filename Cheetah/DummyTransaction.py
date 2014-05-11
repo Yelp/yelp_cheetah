@@ -9,7 +9,6 @@ specific DummyTransaction or DummyResponse behavior
 '''
 
 import logging
-import types
 
 class DummyResponseFailure(Exception):
     pass
@@ -47,22 +46,14 @@ class DummyResponse(object):
     def write(self, value):
         self._outputChunks.append(value)
 
-    def writeln(self, txt):
-        write(txt)
-        write('\n')
-
     def getvalue(self, outputChunks=None):
         chunks = outputChunks or self._outputChunks
         try:
             return u''.join(chunks)
-        except UnicodeDecodeError, ex:
+        except UnicodeDecodeError:
             logging.debug('Trying to work around a UnicodeDecodeError in getvalue()')
             logging.debug('...perhaps you could fix "%s" while you\'re debugging')
             return ''.join((self.safeConvert(c) for c in chunks))
-
-    def writelines(self, *lines):
-        ## not used
-        [self.writeln(ln) for ln in lines]
         
 
 class DummyTransaction(object):

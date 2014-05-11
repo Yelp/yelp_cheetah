@@ -1,4 +1,3 @@
-from Cheetah.NameMapper import C_VERSION
 from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL
 
 from constants import ITERATIONS

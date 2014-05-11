@@ -4,7 +4,6 @@
     #filter results in output filters Cheetah's $placeholders .
     #transform results in a filter on the entirety of the output
 '''
-import sys
 
 # Additional entities WebSafe knows how to transform.  No need to include
 # '<', '>' or '&' since those will have been done already.
@@ -113,7 +112,6 @@ class CodeHighlighter(EncodeUnicode):
         return '''<style type="text/css"><!--
                 %(css)s
             --></style>%(source)s''' % {'css' : css, 'source' : encoded}
-
 
 
 class MaxLen(Filter):
