@@ -918,7 +918,6 @@ class _LowLevelParser(SourceReader):
                 if token in ('{', '(', '['):
                     self.rev()
                     token = self.getExpression(enclosed=True)
-                token = self.transformToken(token, beforeTokenPos)
                 addBit(token)
 
         if useNameMapper is not Unspecified:
@@ -996,7 +995,6 @@ class _LowLevelParser(SourceReader):
                     if token in ('{', '(', '['):
                         self.rev()
                         token = self.getExpression(enclosed=True)
-                    token = self.transformToken(token, beforeTokenPos)
                 argList.add_default(token)
             elif c == '*' and not onDefVal:
                 varName = self.getc()
@@ -1103,8 +1101,6 @@ class _LowLevelParser(SourceReader):
                     self.setPos(beforeTokenPos)
                     break
 
-                token = self.transformToken(token, beforeTokenPos)
-                        
                 exprBits.append(token)                    
                 if identRE.match(token):
                     if token == 'for':
@@ -1132,43 +1128,6 @@ class _LowLevelParser(SourceReader):
             enclosed=enclosed, enclosures=enclosures,
             pyTokensToBreakAt=pyTokensToBreakAt,
             useNameMapper=useNameMapper))
-
-
-    def transformToken(self, token, beforeTokenPos):
-        """Takes a token from the expression being parsed and performs and
-        special transformations required by Cheetah.
-
-        At the moment only Cheetah's c'$placeholder strings' are transformed.
-        """
-        if token=='c' and not self.atEnd() and self.peek() in '\'"':
-            nextToken = self.getPyToken()
-            token = nextToken.upper()
-            theStr = eval(token)
-            endPos = self.pos()
-            if not theStr:
-                return
-            
-            if token.startswith(single3) or token.startswith(double3):
-                startPosIdx = 3
-            else:
-                startPosIdx = 1
-            self.setPos(beforeTokenPos+startPosIdx+1)
-            outputExprs = []
-            strConst = ''
-            while self.pos() < (endPos-startPosIdx):
-                if self.matchCheetahVarStart() or self.matchExpressionPlaceholderStart():
-                    if strConst:
-                        outputExprs.append(repr(strConst))
-                        strConst = ''
-                    placeholderExpr = self.getPlaceholder()
-                    outputExprs.append('str('+placeholderExpr+')')
-                else:
-                    strConst += self.getc()
-            self.setPos(endPos)
-            if strConst:
-                outputExprs.append(repr(strConst))
-            token = "''.join(["+','.join(outputExprs)+"])"
-        return token
 
     def _raiseErrorAboutInvalidCheetahVarSyntaxInExpr(self):
         match = self.matchCheetahVarStart()

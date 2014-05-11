@@ -588,41 +588,6 @@ class Placeholders_Vals(OutputTest):
         """
         self.verify("$_('foo')", "Translated: foo")
 
-class PlaceholderStrings(OutputTest):
-    def test1(self):
-        """some c'text $placeholder text' strings"""
-        self.verify("$str(c'$aStr')", "blarg")
-
-    def test2(self):
-        """some c'text $placeholder text' strings"""
-        self.verify("$str(c'$aStr.upper()')", "BLARG")
-
-    def test3(self):
-        """some c'text $placeholder text' strings"""
-        self.verify("$str(c'$(aStr.upper().replace(c\"A$str()\",\"\"))')", "BLRG")
-
-    def test4(self):
-        """some c'text $placeholder text' strings"""
-        self.verify("#echo $str(c'$(aStr.upper())')", "BLARG")
-
-    def test5(self):
-        """some c'text $placeholder text' strings"""
-        self.verify("#if 1 then $str(c'$(aStr.upper())') else 0", "BLARG")
-
-    def test6(self):
-        """some c'text $placeholder text' strings"""
-        self.verify("#if 1\n$str(c'$(aStr.upper())')#slurp\n#else\n0#end if", "BLARG")
-
-    def test7(self):
-        """some c'text $placeholder text' strings"""
-        self.verify("#def foo(arg=c'$(\"BLARG\")')\n"
-                    "$arg#slurp\n"
-                    "#end def\n"
-                    "$foo()$foo(c'$anInt')#slurp",
-                    
-                    "BLARG1")
-
-
 
 class UnicodeStrings(OutputTest):
     def test1(self):
@@ -1084,7 +1049,7 @@ $x$y#slurp
 3#slurp
 #end call 3
 #set two = 2
-#call self.meth2 y=c"$(10/$two)"
+#call self.meth2 y=10/two
 #arg x
 4#slurp
 #end call 4

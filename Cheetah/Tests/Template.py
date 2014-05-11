@@ -234,24 +234,6 @@ class Preprocessors(TemplateTest):
             klass = Template.compile(src, preprocessors=arg)
             assert str(klass())=='120'
 
-    def test_complexUsage(self):
-        src='''\
-        %set foo = @a
-        %def func1: #def func(arg): $arg("***")
-        %% comment
-        $(@foo*10)
-        @func1()
-        $func(lambda x:c"--$x--@a")'''
-        src = '\n'.join([ln.strip() for ln in src.splitlines()])
-
-        
-        for arg in [{'tokens':'@ %', 'namespaces':{'a':99} },
-                    {'tokens':'@ %', 'namespaces':{'a':99} },
-                    ]:
-            klass = Template.compile(src, preprocessors=arg)
-            t = klass()
-            assert str(t)=='990\n--***--99'
-
     def test_i18n(self):
         src='''\
         %i18n: This is a $string that needs translation
