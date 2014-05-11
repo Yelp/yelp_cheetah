@@ -21,7 +21,6 @@ import traceback
 
 from Cheetah.SourceReader import SourceReader
 from Cheetah import Filters
-from Cheetah import ErrorCatchers
 from Cheetah.Unspecified import Unspecified
 from Cheetah.Macros.I18n import I18n
 
@@ -194,7 +193,6 @@ directiveNamesAndParsers = {
     'try': None,
     'except': None,
     'finally': None,
-    'errorCatcher': 'eatErrorCatcher',
     
     # intructions to the parser and compiler
     'breakpoint': 'eatBreakPoint',
@@ -215,7 +213,6 @@ endDirectiveNamesAndHandlers = {
     'call': None,               # has short-form
     'capture': None,            # has short-form
     'filter': None,
-    'errorCatcher': None,            
     'while': None,              # has short-form
     'for': None,                # has short-form
     'if': None,                 # has short-form
@@ -1685,7 +1682,7 @@ class _HighLevelParser(_LowLevelParser):
         if self._endDirectiveNamesAndHandlers.get(directiveName):
             handler = self._endDirectiveNamesAndHandlers[directiveName]
             handler()
-        elif directiveName in 'block capture call filter errorCatcher'.split():
+        elif directiveName in 'block capture call filter'.split():
             if key == 'block':
                 self._compiler.closeBlock()
             elif key == 'capture':
@@ -1694,8 +1691,6 @@ class _HighLevelParser(_LowLevelParser):
                 self._compiler.endCallRegion()
             elif key == 'filter':
                 self._compiler.closeFilterBlock()
-            elif key == 'errorCatcher':
-                self._compiler.turnErrorCatcherOff()
         elif directiveName in 'while for if try repeat unless'.split():
             self._compiler.commitStrConst()
             self._compiler.dedent()
@@ -2418,20 +2413,6 @@ class _HighLevelParser(_LowLevelParser):
         self.getWhiteSpace()
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         self._compiler.setTransform(transformer, isKlass)
-
-        
-    def eatErrorCatcher(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        self.getDirectiveStartToken()
-        self.advance(len('errorCatcher'))
-        self.getWhiteSpace()
-        startPos = self.pos()
-        errorCatcherName = self.getIdentifier()
-        errorCatcherName = self._applyExpressionFilters(
-            errorCatcherName, 'errorcatcher', startPos=startPos)
-        self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)        
-        self._compiler.setErrorCatcher(errorCatcherName)
 
     def eatCapture(self):
         # @@TR:  this could be refactored to use the code in eatSimpleIndentingDirective

@@ -51,7 +51,6 @@ from Cheetah.Version import MinCompatibleVersion
 # More intra-package imports ...
 from Cheetah.Parser import ParseError, SourceReader
 from Cheetah.Compiler import Compiler, DEFAULT_COMPILER_SETTINGS
-from Cheetah import ErrorCatchers              # for placeholder tags
 from Cheetah import Filters                    # the output filters
 from Cheetah.convertTmplPathToModuleName import convertTmplPathToModuleName
 
@@ -256,7 +255,6 @@ class Template(object):
     _CHEETAH_requiredCheetahMethods = (
          '_initCheetahInstance',
          'searchList',
-         'errorCatcher',
          'getVar',
          'varExists',
          'getFileContents',
@@ -1028,7 +1026,6 @@ class Template(object):
                  file=None,
                  filter='RawOrEncodedUnicode', # which filter from Cheetah.Filters
                  filtersLib=Filters,
-                 errorCatcher=None,
 
                  compilerSettings=Unspecified, # control the behaviour of the compiler
                  _globalSetVars=None, # used internally for #include'd templates
@@ -1131,16 +1128,7 @@ class Template(object):
                A module containing subclasses of Cheetah.Filters.Filter. See the
                Users' Guide for more details.
 
-             - errorCatcher
-               Default: None
-
-               This is a debugging tool. See the Users' Guide for more details.
-               Do not use this or the #errorCatcher diretive with live
-               production systems.
-
           Do NOT mess with the args _globalSetVars or _preBuiltSearchList!
-
-
         """
         errmsg = "arg '%s' must be %s"
         errmsgextra = errmsg + "\n%s"
@@ -1162,17 +1150,6 @@ class Template(object):
                             ('filtersLib', 'string or module',
                              '(if module, must contain subclasses of Cheetah.Filters.Filter)'))
 
-        if not errorCatcher is None:
-            err = True
-            if isinstance(errorCatcher, (basestring, types.TypeType)):
-                err = False
-            if isinstance(errorCatcher, type) and \
-                    issubclass(errorCatcher, ErrorCatchers.ErrorCatcher):
-                err = False
-            if err:
-                raise TypeError(errmsgextra %
-                            ('errorCatcher', 'string, class or None',
-                             '(if class, must be subclass of Cheetah.ErrorCatchers.ErrorCatcher)'))
         if compilerSettings is not Unspecified:
             if not isinstance(compilerSettings, types.DictType):
                 raise TypeError(errmsg %
@@ -1225,7 +1202,6 @@ class Template(object):
         self._initCheetahInstance(
             searchList=searchList, namespaces=namespaces,
             filter=filter, filtersLib=filtersLib,
-            errorCatcher=errorCatcher,
             _globalSetVars=_globalSetVars,
             compilerSettings=compilerSettings,
             _preBuiltSearchList=_preBuiltSearchList)
@@ -1255,12 +1231,6 @@ class Template(object):
         """Return a reference to the searchlist
         """
         return self._CHEETAH__searchList
-
-    def errorCatcher(self):
-        """Return a reference to the current errorCatcher
-        """
-        return self._CHEETAH__errorCatcher
-
 
     ## utility functions ##
 
@@ -1353,7 +1323,6 @@ class Template(object):
                              namespaces=None,
                              filter='RawOrEncodedUnicode', # which filter from Cheetah.Filters
                              filtersLib=Filters,
-                             errorCatcher=None,
                              _globalSetVars=None,
                              compilerSettings=None,
                              _preBuiltSearchList=None):
@@ -1408,20 +1377,6 @@ class Template(object):
             filterName = klass.__name__
         self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName] = klass(self).filter
         self._CHEETAH__initialFilter = self._CHEETAH__currentFilter
-
-        self._CHEETAH__errorCatchers = {}
-        if errorCatcher:
-            if isinstance(errorCatcher, basestring):
-                errorCatcherClass = getattr(ErrorCatchers, errorCatcher)
-            elif isinstance(errorCatcher, type):
-                errorCatcherClass = errorCatcher
-
-            self._CHEETAH__errorCatcher = ec = errorCatcherClass(self)
-            self._CHEETAH__errorCatchers[errorCatcher.__class__.__name__] = ec
-
-        else:
-            self._CHEETAH__errorCatcher = None
-        self._CHEETAH__initErrorCatcher = self._CHEETAH__errorCatcher
 
         if not hasattr(self, 'transaction'):
             self.transaction = None
