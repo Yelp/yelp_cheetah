@@ -25,13 +25,8 @@ from Cheetah import ErrorCatchers
 from Cheetah.Unspecified import Unspecified
 from Cheetah.Macros.I18n import I18n
 
-# re tools
-_regexCache = {}
-def cachedRegex(pattern):
-    if pattern not in _regexCache:
-        _regexCache[pattern] = re.compile(pattern)
-    return _regexCache[pattern]
 
+# TODO: you want re.escape guy
 def escapeRegexChars(txt,
                      escapeRE=re.compile(r'([\$\^\*\+\.\?\{\}\[\]\(\)\|\\])')):
     
@@ -47,10 +42,6 @@ def maybe(*choices): return group(*choices) + '?'
 
 ##################################################
 ## CONSTANTS & GLOBALS ##
-
-NO_CACHE = 0
-STATIC_CACHE = 1
-REFRESH_CACHE = 2
 
 SET_LOCAL = 0
 SET_GLOBAL = 1
@@ -158,7 +149,6 @@ directiveNamesAndParsers = {
     'slurp': 'eatSlurp',
     'raw': 'eatRaw',
     'include': 'eatInclude',
-    'cache': 'eatCache',
     'filter': 'eatFilter',
     'echo': None,
     'silent': None,
@@ -222,7 +212,6 @@ endDirectiveNamesAndHandlers = {
     'def': 'handleEndDef',      # has short-form
     'block': None,              # has short-form
     'closure': None,            # has short-form
-    'cache': None,              # has short-form
     'call': None,               # has short-form
     'capture': None,            # has short-form
     'filter': None,
@@ -310,11 +299,9 @@ class ForbiddenDirective(ForbiddenSyntax):
     pass
 
 class CheetahVariable(object):
-    def __init__(self, nameChunks, useNameMapper=True, cacheToken=None,
-                 rawSource=None):
+    def __init__(self, nameChunks, useNameMapper=True, rawSource=None):
         self.nameChunks = nameChunks
         self.useNameMapper = useNameMapper
-        self.cacheToken = cacheToken
         self.rawSource = rawSource
         
 class Placeholder(CheetahVariable):
@@ -417,53 +404,42 @@ class _LowLevelParser(SourceReader):
                       num + ')' 
                       )
     
-        cacheToken = (r'(?:' +
-                      r'(?P<REFRESH_CACHE>\*' + interval + '\*)'+
-                      '|' +
-                      r'(?P<STATIC_CACHE>\*)' +
-                      '|' +                      
-                      r'(?P<NO_CACHE>)' +
-                      ')')
-        self.cacheTokenRE = cachedRegex(cacheToken)
-
         silentPlaceholderToken = (r'(?:' +
                                   r'(?P<SILENT>' +escapeRegexChars('!')+')'+
                                   '|' +
                                   r'(?P<NOT_SILENT>)' +
                                   ')')
-        self.silentPlaceholderTokenRE = cachedRegex(silentPlaceholderToken)
+        self.silentPlaceholderTokenRE = re.compile(silentPlaceholderToken)
         
-        self.cheetahVarStartRE = cachedRegex(
+        self.cheetahVarStartRE = re.compile(
             escCharLookBehind +
             r'(?P<startToken>'+escapeRegexChars(self.setting('cheetahVarStartToken'))+')'+
             r'(?P<silenceToken>'+silentPlaceholderToken+')'+
-            r'(?P<cacheToken>'+cacheToken+')'+
             r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t\f]*))' + # allow WS after enclosure
             r'(?=[A-Za-z_])')
         validCharsLookAhead = r'(?=[A-Za-z_\*!\{\(\[])'
         self.cheetahVarStartToken = self.setting('cheetahVarStartToken')
-        self.cheetahVarStartTokenRE = cachedRegex(
+        self.cheetahVarStartTokenRE = re.compile(
             escCharLookBehind +
             escapeRegexChars(self.setting('cheetahVarStartToken'))
             +validCharsLookAhead
             )
 
-        self.cheetahVarInExpressionStartTokenRE = cachedRegex(
+        self.cheetahVarInExpressionStartTokenRE = re.compile(
             escapeRegexChars(self.setting('cheetahVarStartToken'))
             +r'(?=[A-Za-z_])'
             )
 
-        self.expressionPlaceholderStartRE = cachedRegex(
+        self.expressionPlaceholderStartRE = re.compile(
             escCharLookBehind +
             r'(?P<startToken>' + escapeRegexChars(self.setting('cheetahVarStartToken')) + ')' +
-            r'(?P<cacheToken>' + cacheToken + ')' +
             #r'\[[ \t\f]*'
             r'(?:\{|\(|\[)[ \t\f]*'
             + r'(?=[^\)\}\]])'
             )
 
         if self.setting('EOLSlurpToken'):
-            self.EOLSlurpRE = cachedRegex(
+            self.EOLSlurpRE = re.compile(
                 escapeRegexChars(self.setting('EOLSlurpToken'))
                 + r'[ \t\f]*'
                 + r'(?:'+EOL+')'
@@ -475,16 +451,16 @@ class _LowLevelParser(SourceReader):
     def _makeCommentREs(self):
         """Construct the regex bits that are used in comment parsing."""
         startTokenEsc = escapeRegexChars(self.setting('commentStartToken'))
-        self.commentStartTokenRE = cachedRegex(escCharLookBehind + startTokenEsc)
+        self.commentStartTokenRE = re.compile(escCharLookBehind + startTokenEsc)
         del startTokenEsc
         
         startTokenEsc = escapeRegexChars(
             self.setting('multiLineCommentStartToken'))
         endTokenEsc = escapeRegexChars(
             self.setting('multiLineCommentEndToken'))
-        self.multiLineCommentTokenStartRE = cachedRegex(escCharLookBehind +
+        self.multiLineCommentTokenStartRE = re.compile(escCharLookBehind +
                                                        startTokenEsc)
-        self.multiLineCommentEndTokenRE = cachedRegex(escCharLookBehind +
+        self.multiLineCommentEndTokenRE = re.compile(escCharLookBehind +
                                                      endTokenEsc)
         
     def _makeDirectiveREs(self):
@@ -498,17 +474,17 @@ class _LowLevelParser(SourceReader):
         if self.setting('allowWhitespaceAfterDirectiveStartToken'):
             reParts.append('[ \t]*')
         reParts.append(validSecondCharsLookAhead)
-        self.directiveStartTokenRE = cachedRegex(''.join(reParts))
-        self.directiveEndTokenRE = cachedRegex(escCharLookBehind + endTokenEsc)
+        self.directiveStartTokenRE = re.compile(''.join(reParts))
+        self.directiveEndTokenRE = re.compile(escCharLookBehind + endTokenEsc)
 
     def _makePspREs(self):
         """Setup the regexs for PSP parsing."""
         startToken = self.setting('PSPStartToken')
         startTokenEsc = escapeRegexChars(startToken)
-        self.PSPStartTokenRE = cachedRegex(escCharLookBehind + startTokenEsc)
+        self.PSPStartTokenRE = re.compile(escCharLookBehind + startTokenEsc)
         endToken = self.setting('PSPEndToken')
         endTokenEsc = escapeRegexChars(endToken)
-        self.PSPEndTokenRE = cachedRegex(escCharLookBehind + endTokenEsc)
+        self.PSPEndTokenRE = re.compile(escCharLookBehind + endTokenEsc)
 
     def _unescapeCheetahVars(self, theString):
         """Unescape any escaped Cheetah \$vars in the string.
@@ -778,40 +754,31 @@ class _LowLevelParser(SourceReader):
         return self.readTo(match.end())
 
     def matchCheetahVarStart(self):
-        """includes the enclosure and cache token"""
+        """includes the enclosure"""
         return self.cheetahVarStartRE.match(self.src(), self.pos())
 
     def matchCheetahVarStartToken(self):
-        """includes the enclosure and cache token"""
+        """includes the enclosure"""
         return self.cheetahVarStartTokenRE.match(self.src(), self.pos())
 
     def matchCheetahVarInExpressionStartToken(self):
-        """no enclosures or cache tokens allowed"""
+        """no enclosures"""
         return self.cheetahVarInExpressionStartTokenRE.match(self.src(), self.pos())
 
     def matchVariablePlaceholderStart(self):
-        """includes the enclosure and cache token"""
+        """includes the enclosure"""
         return self.cheetahVarStartRE.match(self.src(), self.pos())
 
     def matchExpressionPlaceholderStart(self):
-        """includes the enclosure and cache token"""
+        """includes the enclosure"""
         return self.expressionPlaceholderStartRE.match(self.src(), self.pos())        
 
     def getCheetahVarStartToken(self):
-        """just the start token, not the enclosure or cache token"""
+        """just the start token, not the enclosure"""
         match = self.matchCheetahVarStartToken()
         if not match:
             raise ParseError(self, msg='Expected Cheetah $var start token')            
         return self.readTo( match.end() )
-
-
-    def getCacheToken(self):
-        try:
-            token = self.cacheTokenRE.match(self.src(), self.pos())
-            self.setPos( token.end() )
-            return token.group()
-        except:
-            raise ParseError(self, msg='Expected cache token')
 
     def getSilentPlaceholderToken(self):
         try:
@@ -820,8 +787,6 @@ class _LowLevelParser(SourceReader):
             return token.group()
         except:
             raise ParseError(self, msg='Expected silent placeholder token')
-
-
 
     def getTargetVarsList(self):
         varnames = []
@@ -838,7 +803,6 @@ class _LowLevelParser(SourceReader):
             elif self.matchCheetahVarInExpressionStartToken():
                 self.getCheetahVarStartToken()
                 self.getSilentPlaceholderToken()
-                self.getCacheToken()
                 varnames.append( self.getDottedName() )
             elif self.matchIdentifier():
                 varnames.append( self.getDottedName() )
@@ -847,13 +811,11 @@ class _LowLevelParser(SourceReader):
         return varnames
         
     def getCheetahVar(self, plain=False, skipStartToken=False):
-        """This is called when parsing inside expressions. Cache tokens are only
-        valid in placeholders so this method discards any cache tokens found.
+        """This is called when parsing inside expressions.
         """
         if not skipStartToken:
             self.getCheetahVarStartToken()
         self.getSilentPlaceholderToken()
-        self.getCacheToken()
         return self.getCheetahVarBody(plain=plain)
             
     def getCheetahVarBody(self, plain=False):
@@ -1248,12 +1210,7 @@ class _LowLevelParser(SourceReader):
     def _raiseErrorAboutInvalidCheetahVarSyntaxInExpr(self):
         match = self.matchCheetahVarStart()
         groupdict = match.groupdict()
-        if groupdict.get('cacheToken'):
-            raise ParseError(
-                self,
-                msg='Cache tokens are not valid inside expressions. '
-                'Use them in top-level $placeholders only.')                    
-        elif groupdict.get('enclosure'):                    
+        if groupdict.get('enclosure'):                    
             raise ParseError(
                 self,
                 msg='Long-form placeholders - ${}, $(), $[], etc. are not valid inside expressions. '
@@ -1263,8 +1220,7 @@ class _LowLevelParser(SourceReader):
                 self,
                 msg='This form of $placeholder syntax is not valid here.')
         
-
-    def getPlaceholder(self, allowCacheTokens=False, plain=False, returnEverything=False):
+    def getPlaceholder(self, plain=False, returnEverything=False):
         # filtered 
         for callback in self.setting('preparsePlaceholderHooks'):
             callback(parser=self)
@@ -1278,13 +1234,6 @@ class _LowLevelParser(SourceReader):
         else:
             isSilentPlaceholder = False
             
-        
-        if allowCacheTokens:
-            cacheToken = self.getCacheToken()
-            cacheTokenParts = self.cacheTokenRE.match(cacheToken).groupdict()        
-        else:
-            cacheTokenParts = {}
-
         if self.peek() in '({[':         
             pos = self.pos()
             enclosureOpenChar = self.getc()
@@ -1324,8 +1273,7 @@ class _LowLevelParser(SourceReader):
             callback(parser=self)
 
         if returnEverything:
-            return (expr, rawPlaceholder, lineCol, cacheTokenParts,
-                    filterArgs, isSilentPlaceholder)
+            return (expr, rawPlaceholder, lineCol, filterArgs, isSilentPlaceholder)
         else:
             return expr
         
@@ -1398,7 +1346,6 @@ class _HighLevelParser(_LowLevelParser):
         self._closeableDirectives = ['def', 'block', 'closure', 'defmacro',
                                      'call',
                                      'capture',
-                                     'cache',
                                      'filter',
                                      'if', 'unless',
                                      'for', 'while', 'repeat',
@@ -1558,15 +1505,12 @@ class _HighLevelParser(_LowLevelParser):
 
     def eatPlaceholder(self):
         (expr, rawPlaceholder,
-         lineCol, cacheTokenParts,
-         filterArgs, isSilentPlaceholder) = self.getPlaceholder(
-            allowCacheTokens=True, returnEverything=True)
+         lineCol, filterArgs, isSilentPlaceholder) = self.getPlaceholder(returnEverything=True)
         
         self._compiler.addPlaceholder(
             expr,
             filterArgs=filterArgs,
             rawPlaceholder=rawPlaceholder,
-            cacheTokenParts=cacheTokenParts,
             lineCol=lineCol,
             silentMode=isSilentPlaceholder)
         return
@@ -1766,13 +1710,11 @@ class _HighLevelParser(_LowLevelParser):
         if self._endDirectiveNamesAndHandlers.get(directiveName):
             handler = self._endDirectiveNamesAndHandlers[directiveName]
             handler()
-        elif directiveName in 'block capture cache call filter errorCatcher'.split():
+        elif directiveName in 'block capture call filter errorCatcher'.split():
             if key == 'block':
                 self._compiler.closeBlock()
             elif key == 'capture':
                 self._compiler.endCaptureRegion()
-            elif key == 'cache':
-                self._compiler.endCacheRegion()
             elif key == 'call':
                 self._compiler.endCallRegion()
             elif key == 'filter':
@@ -2394,35 +2336,6 @@ class _HighLevelParser(_LowLevelParser):
 
         #self._compiler.addRawText('end')
         
-    def eatCache(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        lineCol = self.getRowCol()
-        self.getDirectiveStartToken()
-        self.advance(len('cache'))
-
-        startPos = self.pos()
-        argList = self.getDefArgList(useNameMapper=True)
-        argList = self._applyExpressionFilters(argList, 'cache', startPos=startPos)
-
-        def startCache():
-            cacheInfo = self._compiler.genCacheInfoFromArgList(argList)
-            self._compiler.startCacheRegion(cacheInfo, lineCol)
-
-        if self.matchColonForSingleLineShortFormDirective():            
-            self.advance() # skip over :
-            self.getWhiteSpace(max=1)
-            startCache()
-            self.parse(breakPoint=self.findEOL(gobble=True))
-            self._compiler.endCacheRegion()
-        else:
-            if self.peek()==':':
-                self.advance()
-            self.getWhiteSpace()            
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            self.pushToOpenDirectivesStack('cache')
-            startCache()        
-
     def eatCall(self):
         # @@TR: need to enable single line version of this
         isLineClearToStartToken = self.isLineClearToStartToken()
