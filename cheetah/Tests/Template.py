@@ -247,7 +247,7 @@ class Preprocessors(TemplateTest):
         %def func1: #def func(arg): $arg("***")
         %% comment
         $(@foo*10)
-        @func1
+        @func1()
         $func(lambda x:c"--$x--@a")'''
         src = '\n'.join([ln.strip() for ln in src.splitlines()])
 

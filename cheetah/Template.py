@@ -48,8 +48,6 @@ else:
 
 from Cheetah.Version import convertVersionStringToTuple, MinCompatibleVersionTuple
 from Cheetah.Version import MinCompatibleVersion
-# Base classes for Template
-from Cheetah.Servlet import Servlet
 # More intra-package imports ...
 from Cheetah.Parser import ParseError, SourceReader
 from Cheetah.Compiler import Compiler, DEFAULT_COMPILER_SETTINGS
@@ -174,7 +172,7 @@ class TemplatePreprocessor(object):
         outputFile = None
         return outputSource, outputFile
 
-class Template(Servlet):
+class Template(object):
     '''
     This class provides a) methods used by templates at runtime and b)
     methods for compiling Cheetah source code into template classes.
@@ -264,10 +262,7 @@ class Template(Servlet):
          'getFileContents',
          'i18n',
          'runAsMainProgram',
-         'respond',
-         'shutdown',
          'webInput',
-         'serverSidePath',
          'generatedClassCode',
          'generatedModuleCode',
          '_handleCheetahInclude',
@@ -991,8 +986,7 @@ class Template(Servlet):
                     return rc
                 def __unicode__(self):
                     return getattr(self, mainMethName)()
-            elif (hasattr(concreteTemplateClass, 'respond')
-                  and concreteTemplateClass.respond!=Servlet.respond):
+            elif hasattr(concreteTemplateClass, 'respond'):
                 def __str__(self):
                     rc = self.respond()
                     if isinstance(rc, unicode):
@@ -1267,15 +1261,6 @@ class Template(Servlet):
         """
         return self._CHEETAH__errorCatcher
 
-    def shutdown(self):
-        """Break reference cycles before discarding a servlet.
-        """
-        try:
-            Servlet.shutdown(self)
-        except:
-            pass
-        self._CHEETAH__searchList = None
-        self.__dict__ = {}
 
     ## utility functions ##
 
@@ -1444,6 +1429,9 @@ class Template(Servlet):
         self._CHEETAH__isBuffering = False
         self._CHEETAH__isControlledByWebKit = False
 
+    def respond(self):
+        raise NotImplementedError
+
     def _compile(self, source=None, file=None, compilerSettings=Unspecified,
                  moduleName=None, mainMethodName=None):
         """Compile the template. This method is automatically called by
@@ -1459,7 +1447,6 @@ class Template(Servlet):
         self._fileDirName = None
         self._fileBaseName = None
         if file and isinstance(file, basestring):
-            file = self.serverSidePath(file)
             self._fileMtime = os.path.getmtime(file)
             self._fileDirName, self._fileBaseName = os.path.split(file)
         self._filePath = file
@@ -1498,10 +1485,7 @@ class Template(Servlet):
                 if includeFrom == 'file':
                     source = None
                     if isinstance(srcArg, basestring):
-                        if hasattr(self, 'serverSidePath'):
-                            file = path = self.serverSidePath(srcArg)
-                        else:
-                            file = path = os.path.normpath(srcArg)
+                        file = path = os.path.normpath(srcArg)
                     else:
                         file = srcArg ## a file-like object
                 else:
@@ -1523,8 +1507,7 @@ class Template(Servlet):
                 self._CHEETAH__cheetahIncludes[_includeID] = nestedTemplate
             else:
                 if includeFrom == 'file':
-                    path = self.serverSidePath(srcArg)
-                    self._CHEETAH__cheetahIncludes[_includeID] = self.getFileContents(path)
+                    self._CHEETAH__cheetahIncludes[_includeID] = self.getFileContents(srcArg)
                 else:
                     self._CHEETAH__cheetahIncludes[_includeID] = srcArg
         ##
