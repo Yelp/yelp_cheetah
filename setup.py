@@ -76,7 +76,6 @@ def run_setup(with_binary):
             'Cheetah',
             'Cheetah.Macros',
             'Cheetah.Tests',
-            'Cheetah.Tools',
             'Cheetah.Utils',
         ],
         platforms=['linux'],

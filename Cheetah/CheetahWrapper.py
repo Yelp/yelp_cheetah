@@ -19,8 +19,9 @@ import getopt, glob, os, pprint, re, shutil, sys
 import cPickle as pickle
 from optparse import OptionParser
 
+from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
 from Cheetah.Version import Version
-from Cheetah.Template import Template, DEFAULT_COMPILER_SETTINGS
+from Cheetah.Template import Template
 from Cheetah.Utils.Misc import mkdirsWithPyInitFiles
 
 optionDashesRE = re.compile(  R"^-{1,2}"  )
