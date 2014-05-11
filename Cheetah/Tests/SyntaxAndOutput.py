@@ -7,7 +7,6 @@ Syntax and Output tests.
 TODO
 - #finally
 - #filter
-- #errorCatcher
 - #echo
 - #silent
 '''
@@ -2742,9 +2741,6 @@ class SilentDirective(OutputTest):
         """
         self.verify("#silent 1234",
                     "")
-
-class ErrorCatcherDirective(OutputTest):
-    pass
 
 
 class VarExists(OutputTest):               # Template.varExists()

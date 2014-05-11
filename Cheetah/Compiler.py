@@ -23,7 +23,6 @@ import codecs
 from Cheetah.Version import Version, VersionTuple
 from Cheetah.SettingsManager import SettingsManager
 from Cheetah.Utils.Indenter import indentize # an undocumented preprocessor
-from Cheetah import ErrorCatchers
 from Cheetah import NameMapper
 from Cheetah.Parser import Parser, ParseError, specialVarRE, \
      SET_LOCAL, SET_GLOBAL, SET_MODULE, \
@@ -45,7 +44,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', True, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useStackFrames', True, 'Used for NameMapper.valueFromFrameOrSearchList rather than NameMapper.valueFromSearchList'),
-    ('useErrorCatcher', False, 'Turn on the #errorCatcher directive for catching NameMapper errors, etc'),
     ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
     ('useFilters', True, 'If False, pass output through str()'),
     ('includeRawExprInFilterArgs', True, ''),
@@ -285,8 +283,6 @@ class MethodCompiler(GenUtils):
         self._captureRegionsStack = []
         self._filterRegionsStack = []
 
-        self._isErrorCatcherOn = False
-
         self._hasReturnStatement = False
         self._isGenerator = False
 
@@ -441,17 +437,6 @@ class MethodCompiler(GenUtils):
             if BOL < len(src):
                 self._pendingStrConstChunks[-1] = src[:BOL]
 
-
-
-    def isErrorCatcherOn(self):
-        return self._isErrorCatcherOn
-
-    def turnErrorCatcherOn(self):
-        self._isErrorCatcherOn = True
-
-    def turnErrorCatcherOff(self):
-        self._isErrorCatcherOn = False
-
     # @@TR: consider merging the next two methods into one
     def addStrConst(self, strConst):
         self._appendToPrevStrConst(strConst)
@@ -464,12 +449,6 @@ class MethodCompiler(GenUtils):
         self.addChunk('#' + ' '*offSet + comm)
 
     def addPlaceholder(self, expr, filterArgs, rawPlaceholder, lineCol):
-
-        if self.isErrorCatcherOn():
-            methodName = self._classCompiler.addErrorCatcherCall(
-                expr, rawCode=rawPlaceholder, lineCol=lineCol)
-            expr = 'self.' + methodName + '(localsDict=locals())'
-
         self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
 
         if self.setting('outputRowColComments'):
@@ -789,22 +768,6 @@ class MethodCompiler(GenUtils):
         self.addChunk('del _captureCollector%(ID)s'%locals())
         self.addChunk('del _wasBuffering%(ID)s'%locals())
 
-    def setErrorCatcher(self, errorCatcherName):
-        self.turnErrorCatcherOn()
-
-        self.addChunk('if self._CHEETAH__errorCatchers.has_key("' + errorCatcherName + '"):')
-        self.indent()
-        self.addChunk('self._CHEETAH__errorCatcher = self._CHEETAH__errorCatchers["' +
-            errorCatcherName + '"]')
-        self.dedent()
-        self.addChunk('else:')
-        self.indent()
-        self.addChunk('self._CHEETAH__errorCatcher = self._CHEETAH__errorCatchers["'
-                      + errorCatcherName + '"] = ErrorCatchers.'
-                      + errorCatcherName + '(self)'
-                      )
-        self.dedent()
-
     def nextFilterRegionID(self):
         return self.nextCacheID()
 
@@ -1017,7 +980,7 @@ class AutoMethodCompiler(MethodCompiler):
 _initMethod_initCheetah = """\
 if not self._CHEETAH__instanceInitialized:
     cheetahKWArgs = {}
-    allowedKWs = 'searchList namespaces filter filtersLib errorCatcher'.split()
+    allowedKWs = 'searchList namespaces filter filtersLib'.split()
     for k,v in KWs.items():
         if k in allowedKWs: cheetahKWArgs[k] = v
     self._initCheetahInstance(**cheetahKWArgs)
@@ -1093,8 +1056,6 @@ class ClassCompiler(GenUtils):
             self._generatedAttribs.append('__metaclass__ = '+self.setting('templateMetaclass'))
         self._initMethChunks = []
         self._blockMetaData = {}
-        self._errorCatcherCount = 0
-        self._placeholderToErrorCatcherMap = {}
 
     def cleanupState(self):
         while self._activeMethodsList:
@@ -1247,43 +1208,6 @@ class ClassCompiler(GenUtils):
 
         self.addFilteredChunk(
             'super(%(className)s, self).%(methodName)s(%(argString)s)'%locals())
-
-    def addErrorCatcherCall(self, codeChunk, rawCode='', lineCol=''):
-        if rawCode in self._placeholderToErrorCatcherMap:
-            methodName = self._placeholderToErrorCatcherMap[rawCode]
-            if not self.setting('outputRowColComments'):
-                self._methodsIndex[methodName].addMethDocString(
-                    'plus at line %s, col %s'%lineCol)
-            return methodName
-
-        self._errorCatcherCount += 1
-        methodName = '__errorCatcher' + str(self._errorCatcherCount)
-        self._placeholderToErrorCatcherMap[rawCode] = methodName
-
-        catcherMeth = self._spawnMethodCompiler(
-            methodName,
-            klass=MethodCompiler,
-            initialMethodComment=('## CHEETAH: Generated from ' + rawCode +
-                                  ' at line %s, col %s'%lineCol + '.')
-            )
-        catcherMeth.setMethodSignature('def ' + methodName +
-                                       '(self, localsDict={})')
-                                        # is this use of localsDict right?
-        catcherMeth.addChunk('try:')
-        catcherMeth.indent()
-        catcherMeth.addChunk("return eval('''" + codeChunk +
-                             "''', globals(), localsDict)")
-        catcherMeth.dedent()
-        catcherMeth.addChunk('except self._CHEETAH__errorCatcher.exceptions(), e:')
-        catcherMeth.indent()
-        catcherMeth.addChunk("return self._CHEETAH__errorCatcher.warn(exc_val=e, code= " +
-                             repr(codeChunk) + " , rawCode= " +
-                             repr(rawCode) + " , lineCol=" + str(lineCol) +")")
-
-        catcherMeth.cleanupState()
-
-        self._swallowMethodCompiler(catcherMeth)
-        return methodName
 
     def closeDef(self):
         self.commitStrConst()
@@ -1536,7 +1460,6 @@ class ModuleCompiler(SettingsManager, GenUtils):
             "from Cheetah.DummyTransaction import *",
             "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
             "import Cheetah.Filters as Filters",
-            "import Cheetah.ErrorCatchers as ErrorCatchers",
             "",
             "try:",
             "    #Backward compatibility with 2.4.5",
@@ -1554,7 +1477,6 @@ class ModuleCompiler(SettingsManager, GenUtils):
                                   'DummyTransaction',
                                   'NotFound',
                                   'Filters',
-                                  'ErrorCatchers',
                                   ]
 
         self._moduleConstants = [
