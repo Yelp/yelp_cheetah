@@ -172,11 +172,8 @@ Template output mismatch:
             moduleCode = templateObj._CHEETAH_generatedModuleCode
         if self.DEBUGLEV >= 1:
             print(moduleCode)
-        try:
-            output = templateObj.respond() # rather than __str__, because of unicode
-            assert output==expectedOutput, self._outputMismatchReport(output, expectedOutput)
-        finally:
-            templateObj.shutdown()
+        output = templateObj.respond() # rather than __str__, because of unicode
+        assert output==expectedOutput, self._outputMismatchReport(output, expectedOutput)
 
     def _getCompilerSettings(self):
         return {}
@@ -619,23 +616,23 @@ class PlaceholderStrings(OutputTest):
 
     def test2(self):
         """some c'text $placeholder text' strings"""
-        self.verify("$str(c'$aStr.upper')", "BLARG")
+        self.verify("$str(c'$aStr.upper()')", "BLARG")
 
     def test3(self):
         """some c'text $placeholder text' strings"""
-        self.verify("$str(c'$(aStr.upper.replace(c\"A$str()\",\"\"))')", "BLRG")
+        self.verify("$str(c'$(aStr.upper().replace(c\"A$str()\",\"\"))')", "BLRG")
 
     def test4(self):
         """some c'text $placeholder text' strings"""
-        self.verify("#echo $str(c'$(aStr.upper)')", "BLARG")
+        self.verify("#echo $str(c'$(aStr.upper())')", "BLARG")
 
     def test5(self):
         """some c'text $placeholder text' strings"""
-        self.verify("#if 1 then $str(c'$(aStr.upper)') else 0", "BLARG")
+        self.verify("#if 1 then $str(c'$(aStr.upper())') else 0", "BLARG")
 
     def test6(self):
         """some c'text $placeholder text' strings"""
-        self.verify("#if 1\n$str(c'$(aStr.upper)')#slurp\n#else\n0#end if", "BLARG")
+        self.verify("#if 1\n$str(c'$(aStr.upper())')#slurp\n#else\n0#end if", "BLARG")
 
     def test7(self):
         """some c'text $placeholder text' strings"""
@@ -747,11 +744,6 @@ class Placeholders_Esc(OutputTest):
 
 
 class Placeholders_Calls(OutputTest):
-    def test1(self):
-        """func placeholder - no ()"""
-        self.verify("$aFunc",
-                    "Scooby")
-
     def test2(self):
         """func placeholder - with ()"""
         self.verify("$aFunc()",
@@ -867,13 +859,13 @@ class Placeholders_Calls(OutputTest):
 
 class NameMapper(OutputTest):
     def test1(self):
-        """autocalling"""
-        self.verify("$aFunc! $aFunc().",
+        """calling"""
+        self.verify("$aFunc()! $aFunc().",
                     "Scooby! Scooby.")
 
     def test2(self):
-        """nested autocalling"""
-        self.verify("$aFunc($aFunc).",
+        """nested calling"""
+        self.verify("$aFunc($aFunc()).",
                     "Scooby.")
 
     def test3(self):
@@ -900,11 +892,6 @@ class NameMapper(OutputTest):
         """dictionary access - Python style"""
         self.verify("$aDict['one']",
                     "item1")
-
-    def test8(self):
-        """dictionary access combined with autocalled string method"""
-        self.verify("$aDict.one.upper",
-                    "ITEM1")
 
     def test9(self):
         """dictionary access combined with string method"""
@@ -933,17 +920,17 @@ class NameMapper(OutputTest):
 
     def test14(self):
         """nested dictionary access - NameMapper style - followed by method"""
-        self.verify("$aDict.nestedDict.two.upper",
+        self.verify("$aDict.nestedDict.two.upper()",
                     "NESTEDITEM2")
 
     def test15(self):
         """nested dictionary access - alternating style - followed by method"""
-        self.verify("$aDict['nestedDict'].two.upper",
+        self.verify("$aDict['nestedDict'].two.upper()",
                     "NESTEDITEM2")
 
     def test16(self):
         """nested dictionary access - NameMapper style - followed by method, then slice"""
-        self.verify("$aDict.nestedDict.two.upper[:4]",
+        self.verify("${aDict.nestedDict.two.upper()[:4]}",
                     "NEST")
 
     def test17(self):
@@ -953,18 +940,18 @@ class NameMapper(OutputTest):
 
     def test18(self):
         """object method access"""
-        self.verify("$anObj.meth1",
+        self.verify("$anObj.meth1()",
                     "doo")
 
     def test19(self):
         """object method access, followed by complex slice"""
-        self.verify("$anObj.meth1[0: ((4/4*2)*2)/$anObj.meth1(2) ]",
+        self.verify("${anObj.meth1()[0: ((4/4*2)*2)/$anObj.meth1(2) ]}",
                     "do")
 
     def test20(self):
         """object method access, followed by a very complex slice
         If it can pass this one, it's safe to say it works!!"""
-        self.verify("$( anObj.meth1[0:\n (\n(4/4*2)*2)/$anObj.meth1(2)\n ] )",
+        self.verify("$( anObj.meth1()[0:\n (\n(4/4*2)*2)/$anObj.meth1(2)\n ] )",
                     "do")
 
     def test21(self):
@@ -973,7 +960,7 @@ class NameMapper(OutputTest):
         This tests a bug that Jeff Johnson found and submitted a patch to SF
         for."""
         
-        self.verify("$anObj.methWithPercentSignDefaultArg",
+        self.verify("$anObj.methWithPercentSignDefaultArg()",
                     "110%")
 
     def test22a(self):
@@ -1327,7 +1314,7 @@ class ReturnDirective(OutputTest):
     def test1(self):
         """#return'ing an int """
         self.verify("""1
-$str($test-6)
+$str($test()-6)
 3
 #def test
 #if 1
@@ -1343,7 +1330,7 @@ aoeuoaeu
     def test2(self):
         """#return'ing an string """
         self.verify("""1
-$str($test[1])
+$str($test()[1])
 3
 #def test
 #if 1
@@ -1382,7 +1369,7 @@ class YieldDirective(OutputTest):
         src3 = ("#def iterator\n"
                "#for i in range(10)\n#yield i\n#end for\n"
                "#end def\n"
-               "#for i in $iterator\n$i#end for"
+               "#for i in $iterator()\n$i#end for"
                )
 
 
@@ -1459,23 +1446,23 @@ class ForDirective(OutputTest):
 
     def test10(self):
         """#for loop over list, using methods of the items"""
-        self.verify("#for i, j in [('aa','bb'),('cc','dd')]\n$i.upper,$j.upper\n#end for",
+        self.verify("#for i, j in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
-        self.verify("#for $i, $j in [('aa','bb'),('cc','dd')]\n$i.upper,$j.upper\n#end for",
+        self.verify("#for $i, $j in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
 
     def test11(self):
         """#for loop over list, using ($i,$j) style target list"""
-        self.verify("#for (i, j) in [('aa','bb'),('cc','dd')]\n$i.upper,$j.upper\n#end for",
+        self.verify("#for (i, j) in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
-        self.verify("#for ($i, $j) in [('aa','bb'),('cc','dd')]\n$i.upper,$j.upper\n#end for",
+        self.verify("#for ($i, $j) in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
 
     def test12(self):
         """#for loop over list, using i, (j,k) style target list"""
-        self.verify("#for i, (j, k) in enumerate([('aa','bb'),('cc','dd')])\n$j.upper,$k.upper\n#end for",
+        self.verify("#for i, (j, k) in enumerate([('aa','bb'),('cc','dd')])\n$j.upper(),$k.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
-        self.verify("#for $i, ($j, $k) in enumerate([('aa','bb'),('cc','dd')])\n$j.upper,$k.upper\n#end for",
+        self.verify("#for $i, ($j, $k) in enumerate([('aa','bb'),('cc','dd')])\n$j.upper(),$k.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
 
     def test13(self):
@@ -1582,23 +1569,23 @@ class DefDirective(OutputTest):
 
     def test1(self):
         """#def without argstring"""
-        self.verify("#def testMeth\n1234\n#end def\n$testMeth",
+        self.verify("#def testMeth\n1234\n#end def\n$testMeth()",
                     "1234\n")
 
-        self.verify("#def testMeth ## comment\n1234\n#end def\n$testMeth",
+        self.verify("#def testMeth ## comment\n1234\n#end def\n$testMeth()",
                     "1234\n")
 
-        self.verify("#def testMeth: ## comment\n1234\n#end def\n$testMeth",
+        self.verify("#def testMeth: ## comment\n1234\n#end def\n$testMeth()",
                     "1234\n")
 
     def test2(self):
         """#def without argstring, gobble WS"""
-        self.verify("   #def testMeth  \n1234\n    #end def   \n$testMeth",
+        self.verify("   #def testMeth  \n1234\n    #end def   \n$testMeth()",
                     "1234\n")
 
     def test3(self):
         """#def with argstring, gobble WS"""
-        self.verify("  #def testMeth($a=999)   \n1234-$a\n  #end def\n$testMeth",
+        self.verify("  #def testMeth($a=999)   \n1234-$a\n  #end def\n$testMeth()",
                     "1234-999\n")
 
     def test4(self):
@@ -1618,17 +1605,17 @@ class DefDirective(OutputTest):
 
     def test7(self):
         """#def with *args, gobble WS"""
-        self.verify("  #def testMeth($*args)   \n1234-$args\n  #end def\n$testMeth",
+        self.verify("  #def testMeth($*args)   \n1234-$args\n  #end def\n$testMeth()",
                     "1234-()\n")
 
     def test8(self):
         """#def with **KWs, gobble WS"""
-        self.verify("  #def testMeth($**KWs)   \n1234-$KWs\n  #end def\n$testMeth",
+        self.verify("  #def testMeth($**KWs)   \n1234-$KWs\n  #end def\n$testMeth()",
                     "1234-{}\n")
 
     def test9(self):
         """#def with *args + **KWs, gobble WS"""
-        self.verify("  #def testMeth($*args, $**KWs)   \n1234-$args-$KWs\n  #end def\n$testMeth",
+        self.verify("  #def testMeth($*args, $**KWs)   \n1234-$args-$KWs\n  #end def\n$testMeth()",
                     "1234-()-{}\n")
 
     def test10(self):
@@ -1641,46 +1628,46 @@ class DefDirective(OutputTest):
     def test11(self):
         """single line #def with extra WS"""
         self.verify(
-            "#def testMeth: aoeuaoeu\n- $testMeth -",
+            "#def testMeth: aoeuaoeu\n- $testMeth() -",
             "- aoeuaoeu -")
 
     def test12(self):
         """single line #def with extra WS and nested $placeholders"""
         self.verify(
-            "#def testMeth: $anInt $aFunc(1234)\n- $testMeth -",
+            "#def testMeth: $anInt $aFunc(1234)\n- $testMeth() -",
             "- 1 1234 -")
 
     def test13(self):
         """single line #def escaped $placeholders"""
         self.verify(
-            "#def testMeth: \$aFunc(\$anInt)\n- $testMeth -",
+            "#def testMeth: \$aFunc(\$anInt)\n- $testMeth() -",
             "- $aFunc($anInt) -")
 
     def test14(self):
         """single line #def 1 escaped $placeholders"""
         self.verify(
-            "#def testMeth: \$aFunc($anInt)\n- $testMeth -",
+            "#def testMeth: \$aFunc($anInt)\n- $testMeth() -",
             "- $aFunc(1) -")
 
     def test15(self):
         """single line #def 1 escaped $placeholders + more WS"""
         self.verify(
-            "#def testMeth    : \$aFunc($anInt)\n- $testMeth -",
+            "#def testMeth    : \$aFunc($anInt)\n- $testMeth() -",
             "- $aFunc(1) -")
 
     def test16(self):
         """multiline #def with $ on methodName"""
-        self.verify("#def $testMeth\n1234\n#end def\n$testMeth",
+        self.verify("#def $testMeth\n1234\n#end def\n$testMeth()",
                     "1234\n")
 
     def test17(self):
         """single line #def with $ on methodName"""
-        self.verify("#def $testMeth:1234\n$testMeth",
+        self.verify("#def $testMeth:1234\n$testMeth()",
                     "1234")
 
     def test18(self):
         """single line #def with an argument"""
-        self.verify("#def $testMeth($arg=1234):$arg\n$testMeth",
+        self.verify("#def $testMeth($arg=1234):$arg\n$testMeth()",
                     "1234")
 
     def test19(self):
@@ -1689,7 +1676,7 @@ class DefDirective(OutputTest):
                     +"  $arg2=5678)\n"
                     +"$arg $arg2\n"
                     +"#end def\n"
-                    +"$testMeth",
+                    +"$testMeth()",
                     "1234 5678\n")
 
 class DecoratorDirective(OutputTest):
@@ -1702,7 +1689,7 @@ class DecoratorDirective(OutputTest):
 
         self.verify("#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
                     +"#@testdecorator"
-                    +"\n#def $testMeth():1234\n$testMeth",
+                    +"\n#def $testMeth():1234\n$testMeth()",
                     
                     "1234")
 
@@ -1716,7 +1703,7 @@ class DecoratorDirective(OutputTest):
             self.verify(
                 "#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
                 +"#@testdecorator\n sdf"
-                +"\n#def $testMeth():1234\n$testMeth",                        
+                +"\n#def $testMeth():1234\n$testMeth()",                        
 
                 "1234")
         except ParseError:
@@ -1732,7 +1719,7 @@ class DecoratorDirective(OutputTest):
                     +"#def testMeth\n"
                     +"1234\n"
                     "#end def\n"
-                    "$testMeth",
+                    "$testMeth()",
                     "1234\n")
 
 if versionTuple < (2, 4):
@@ -1838,13 +1825,13 @@ inner
     def test14(self):
         """single line #block with None for content"""
         self.verify(
-            """#block $testMeth: $None\ntest $testMeth-""",
+            """#block $testMeth: $None\ntest $testMeth()-""",
             "test -")
 
     def test15(self):
         """single line #block with nothing for content"""
         self.verify(
-            """#block $testMeth: \nfoo\n#end block\ntest $testMeth-""",
+            """#block $testMeth: \nfoo\n#end block\ntest $testMeth()-""",
             "foo\ntest foo\n-")
 
 class IncludeDirective(OutputTest):
@@ -1924,7 +1911,7 @@ class SilentDirective(OutputTest):
 
     def test1(self):
         """simple #silent"""
-        self.verify("#silent $aFunc",
+        self.verify("#silent $aFunc()",
                     "")
 
     def test2(self):
@@ -2647,7 +2634,7 @@ $g $numOne
 
 class SuperDirective(OutputTest):
     def test1(self):
-        tmpl1 = Template.compile('''$foo $bar(99)
+        tmpl1 = Template.compile('''$foo() $bar(99)
         #def foo: this is base foo
         #def bar(arg): super-$arg''')
 
@@ -2847,81 +2834,6 @@ class MiscComplexSyntax(OutputTest):
                     "0")
 
 
-class CGI(OutputTest):
-    """CGI scripts with(out) the CGI environment and with(out) GET variables.
-    """
-    convertEOLs=False
-    
-    def _beginCGI(self):  
-        os.environ['REQUEST_METHOD'] = "GET"
-    def _endCGI(self):  
-        try:
-            del os.environ['REQUEST_METHOD']
-        except KeyError:
-            pass
-    _guaranteeNoCGI = _endCGI
-
-
-    def test1(self):
-        """A regular template."""
-        self._guaranteeNoCGI()
-        source = "#extends Cheetah.Tools.CGITemplate\n" + \
-                 "#implements respond\n" + \
-                 "$cgiHeaders#slurp\n" + \
-                 "Hello, world!" 
-        self.verify(source, "Hello, world!")
-
-
-    def test2(self):
-        """A CGI script."""
-        self._beginCGI()
-        source = "#extends Cheetah.Tools.CGITemplate\n" + \
-                 "#implements respond\n" + \
-                 "$cgiHeaders#slurp\n" + \
-                 "Hello, world!" 
-        self.verify(source, "Content-type: text/html\n\nHello, world!")
-        self._endCGI()
-
-
-    def test3(self):
-        """A (pseudo) Webware servlet.
-           
-           This uses the Python syntax escape to set
-           self._CHEETAH__isControlledByWebKit.           
-           We could instead do '#silent self._CHEETAH__isControlledByWebKit = True',
-           taking advantage of the fact that it will compile unchanged as long
-           as there's no '$' in the statement.  (It won't compile with an '$'
-           because that would convert to a function call, and you can't assign
-           to a function call.)  Because this isn't really being called from
-           Webware, we'd better not use any Webware services!  Likewise, we'd
-           better not call $cgiImport() because it would be misled.
-        """
-        self._beginCGI()
-        source = "#extends Cheetah.Tools.CGITemplate\n" + \
-                 "#implements respond\n" + \
-                 "<% self._CHEETAH__isControlledByWebKit = True %>#slurp\n" + \
-                 "$cgiHeaders#slurp\n" + \
-                 "Hello, world!"
-        self.verify(source, "Hello, world!")
-        self._endCGI()
-
-
-    def test4(self):
-        """A CGI script with a GET variable."""
-        self._beginCGI()
-        os.environ['QUERY_STRING'] = "cgiWhat=world"
-        source = "#extends Cheetah.Tools.CGITemplate\n" + \
-                 "#implements respond\n" + \
-                 "$cgiHeaders#slurp\n" + \
-                 "#silent $webInput(['cgiWhat'])##slurp\n" + \
-                 "Hello, $cgiWhat!"
-        self.verify(source, 
-                    "Content-type: text/html\n\nHello, world!")
-        del os.environ['QUERY_STRING']
-        self._endCGI()
-
-
-
 class WhitespaceAfterDirectiveTokens(OutputTest):
     def _getCompilerSettings(self):
         return {'allowWhitespaceAfterDirectiveStartToken':True}
@@ -3101,11 +3013,6 @@ public class X
 
 ##################################################
 ## CREATE CONVERTED EOL VERSIONS OF THE TEST CASES
-
-if OutputTest._useNewStyleCompilation and versionTuple >= (2, 3):
-    extraCompileKwArgsForDiffBaseclass = {'baseclass':dict}
-else:
-    extraCompileKwArgsForDiffBaseclass = {'baseclass':object}
     
 
 def install_eols():
@@ -3117,11 +3024,6 @@ def install_eols():
             macSrc = r"class %(name)s_MacEOL(%(name)s): _EOLreplacement = '\r'"%locals()
             exec(win32Src, globals()) 
             exec(macSrc, globals())
-
-        if versionTuple >= (2, 3):
-            src = r"class %(name)s_DiffBaseClass(%(name)s): "%locals()
-            src += " _extraCompileKwArgs = extraCompileKwArgsForDiffBaseclass"
-            exec(src, globals())
 
         del name
         del klass
