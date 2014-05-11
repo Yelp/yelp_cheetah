@@ -553,18 +553,6 @@ class Placeholders(OutputTest):
         self.verify("""'\n\n\n\n'$aStr'\n\n\n\n'""",
                     """'\n\n\n\n'blarg'\n\n\n\n'""")
 
-    def test20(self):
-        """silent mode $!placeholders """
-        self.verify("$!aStr$!nonExistant$!{nonExistant}", "blarg")
-
-        try:
-            self.verify("$!aStr$nonExistant",
-            "blarg")
-        except NotFound:
-            pass
-        else:
-            self.fail('should raise NotFound exception')
-
 
 class Placeholders_Vals(OutputTest):
     convertEOLs = False

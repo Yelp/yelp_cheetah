@@ -391,7 +391,6 @@ class _LowLevelParser(SourceReader):
     ## regex setup ##
 
     def _makeCheetahVarREs(self):
-        
         """Setup the regexs for Cheetah $var parsing."""
 
         num = r'[0-9\.]+'
@@ -404,17 +403,9 @@ class _LowLevelParser(SourceReader):
                       num + ')' 
                       )
     
-        silentPlaceholderToken = (r'(?:' +
-                                  r'(?P<SILENT>' +escapeRegexChars('!')+')'+
-                                  '|' +
-                                  r'(?P<NOT_SILENT>)' +
-                                  ')')
-        self.silentPlaceholderTokenRE = re.compile(silentPlaceholderToken)
-        
         self.cheetahVarStartRE = re.compile(
             escCharLookBehind +
             r'(?P<startToken>'+escapeRegexChars(self.setting('cheetahVarStartToken'))+')'+
-            r'(?P<silenceToken>'+silentPlaceholderToken+')'+
             r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t\f]*))' + # allow WS after enclosure
             r'(?=[A-Za-z_])')
         validCharsLookAhead = r'(?=[A-Za-z_\*!\{\(\[])'
@@ -780,14 +771,6 @@ class _LowLevelParser(SourceReader):
             raise ParseError(self, msg='Expected Cheetah $var start token')            
         return self.readTo( match.end() )
 
-    def getSilentPlaceholderToken(self):
-        try:
-            token = self.silentPlaceholderTokenRE.match(self.src(), self.pos())
-            self.setPos( token.end() )
-            return token.group()
-        except:
-            raise ParseError(self, msg='Expected silent placeholder token')
-
     def getTargetVarsList(self):
         varnames = []
         while not self.atEnd():
@@ -802,7 +785,6 @@ class _LowLevelParser(SourceReader):
             #elif self.matchCheetahVarStart():
             elif self.matchCheetahVarInExpressionStartToken():
                 self.getCheetahVarStartToken()
-                self.getSilentPlaceholderToken()
                 varnames.append( self.getDottedName() )
             elif self.matchIdentifier():
                 varnames.append( self.getDottedName() )
@@ -815,7 +797,6 @@ class _LowLevelParser(SourceReader):
         """
         if not skipStartToken:
             self.getCheetahVarStartToken()
-        self.getSilentPlaceholderToken()
         return self.getCheetahVarBody(plain=plain)
             
     def getCheetahVarBody(self, plain=False):
@@ -1228,11 +1209,6 @@ class _LowLevelParser(SourceReader):
         startPos = self.pos()
         lineCol = self.getRowCol(startPos)
         startToken = self.getCheetahVarStartToken()
-        silentPlaceholderToken = self.getSilentPlaceholderToken()
-        if silentPlaceholderToken:
-            isSilentPlaceholder = True
-        else:
-            isSilentPlaceholder = False
             
         if self.peek() in '({[':         
             pos = self.pos()
@@ -1273,7 +1249,7 @@ class _LowLevelParser(SourceReader):
             callback(parser=self)
 
         if returnEverything:
-            return (expr, rawPlaceholder, lineCol, filterArgs, isSilentPlaceholder)
+            return (expr, rawPlaceholder, lineCol, filterArgs)
         else:
             return expr
         
@@ -1504,15 +1480,14 @@ class _HighLevelParser(_LowLevelParser):
         self._compiler.addComment(comm)
 
     def eatPlaceholder(self):
-        (expr, rawPlaceholder,
-         lineCol, filterArgs, isSilentPlaceholder) = self.getPlaceholder(returnEverything=True)
+        (expr, rawPlaceholder, lineCol, filterArgs) = self.getPlaceholder(returnEverything=True)
         
         self._compiler.addPlaceholder(
             expr,
             filterArgs=filterArgs,
             rawPlaceholder=rawPlaceholder,
             lineCol=lineCol,
-            silentMode=isSilentPlaceholder)
+        )
         return
         
     def eatPSP(self):

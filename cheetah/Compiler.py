@@ -463,22 +463,14 @@ class MethodCompiler(GenUtils):
         offSet = self.setting('commentOffset')
         self.addChunk('#' + ' '*offSet + comm)
 
-    def addPlaceholder(self, expr, filterArgs, rawPlaceholder,
-                       lineCol, silentMode=False):
+    def addPlaceholder(self, expr, filterArgs, rawPlaceholder, lineCol):
 
         if self.isErrorCatcherOn():
             methodName = self._classCompiler.addErrorCatcherCall(
                 expr, rawCode=rawPlaceholder, lineCol=lineCol)
             expr = 'self.' + methodName + '(localsDict=locals())'
 
-        if silentMode:
-            self.addChunk('try:')
-            self.indent()
-            self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
-            self.dedent()
-            self.addChunk('except NotFound: pass')
-        else:
-            self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
+        self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
 
         if self.setting('outputRowColComments'):
             self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
