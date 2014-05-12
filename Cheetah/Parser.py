@@ -3,10 +3,9 @@
 Parser classes for Cheetah's Compiler
 
 Classes:
-  ParseError( Exception )
-  _LowLevelParser( Cheetah.SourceReader.SourceReader ), basically a lexer
-  _HighLevelParser( _LowLevelParser )
-  Parser === _HighLevelParser (an alias)
+  ParseError(Exception)
+  _LowLevelParser(Cheetah.SourceReader.SourceReader), basically a lexer
+  Parser(_LowLevelParser)
 """
 
 import sys
@@ -20,28 +19,28 @@ from Cheetah.Unspecified import Unspecified
 from Cheetah.Macros.I18n import I18n
 
 
-def group(*choices): return '(' + '|'.join(choices) + ')'
-def nongroup(*choices): return '(?:' + '|'.join(choices) + ')'
-def namedGroup(name, *choices): return '(P:<' + name +'>' + '|'.join(choices) + ')'
-def any(*choices): return group(*choices) + '*'
-def maybe(*choices): return group(*choices) + '?'
+group = lambda *choices: '(' + '|'.join(choices) + ')'
+nongroup = lambda *choices: '(?:' + '|'.join(choices) + ')'
+namedGroup = lambda name, *choices: '(P:<' + name + '>' + '|'.join(choices) + ')'
+any = lambda *choices: group(*choices) + '*'
+maybe = lambda *choices: group(*choices) + '?'
 
 ##################################################
-## CONSTANTS & GLOBALS ##
+# CONSTANTS & GLOBALS
 
 SET_LOCAL = 0
 SET_GLOBAL = 1
 SET_MODULE = 2
 
 ##################################################
-## Tokens for the parser ##
+# Tokens for the parser
 
-#generic
+# generic
 identchars = "abcdefghijklmnopqrstuvwxyz" \
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+             "ABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 namechars = identchars + "0123456789"
 
-#operators
+# operators
 powerOp = '**'
 unaryArithOps = ('+', '-', '~')
 binaryArithOps = ('+', '-', '/', '//', '%')
@@ -49,14 +48,15 @@ shiftOps = ('>>', '<<')
 bitwiseOps = ('&', '|', '^')
 assignOp = '='
 augAssignOps = ('+=', '-=', '/=', '*=', '**=', '^=', '%=',
-          '>>=', '<<=', '&=', '|=', )
+                '>>=', '<<=', '&=', '|=', )
 assignmentOps = (assignOp,) + augAssignOps
 
 compOps = ('<', '>', '==', '!=', '<=', '>=', '<>', 'is', 'in',)
 booleanOps = ('and', 'or', 'not')
-operators = (powerOp,) + unaryArithOps + binaryArithOps \
-            + shiftOps + bitwiseOps + assignmentOps \
-            + compOps + booleanOps
+operators = (
+    (powerOp,) + unaryArithOps + binaryArithOps + shiftOps + bitwiseOps +
+    assignmentOps + compOps + booleanOps
+)
 
 delimeters = ('(', ')', '{', '}', '[', ']',
               ',', '.', ':', ';', '=', '`') + augAssignOps
@@ -73,11 +73,11 @@ keywords = ('and',       'del',       'for',       'is',        'raise',
 single3 = "'''"
 double3 = '"""'
 
-tripleQuotedStringStarts =  ("'''", '"""',
-                             "r'''", 'r"""', "R'''", 'R"""',
-                             "u'''", 'u"""', "U'''", 'U"""',
-                             "ur'''", 'ur"""', "Ur'''", 'Ur"""',
-                             "uR'''", 'uR"""', "UR'''", 'UR"""')
+tripleQuotedStringStarts = ("'''", '"""',
+                            "r'''", 'r"""', "R'''", 'R"""',
+                            "u'''", 'u"""', "U'''", 'U"""',
+                            "ur'''", 'ur"""', "Ur'''", 'Ur"""',
+                            "uR'''", 'uR"""', "UR'''", 'UR"""')
 
 tripleQuotedStringPairs = {"'''": single3, '"""': double3,
                            "r'''": single3, 'r"""': double3,
@@ -90,13 +90,15 @@ tripleQuotedStringPairs = {"'''": single3, '"""': double3,
                            "UR'''": single3, 'UR"""': double3,
                            }
 
-closurePairs= {')':'(',']':'[','}':'{'}
-closurePairsRev= {'(':')','[':']','{':'}'}
+closurePairs = {')': '(', ']': '[', '}': '{'}
+closurePairsRev = {'(': ')', '[': ']', '{': '}'}
 
 ##################################################
-## Regex chunks for the parser ##
+# Regex chunks for the parser
 
 tripleQuotedStringREs = {}
+
+
 def makeTripleQuoteRe(start, end):
     start = re.escape(start)
     end = re.escape(end)
@@ -110,10 +112,10 @@ EOL = r'\r\n|\n|\r'
 EOLZ = EOL + r'|\Z'
 escCharLookBehind = nongroup(r'(?<=\A)', r'(?<!\\)')
 nameCharLookAhead = r'(?=[A-Za-z_])'
-identRE=re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
-EOLre=re.compile(r'(?:\r\n|\r|\n)')
+identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
+EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
-specialVarRE=re.compile(r'([a-zA-z_]+)@') # for matching specialVar comments
+specialVarRE = re.compile(r'([a-zA-z_]+)@')  # for matching specialVar comments
 # e.g. ##author@ Tavis Rudd
 
 unicodeDirectiveRE = re.compile(
@@ -209,15 +211,16 @@ endDirectiveNamesAndHandlers = {
     }
 
 ##################################################
-## CLASSES ##
+# CLASSES
+
 
 # @@TR: SyntaxError doesn't call exception.__str__ for some reason!
-#class ParseError(SyntaxError):
+# class ParseError(SyntaxError):
 class ParseError(ValueError):
     def __init__(self, stream, msg='Invalid Syntax', extMsg='', lineno=None, col=None):
         self.stream = stream
         if stream.pos() >= len(stream):
-            stream.setPos(len(stream) -1)
+            stream.setPos(len(stream) - 1)
         self.msg = msg
         self.extMsg = extMsg
         self.lineno = lineno
@@ -240,47 +243,53 @@ class ParseError(ValueError):
         else:
             row, col, line = self.stream.getRowColLine()
 
-        ## get the surrounding lines
+        # get the surrounding lines
         lines = stream.splitlines()
         prevLines = []                  # (rowNum, content)
         for i in range(1, 4):
-            if row-1-i <=0:
+            if row - 1 - i <= 0:
                 break
-            prevLines.append( (row-i, lines[row-1-i]) )
+            prevLines.append((row - i, lines[row - 1 - i]))
 
         nextLines = []                  # (rowNum, content)
         for i in range(1, 4):
-            if not row-1+i < len(lines):
+            if not row - 1 + i < len(lines):
                 break
-            nextLines.append( (row+i, lines[row-1+i]) )
+            nextLines.append((row + i, lines[row - 1 + i]))
         nextLines.reverse()
 
-        ## print the main message
-        report += "\n\n%s\n" %self.msg
+        # print the main message
+        report += "\n\n%s\n" % self.msg
         report += "Line %i, column %i%s\n\n" % (row, col, f)
         report += 'Line|Cheetah Code\n'
         report += '----|-------------------------------------------------------------\n'
         while prevLines:
             lineInfo = prevLines.pop()
-            report += "%(row)-4d|%(line)s\n"% {'row':lineInfo[0], 'line':lineInfo[1]}
-        report += "%(row)-4d|%(line)s\n"% {'row':row, 'line':line}
-        report += ' '*5 +' '*(col-1) + "^\n"
+            report += "%(row)-4d|%(line)s\n" % {'row': lineInfo[0], 'line': lineInfo[1]}
+        report += "%(row)-4d|%(line)s\n" % {'row': row, 'line': line}
+        report += ' ' * 5 + ' ' * (col - 1) + "^\n"
 
         while nextLines:
             lineInfo = nextLines.pop()
-            report += "%(row)-4d|%(line)s\n"% {'row':lineInfo[0], 'line':lineInfo[1]}
-        ## add the extra msg
+            report += "%(row)-4d|%(line)s\n" % {'row': lineInfo[0], 'line': lineInfo[1]}
+        # add the extra msg
         if self.extMsg:
             report += self.extMsg + '\n'
 
         return report
 
+
 class ForbiddenSyntax(ParseError):
     pass
+
+
 class ForbiddenExpression(ForbiddenSyntax):
     pass
+
+
 class ForbiddenDirective(ForbiddenSyntax):
     pass
+
 
 class CheetahVariable(object):
     def __init__(self, nameChunks, useNameMapper=True, rawSource=None):
@@ -288,8 +297,10 @@ class CheetahVariable(object):
         self.useNameMapper = useNameMapper
         self.rawSource = rawSource
 
+
 class Placeholder(CheetahVariable):
     pass
+
 
 class ArgList(object):
     """Used by _LowLevelParser.getArgList()"""
@@ -318,6 +329,7 @@ class ArgList(object):
 
     def __str__(self):
         return str(self.merge())
+
 
 class _LowLevelParser(SourceReader):
     """This class implements the methods to match or extract ('get*') the basic
@@ -372,33 +384,33 @@ class _LowLevelParser(SourceReader):
             self.matchEOLSlurpToken,
             ]
 
-    ## regex setup ##
+    # regex setup
 
     def _makeCheetahVarREs(self):
         """Setup the regexs for Cheetah $var parsing."""
 
         self.cheetahVarStartRE = re.compile(
             escCharLookBehind +
-            r'(?P<startToken>'+re.escape(self.setting('cheetahVarStartToken'))+')'+
-            r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t\f]*))' + # allow WS after enclosure
+            r'(?P<startToken>' + re.escape(self.setting('cheetahVarStartToken')) + ')' +
+            r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t\f]*))' +  # allow WS after enclosure
             r'(?=[A-Za-z_])')
         validCharsLookAhead = r'(?=[A-Za-z_\*!\{\(\[])'
         self.cheetahVarStartToken = self.setting('cheetahVarStartToken')
         self.cheetahVarStartTokenRE = re.compile(
             escCharLookBehind +
             re.escape(self.setting('cheetahVarStartToken'))
-            +validCharsLookAhead
+            + validCharsLookAhead
             )
 
         self.cheetahVarInExpressionStartTokenRE = re.compile(
             re.escape(self.setting('cheetahVarStartToken'))
-            +r'(?=[A-Za-z_])'
+            + r'(?=[A-Za-z_])'
             )
 
         self.expressionPlaceholderStartRE = re.compile(
             escCharLookBehind +
             r'(?P<startToken>' + re.escape(self.setting('cheetahVarStartToken')) + ')' +
-            #r'\[[ \t\f]*'
+            # r'\[[ \t\f]*'
             r'(?:\{|\(|\[)[ \t\f]*'
             + r'(?=[^\)\}\]])'
             )
@@ -411,7 +423,6 @@ class _LowLevelParser(SourceReader):
                 )
         else:
             self.EOLSlurpRE = None
-
 
     def _makeCommentREs(self):
         """Construct the regex bits that are used in comment parsing."""
@@ -560,7 +571,7 @@ class _LowLevelParser(SourceReader):
                 nameChunk = self.getIdentifier()
                 nameChunks.append(nameChunk)
             elif c == '.':
-                if self.pos()+1 <srcLen and self.peek(1) in identchars:
+                if self.pos() + 1 < srcLen and self.peek(1) in identchars:
                     nameChunks.append(self.getc())
                 else:
                     break
@@ -591,7 +602,7 @@ class _LowLevelParser(SourceReader):
                 nameChunk = self.getIdentifier()
                 nameChunks.append(nameChunk)
             elif c == '.':
-                if self.pos()+1 <srcLen and self.peek(1) in identchars:
+                if self.pos() + 1 < srcLen and self.peek(1) in identchars:
                     nameChunks.append(self.getc())
                 else:
                     break
@@ -619,7 +630,7 @@ class _LowLevelParser(SourceReader):
         match = self.matchOperator()
         if not match:
             raise ParseError(self, msg='Expected operator')
-        return self.readTo( match.end() )
+        return self.readTo(match.end())
 
     def matchAssignmentOperator(self):
         match = self.matchPyToken()
@@ -631,7 +642,7 @@ class _LowLevelParser(SourceReader):
         match = self.matchAssignmentOperator()
         if not match:
             raise ParseError(self, msg='Expected assignment operator')
-        return self.readTo( match.end() )
+        return self.readTo(match.end())
 
     def matchDirective(self):
         """Returns False or the name of the directive matched.
@@ -652,7 +663,7 @@ class _LowLevelParser(SourceReader):
 
         while not self.atEnd():
             c = self.getc()
-            if not c in directiveNameChars:
+            if c not in directiveNameChars:
                 break
             name += c
             if name == '@':
@@ -687,16 +698,15 @@ class _LowLevelParser(SourceReader):
             raise ParseError(self, msg='Invalid directive end token')
         return self.readTo(match.end())
 
-
     def matchColonForSingleLineShortFormDirective(self):
-        if not self.atEnd() and self.peek()==':':
-            restOfLine = self[self.pos()+1:self.findEOL()]
+        if not self.atEnd() and self.peek() == ':':
+            restOfLine = self[self.pos() + 1:self.findEOL()]
             restOfLine = restOfLine.strip()
             if not restOfLine:
                 return False
             elif self.commentStartTokenRE.match(restOfLine):
                 return False
-            else: # non-whitespace, non-commment chars found
+            else:  # non-whitespace, non-commment chars found
                 return True
         return False
 
@@ -743,7 +753,7 @@ class _LowLevelParser(SourceReader):
         match = self.matchCheetahVarStartToken()
         if not match:
             raise ParseError(self, msg='Expected Cheetah $var start token')
-        return self.readTo( match.end() )
+        return self.readTo(match.end())
 
     def getTargetVarsList(self):
         varnames = []
@@ -756,12 +766,11 @@ class _LowLevelParser(SourceReader):
                 self.advance()
             elif self.startswith('in ') or self.startswith('in\t'):
                 break
-            #elif self.matchCheetahVarStart():
             elif self.matchCheetahVarInExpressionStartToken():
                 self.getCheetahVarStartToken()
-                varnames.append( self.getDottedName() )
+                varnames.append(self.getDottedName())
             elif self.matchIdentifier():
-                varnames.append( self.getDottedName() )
+                varnames.append(self.getDottedName())
             else:
                 break
         return varnames
@@ -826,14 +835,13 @@ class _LowLevelParser(SourceReader):
 
                 period = max(dottedName.rfind('.'), 0)
                 if period:
-                    chunks.append( (dottedName[:period], autoCall, '') )
+                    chunks.append((dottedName[:period], autoCall, ''))
                     dottedName = dottedName[period+1:]
-                if rest and rest[0]=='(':
+                if rest and rest[0] == '(':
                     autoCall = False
-            chunks.append( (dottedName, autoCall, rest) )
+            chunks.append((dottedName, autoCall, rest))
 
         return chunks
-
 
     def getCallArgString(self,
                          enclosures=[],  # list of tuples (char, pos), where char is ({ or [
@@ -872,7 +880,7 @@ class _LowLevelParser(SourceReader):
                     "' was found for the '" + open + "'")
 
             c = self.peek()
-            if c in ")}]": # get the ending enclosure and break
+            if c in ")}]":  # get the ending enclosure and break
                 if not enclosures:
                     raise ParseError(self)
                 c = self.getc()
@@ -897,10 +905,10 @@ class _LowLevelParser(SourceReader):
                         codeFor1stToken = self.getCheetahVar(plain=True)
                         self.setPos(endPos)
 
-                    ## finally
-                    addBit( codeFor1stToken + WS + nextToken )
+                    # finally
+                    addBit(codeFor1stToken + WS + nextToken)
                 else:
-                    addBit( codeFor1stToken + WS)
+                    addBit(codeFor1stToken + WS)
             elif self.matchCheetahVarStart():
                 # it has syntax that is only valid at the top level
                 self._raiseErrorAboutInvalidCheetahVarSyntaxInExpr()
@@ -912,14 +920,14 @@ class _LowLevelParser(SourceReader):
                 addBit(token)
 
         if useNameMapper is not Unspecified:
-            self.setSetting('useNameMapper', useNameMapper_orig) # @@TR: see comment above
+            self.setSetting('useNameMapper', useNameMapper_orig)  # @@TR: see comment above
 
         return ''.join(argStringBits)
 
     def getDefArgList(self, exitPos=None, useNameMapper=False):
 
         """ Get an argument list. Can be used for method/function definition
-        argument lists or for #directive argument lists. Returns a list of
+        argument lists or for # directive argument lists. Returns a list of
         tuples in the form (argName, defVal=None) with one tuple for each arg
         name.
 
@@ -948,7 +956,7 @@ class _LowLevelParser(SourceReader):
         while True:
             if self.atEnd():
                 raise ParseError(
-                    self, msg="EOF was reached before a matching ')'"+
+                    self, msg="EOF was reached before a matching ')'" +
                     " was found for the '('")
 
             if self.pos() == exitPos:
@@ -973,7 +981,7 @@ class _LowLevelParser(SourceReader):
             elif self.startswith(self.cheetahVarStartToken) and not onDefVal:
                 self.advance(len(self.cheetahVarStartToken))
             elif self.matchIdentifier() and not onDefVal:
-                argList.add_argument( self.getIdentifier() )
+                argList.add_argument(self.getIdentifier())
             elif onDefVal:
                 if self.matchCheetahVarInExpressionStartToken():
                     token = self.getCheetahVar()
@@ -997,14 +1005,13 @@ class _LowLevelParser(SourceReader):
             else:
                 raise ParseError(self)
 
-
-        self.setSetting('useNameMapper', useNameMapper_orig) # @@TR: see comment above
+        self.setSetting('useNameMapper', useNameMapper_orig)  # @@TR: see comment above
         return argList.merge()
 
     def getExpressionParts(self,
                            enclosed=False,
-                           enclosures=None, # list of tuples (char, pos), where char is ({ or [
-                           pyTokensToBreakAt=None, # only works if not enclosed
+                           enclosures=None,  # list of tuples (char, pos), where char is ({ or [
+                           pyTokensToBreakAt=None,  # only works if not enclosed
                            useNameMapper=Unspecified,
                            ):
 
@@ -1037,7 +1044,7 @@ class _LowLevelParser(SourceReader):
             c = self.peek()
             if c in "{([":
                 exprBits.append(c)
-                enclosures.append( (c, self.pos()) )
+                enclosures.append((c, self.pos()))
                 self.advance()
             elif enclosed and not enclosures:
                 break
@@ -1054,7 +1061,7 @@ class _LowLevelParser(SourceReader):
                     row, col = self.getRowCol()
                     self.setPos(enclosures[-1][1])
                     raise ParseError(
-                        self, msg= "A '" + c + "' was found at line " + str(row) +
+                        self, msg="A '" + c + "' was found at line " + str(row) +
                         ", col " + str(col) +
                         " before a matching '" + close +
                         "' was found\nfor the '" + open + "'")
@@ -1069,7 +1076,7 @@ class _LowLevelParser(SourceReader):
                 if not eolMatch:
                     self.advance()
                     raise ParseError(self, msg='Line ending expected')
-                self.setPos( eolMatch.end() )
+                self.setPos(eolMatch.end())
             elif c in '\r\n':
                 if enclosures:
                     self.advance()
@@ -1084,10 +1091,11 @@ class _LowLevelParser(SourceReader):
             else:
                 beforeTokenPos = self.pos()
                 token = self.getPyToken()
-                if (not enclosures
-                    and pyTokensToBreakAt
-                    and token in pyTokensToBreakAt):
-
+                if (
+                    not enclosures and
+                    pyTokensToBreakAt and
+                    token in pyTokensToBreakAt
+                ):
                     self.setPos(beforeTokenPos)
                     break
 
@@ -1100,14 +1108,14 @@ class _LowLevelParser(SourceReader):
                         exprBits.append(self.getWhiteSpace())
                         if not self.atEnd() and self.peek() == '(':
                             exprBits.append(self.getCallArgString())
-        ##
+
         if useNameMapper is not Unspecified:
-            self.setSetting('useNameMapper', useNameMapper_orig) # @@TR: see comment above
+            self.setSetting('useNameMapper', useNameMapper_orig)  # @@TR: see comment above
         return exprBits
 
     def getExpression(self,
                       enclosed=False,
-                      enclosures=None, # list of tuples (char, pos), where # char is ({ or [
+                      enclosures=None,  # list of tuples (char, pos), where # char is ({ or [
                       pyTokensToBreakAt=None,
                       useNameMapper=Unspecified,
                       ):
@@ -1144,7 +1152,7 @@ class _LowLevelParser(SourceReader):
         if self.peek() in '({[':
             pos = self.pos()
             enclosureOpenChar = self.getc()
-            enclosures = [ (enclosureOpenChar, pos) ]
+            enclosures = [(enclosureOpenChar, pos)]
             self.getWhiteSpace()
         else:
             enclosures = []
@@ -1157,10 +1165,10 @@ class _LowLevelParser(SourceReader):
             if enclosures:
                 WS = self.getWhiteSpace()
                 expr += WS
-                if self.setting('allowPlaceholderFilterArgs') and self.peek()==',':
+                if self.setting('allowPlaceholderFilterArgs') and self.peek() == ',':
                     filterArgs = self.getCallArgString(enclosures=enclosures)[1:-1]
                 else:
-                    if self.peek()==closurePairsRev[enclosureOpenChar]:
+                    if self.peek() == closurePairsRev[enclosureOpenChar]:
                         self.getc()
                     else:
                         restOfExpr = self.getExpression(enclosed=True, enclosures=enclosures)
@@ -1172,7 +1180,7 @@ class _LowLevelParser(SourceReader):
             expr = self.getExpression(enclosed=True, enclosures=enclosures)
             if expr[-1] == closurePairsRev[enclosureOpenChar]:
                 expr = expr[:-1]
-            rawPlaceholder=self[startPos: self.pos()]
+            rawPlaceholder = self[startPos: self.pos()]
 
         expr = self._applyExpressionFilters(expr, 'placeholder',
                                             rawExpr=rawPlaceholder, startPos=startPos)
@@ -1185,13 +1193,13 @@ class _LowLevelParser(SourceReader):
             return expr
 
 
-class _HighLevelParser(_LowLevelParser):
+class Parser(_LowLevelParser):
     """This class is a StateMachine for parsing Cheetah source and
     sending state dependent code generation commands to
     Cheetah.Compiler.Compiler.
     """
     def __init__(self, src, filename=None, breakPoint=None, compiler=None):
-        super(_HighLevelParser, self).__init__(src, filename=filename, breakPoint=breakPoint)
+        super(Parser, self).__init__(src, filename=filename, breakPoint=breakPoint)
         self.setSettingsManager(compiler)
         self._compiler = compiler
         self.setupState()
@@ -1211,7 +1219,7 @@ class _HighLevelParser(_LowLevelParser):
         self._macroDetails.clear()
 
     def configureParser(self):
-        super(_HighLevelParser, self).configureParser()
+        super(Parser, self).configureParser()
         self._initDirectives()
 
     def _initDirectives(self):
@@ -1225,7 +1233,7 @@ class _HighLevelParser(_LowLevelParser):
             elif val is None:
                 handler = val
             else:
-                raise Exception('Invalid parser/handler value %r for %s'%(val, name))
+                raise Exception('Invalid parser/handler value %r for %s' % (val, name))
             return handler
 
         normalizeHandlerVal = normalizeParserVal
@@ -1315,9 +1323,9 @@ class _HighLevelParser(_LowLevelParser):
                 and directiveName not in self.setting('enabledDirectives'))):
             for callback in self.setting('disabledDirectiveHooks'):
                 callback(parser=self, directiveName=directiveName)
-            raise ForbiddenDirective(self, msg='This %r directive is disabled'%directiveName)
+            raise ForbiddenDirective(self, msg='This %r directive is disabled' % directiveName)
 
-    ## main parse loop
+    # main parse loop
 
     def parse(self, breakPoint=None, assertEmptyStack=True):
         if breakPoint:
@@ -1347,7 +1355,7 @@ class _HighLevelParser(_LowLevelParser):
         if breakPoint:
             self.setBreakPoint(origBP)
 
-    ## non-directive eat methods
+    # non-directive eat methods
 
     def eatPlainText(self):
         startPos = self.pos()
@@ -1399,7 +1407,7 @@ class _HighLevelParser(_LowLevelParser):
 
         if (not self.atEnd()) and self.setting('gobbleWhitespaceAroundMultiLineComments'):
             restOfLine = self[self.pos():self.findEOL()]
-            if not restOfLine.strip(): # WS only to EOL
+            if not restOfLine.strip():  # WS only to EOL
                 self.readToEOL(gobble=isLineClearToStartToken)
 
             if isLineClearToStartToken and (self.atEnd() or self.pos() > endOfFirstLine):
@@ -1434,7 +1442,7 @@ class _HighLevelParser(_LowLevelParser):
         self._compiler.addPSP(pspString)
         self.getPSPEndToken()
 
-    ## generic directive eat methods
+    # generic directive eat methods
     _simpleIndentingDirectives = '''
     else elif for while repeat unless try except finally'''.split()
     _simpleExprDirectives = '''
@@ -1444,6 +1452,7 @@ class _HighLevelParser(_LowLevelParser):
     import from'''.split()
     _directiveHandlerNames = {'import': 'addImportStatement',
                               'from': 'addImportStatement', }
+
     def eatDirective(self):
         directiveName = self.matchDirective()
         self._filterDisabledDirectives(directiveName)
@@ -1459,13 +1468,13 @@ class _HighLevelParser(_LowLevelParser):
         elif directiveName in self._simpleIndentingDirectives:
             handlerName = self._directiveHandlerNames.get(directiveName)
             if not handlerName:
-                handlerName = 'add'+directiveName.capitalize()
+                handlerName = 'add' + directiveName.capitalize()
             handler = getattr(self._compiler, handlerName)
             self.eatSimpleIndentingDirective(directiveName, callback=handler)
         elif directiveName in self._simpleExprDirectives:
             handlerName = self._directiveHandlerNames.get(directiveName)
             if not handlerName:
-                handlerName = 'add'+directiveName.capitalize()
+                handlerName = 'add' + directiveName.capitalize()
             handler = getattr(self._compiler, handlerName)
             if directiveName in ('silent', 'echo'):
                 includeDirectiveNameInExpr = False
@@ -1475,7 +1484,7 @@ class _HighLevelParser(_LowLevelParser):
                 directiveName,
                 includeDirectiveNameInExpr=includeDirectiveNameInExpr)
             handler(expr)
-        ##
+
         for callback in self.setting('postparseDirectiveHooks'):
             callback(parser=self, directiveName=directiveName)
 
@@ -1487,7 +1496,7 @@ class _HighLevelParser(_LowLevelParser):
             if not self.matchDirective():
                 self.setPos(pos)
                 foundComment = True
-                self.eatComment() # this won't gobble the EOL
+                self.eatComment()  # this won't gobble the EOL
             else:
                 self.setPos(pos)
 
@@ -1515,7 +1524,7 @@ class _HighLevelParser(_LowLevelParser):
                         if self.isLineClearToStartToken(endRawPos):
                             isLineClearToStartToken = True
                             endRawPos = self.findBOL(endRawPos)
-                        self.advance(len(directiveName)) # to end of directiveName
+                        self.advance(len(directiveName))  # to end of directiveName
                         self.getWhiteSpace()
                         finalPos = self.pos()
                         break
@@ -1535,7 +1544,6 @@ class _HighLevelParser(_LowLevelParser):
         if isLineClearToStartToken and self.pos() > endOfFirstLinePos:
             self._compiler.handleWSBeforeDirective()
         return textEaten
-
 
     def eatSimpleExprDirective(self, directiveName, includeDirectiveNameInExpr=True):
         # filtered
@@ -1569,7 +1577,7 @@ class _HighLevelParser(_LowLevelParser):
         expr = self.getExpression(pyTokensToBreakAt=[':'])
         expr = self._applyExpressionFilters(expr, directiveName, startPos=startPos)
         if self.matchColonForSingleLineShortFormDirective():
-            self.advance() # skip over :
+            self.advance()  # skip over :
             if directiveName in 'else elif except finally'.split():
                 callback(expr, dedent=False, lineCol=lineCol)
             else:
@@ -1580,7 +1588,7 @@ class _HighLevelParser(_LowLevelParser):
             self._compiler.commitStrConst()
             self._compiler.dedent()
         else:
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
@@ -1603,7 +1611,7 @@ class _HighLevelParser(_LowLevelParser):
             raise ParseError(self, msg='Invalid end directive')
 
         endOfFirstLinePos = self.findEOL()
-        self.getExpression() # eat in any extra comment-like crap
+        self.getExpression()  # eat in any extra comment-like crap
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         if directiveName in self._closeableDirectives:
             self.popFromOpenDirectivesStack(directiveName)
@@ -1625,13 +1633,13 @@ class _HighLevelParser(_LowLevelParser):
         elif directiveName in 'while for if try repeat unless'.split():
             self._compiler.commitStrConst()
             self._compiler.dedent()
-        elif directiveName=='closure':
+        elif directiveName == 'closure':
             self._compiler.commitStrConst()
             self._compiler.dedent()
             # @@TR: temporary hack of useSearchList
             self.setSetting('useSearchList', self._useSearchList_orig)
 
-    ## specific directive eat methods
+    # specific directive eat methods
 
     def eatBreakPoint(self):
         """Tells the parser to stop parsing at this point and completely ignore
@@ -1674,7 +1682,7 @@ class _HighLevelParser(_LowLevelParser):
         settingName = self.getIdentifier()
 
         if settingName.lower() == 'reset':
-            self.getExpression() # gobble whitespace & junk
+            self.getExpression()  # gobble whitespace & junk
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
             self._initializeSettings()
             self.configureParser()
@@ -1691,7 +1699,7 @@ class _HighLevelParser(_LowLevelParser):
         # @@TR: it's unlikely that anyone apply filters would have left this
         # directive enabled:
         # @@TR: fix up filtering, regardless
-        self._applyExpressionFilters('%s=%r'%(settingName, valueExpr),
+        self._applyExpressionFilters('%s=%r' % (settingName, valueExpr),
                                      'compiler', startPos=startPos)
 
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
@@ -1704,7 +1712,6 @@ class _HighLevelParser(_LowLevelParser):
             sys.stderr.write('----------------------------------------------------------------------\n')
             sys.stderr.write('Please check the syntax of these settings.\n\n')
             raise
-
 
     def eatCompilerSettings(self):
         # filtered
@@ -1763,7 +1770,7 @@ class _HighLevelParser(_LowLevelParser):
         endOfFirstLinePos = self.findEOL()
         startPos = self.pos()
         self.getDirectiveStartToken()
-        #self.advance() # eat @
+        # self.advance()  # eat @
         startPos = self.pos()
         decoratorExpr = self.getExpression()
         decoratorExpr = self._applyExpressionFilters(decoratorExpr, 'decorator', startPos=startPos)
@@ -1813,7 +1820,7 @@ class _HighLevelParser(_LowLevelParser):
             if argsList and argsList[0][0] == 'self':
                 del argsList[0]
         else:
-            argsList=[]
+            argsList = []
 
         def includeBlockMarkers():
             if self.setting('includeBlockMarkers'):
@@ -1825,7 +1832,7 @@ class _HighLevelParser(_LowLevelParser):
 
         if self.matchColonForSingleLineShortFormDirective():
             isNestedDef = (self.setting('allowNestedDefScopes')
-                           and [name for name in self._openDirectivesStack if name=='def'])
+                           and [name for name in self._openDirectivesStack if name == 'def'])
             self.getc()
             rawSignature = self[startPos:endOfFirstLinePos]
             self._eatSingleLineDef(directiveName=directiveName,
@@ -1834,7 +1841,7 @@ class _HighLevelParser(_LowLevelParser):
                                    startPos=startPos,
                                    endPos=endOfFirstLinePos)
             if directiveName == 'def' and not isNestedDef:
-                #@@TR: must come before _eatRestOfDirectiveTag ... for some reason
+                # @@TR: must come before _eatRestOfDirectiveTag ... for some reason
                 self._compiler.closeDef()
             elif directiveName == 'block':
                 includeBlockMarkers()
@@ -1844,7 +1851,7 @@ class _HighLevelParser(_LowLevelParser):
 
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         else:
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.getc()
             self.pushToOpenDirectivesStack(directiveName)
             rawSignature = self[startPos:self.pos()]
@@ -1871,10 +1878,10 @@ class _HighLevelParser(_LowLevelParser):
                          + '.')
 
         isNestedDef = (self.setting('allowNestedDefScopes')
-                       and len([name for name in self._openDirectivesStack if name=='def'])>1)
-        if directiveName=='block' or (directiveName=='def' and not isNestedDef):
+                       and len([name for name in self._openDirectivesStack if name == 'def']) > 1)
+        if directiveName == 'block' or (directiveName == 'def' and not isNestedDef):
             self._compiler.startMethodDef(methodName, argsList, parserComment)
-        else: #closure
+        else:  # closure
             self._useSearchList_orig = self.setting('useSearchList')
             self.setSetting('useSearchList', False)
             self._compiler.addClosure(methodName, argsList, parserComment)
@@ -1888,10 +1895,10 @@ class _HighLevelParser(_LowLevelParser):
                          ' at line %s, col %s' % self.getRowCol(startPos)
                          + '.')
         isNestedDef = (self.setting('allowNestedDefScopes')
-                       and [name for name in self._openDirectivesStack if name=='def'])
-        if directiveName=='block' or (directiveName=='def' and not isNestedDef):
+                       and [name for name in self._openDirectivesStack if name == 'def'])
+        if directiveName == 'block' or (directiveName == 'def' and not isNestedDef):
             self._compiler.startMethodDef(methodName, argsList, parserComment)
-        else: #closure
+        else:  # closure
             # @@TR: temporary hack of useSearchList
             useSearchList_orig = self.setting('useSearchList')
             self.setSetting('useSearchList', False)
@@ -1899,7 +1906,7 @@ class _HighLevelParser(_LowLevelParser):
 
         self.getWhiteSpace(max=1)
         self.parse(breakPoint=endPos)
-        if directiveName=='closure' or isNestedDef: # @@TR: temporary hack of useSearchList
+        if directiveName == 'closure' or isNestedDef:  # @@TR: temporary hack of useSearchList
             self.setSetting('useSearchList', useSearchList_orig)
 
     def eatExtends(self):
@@ -1917,7 +1924,7 @@ class _HighLevelParser(_LowLevelParser):
             baseName = ', '.join(baseName)
 
         baseName = self._applyExpressionFilters(baseName, 'extends', startPos=startPos)
-        self._compiler.setBaseClass(baseName) # in compiler
+        self._compiler.setBaseClass(baseName)  # in compiler
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
     def eatImplements(self):
@@ -1935,10 +1942,10 @@ class _HighLevelParser(_LowLevelParser):
             if argsList and argsList[0][0] == 'self':
                 del argsList[0]
         else:
-            argsList=[]
+            argsList = []
 
         # @@TR: need to split up filtering of the methodname and the args
-        #methodName = self._applyExpressionFilters(methodName, 'implements', startPos=startPos)
+        # methodName = self._applyExpressionFilters(methodName, 'implements', startPos=startPos)
         self._applyExpressionFilters(self[startPos:self.pos()], 'implements', startPos=startPos)
 
         self._compiler.setMainMethodName(methodName)
@@ -1961,11 +1968,11 @@ class _HighLevelParser(_LowLevelParser):
             if argsList and argsList[0][0] == 'self':
                 del argsList[0]
         else:
-            argsList=[]
+            argsList = []
 
         self._applyExpressionFilters(self[startPos:self.pos()], 'super', startPos=startPos)
 
-        #parserComment = ('## CHEETAH: generated from ' + signature +
+        # parserComment = ('## CHEETAH: generated from ' + signature +
         #                 ' at line %s, col %s' % self.getRowCol(startPos)
         #                 + '.')
 
@@ -2002,7 +2009,9 @@ class _HighLevelParser(_LowLevelParser):
         expr = self._applyExpressionFilters(expr, 'set', startPos=startPos)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
-        class Components: pass # used for 'set global'
+        # used for 'set global'
+        class Components:
+            pass
         exprComponents = Components()
         exprComponents.LVALUE = LVALUE
         exprComponents.OP = OP
@@ -2028,11 +2037,11 @@ class _HighLevelParser(_LowLevelParser):
         self.advance(len('raw'))
         self.getWhiteSpace()
         if self.matchColonForSingleLineShortFormDirective():
-            self.advance() # skip over :
+            self.advance()  # skip over :
             self.getWhiteSpace(max=1)
             rawBlock = self.readToEOL(gobble=False)
         else:
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
@@ -2051,7 +2060,7 @@ class _HighLevelParser(_LowLevelParser):
         isRaw = False
         if self.startswith('raw'):
             self.advance(3)
-            isRaw=True
+            isRaw = True
 
         self.getWhiteSpace()
         if self.startswith('source'):
@@ -2066,7 +2075,6 @@ class _HighLevelParser(_LowLevelParser):
         sourceExpr = self._applyExpressionFilters(sourceExpr, 'include', startPos=startPos)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         self._compiler.addInclude(sourceExpr, includeFrom, isRaw)
-
 
     def eatDefMacro(self):
         # @@TR: not filtered yet
@@ -2086,7 +2094,7 @@ class _HighLevelParser(_LowLevelParser):
             if argsList and argsList[0][0] == 'self':
                 del argsList[0]
         else:
-            argsList=[]
+            argsList = []
 
         assert macroName not in self._directiveNamesAndParsers
         argsList.insert(0, ('src', None))
@@ -2099,31 +2107,29 @@ class _HighLevelParser(_LowLevelParser):
         argsList.append(('endPos', 'None'))
 
         if self.matchColonForSingleLineShortFormDirective():
-            self.advance() # skip over :
+            self.advance()  # skip over :
             self.getWhiteSpace(max=1)
             macroSrc = self.readToEOL(gobble=False)
             self.readToEOL(gobble=True)
         else:
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             macroSrc = self._eatToThisEndDirective('defmacro')
 
-        #print argsList
         normalizedMacroSrc = ''.join(
-            ['%def callMacro('+','.join([defv and '%s=%s'%(n, defv) or n
-                                         for n, defv in argsList])
-             +')\n',
+            ['%def callMacro(' + ','.join([defv and '%s=%s' % (n, defv) or n
+                                           for n, defv in argsList])
+             + ')\n',
              macroSrc,
              '%end def'])
-
 
         from Cheetah.Template import Template
         templateAPIClass = self.setting('templateAPIClassForDefMacro', default=Template)
         compilerSettings = self.setting('compilerSettingsForDefMacro', default={})
         searchListForMacros = self.setting('searchListForDefMacro', default=[])
-        searchListForMacros = list(searchListForMacros) # copy to avoid mutation bugs
+        searchListForMacros = list(searchListForMacros)  # copy to avoid mutation bugs
         searchListForMacros.append({'macros': self._macros,
                                     'parser': self,
                                     'compilerSettings': self.settings(),
@@ -2133,12 +2139,9 @@ class _HighLevelParser(_LowLevelParser):
             compilerSettings, placeholderToken='@', directiveToken='%')
         macroTemplateClass = templateAPIClass.compile(source=normalizedMacroSrc,
                                                       compilerSettings=compilerSettings)
-        #print normalizedMacroSrc
-        #t = macroTemplateClass()
-        #print t.callMacro('src')
-        #print t.generatedClassCode()
 
-        class MacroDetails: pass
+        class MacroDetails:
+            pass
         macroDetails = MacroDetails()
         macroDetails.macroSrc = macroSrc
         macroDetails.argsList = argsList
@@ -2167,26 +2170,25 @@ class _HighLevelParser(_LowLevelParser):
 
         if self.matchColonForSingleLineShortFormDirective():
             isShortForm = True
-            self.advance() # skip over :
+            self.advance()  # skip over :
             self.getWhiteSpace(max=1)
             srcBlock = self.readToEOL(gobble=False)
             EOLCharsInShortForm = self.readToEOL(gobble=True)
-            #self.readToEOL(gobble=False)
+            # self.readToEOL(gobble=False)
         else:
             isShortForm = False
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             srcBlock = self._eatToThisEndDirective(macroName)
-
 
         if hasattr(macro, 'convertArgStrToDict'):
             kwArgs = macro.convertArgStrToDict(args, parser=self, startPos=startPos)
         else:
             def getArgs(*pargs, **kws):
                 return pargs, kws
-            exec('positionalArgs, kwArgs = getArgs(%(args)s)'%locals())
+            exec('positionalArgs, kwArgs = getArgs(%(args)s)' % locals())
 
         assert 'src' not in kwArgs
         kwArgs['src'] = srcBlock
@@ -2232,9 +2234,7 @@ class _HighLevelParser(_LowLevelParser):
         self._src = origParseSrc
         self.setBreakPoint(origBreakPoint)
         self.setPos(origPos)
-
-
-        #self._compiler.addRawText('end')
+        # self._compiler.addRawText('end')
 
     def eatCall(self):
         # @@TR: need to enable single line version of this
@@ -2259,13 +2259,13 @@ class _HighLevelParser(_LowLevelParser):
         self.getWhiteSpace()
         args = self.getExpression(pyTokensToBreakAt=[':']).strip()
         if self.matchColonForSingleLineShortFormDirective():
-            self.advance() # skip over :
+            self.advance()  # skip over :
             self._compiler.startCallRegion(functionName, args, lineCol)
             self.getWhiteSpace(max=1)
             self.parse(breakPoint=self.findEOL(gobble=False))
             self._compiler.endCallRegion()
         else:
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self.pushToOpenDirectivesStack("call")
@@ -2308,13 +2308,13 @@ class _HighLevelParser(_LowLevelParser):
         theFilter = self._applyExpressionFilters(theFilter, 'filter', startPos=startPos)
 
         if self.matchColonForSingleLineShortFormDirective():
-            self.advance() # skip over :
+            self.advance()  # skip over :
             self.getWhiteSpace(max=1)
             self._compiler.setFilter(theFilter, isKlass)
             self.parse(breakPoint=self.findEOL(gobble=False))
             self._compiler.closeFilterBlock()
         else:
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self.pushToOpenDirectivesStack("filter")
@@ -2338,7 +2338,7 @@ class _HighLevelParser(_LowLevelParser):
             self.getWhiteSpace()
         transformer = self._applyExpressionFilters(transformer, 'transform', startPos=startPos)
 
-        if self.peek()==':':
+        if self.peek() == ':':
             self.advance()
         self.getWhiteSpace()
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
@@ -2359,19 +2359,18 @@ class _HighLevelParser(_LowLevelParser):
         expr = self.getExpression(pyTokensToBreakAt=[':'])
         expr = self._applyExpressionFilters(expr, 'capture', startPos=startPos)
         if self.matchColonForSingleLineShortFormDirective():
-            self.advance() # skip over :
+            self.advance()  # skip over :
             self._compiler.startCaptureRegion(assignTo=expr, lineCol=lineCol)
             self.getWhiteSpace(max=1)
             self.parse(breakPoint=self.findEOL(gobble=False))
             self._compiler.endCaptureRegion()
         else:
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             self.pushToOpenDirectivesStack("capture")
             self._compiler.startCaptureRegion(assignTo=expr, lineCol=lineCol)
-
 
     def eatIf(self):
         # filtered
@@ -2392,9 +2391,9 @@ class _HighLevelParser(_LowLevelParser):
             falseExpr = []
             currentExpr = conditionExpr
             for part in expressionParts:
-                if part.strip()=='then':
+                if part.strip() == 'then':
                     currentExpr = trueExpr
-                elif part.strip()=='else':
+                elif part.strip() == 'else':
                     currentExpr = falseExpr
                 else:
                     currentExpr.append(part)
@@ -2405,24 +2404,24 @@ class _HighLevelParser(_LowLevelParser):
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
             self._compiler.addTernaryExpr(conditionExpr, trueExpr, falseExpr, lineCol=lineCol)
         elif self.matchColonForSingleLineShortFormDirective():
-            self.advance() # skip over :
+            self.advance()  # skip over :
             self._compiler.addIf(expr, lineCol=lineCol)
             self.getWhiteSpace(max=1)
             self.parse(breakPoint=self.findEOL(gobble=True))
             self._compiler.commitStrConst()
             self._compiler.dedent()
         else:
-            if self.peek()==':':
+            if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
             self.pushToOpenDirectivesStack('if')
             self._compiler.addIf(expr, lineCol=lineCol)
 
-    ## end directive handlers
+    # end directive handlers
     def handleEndDef(self):
         isNestedDef = (self.setting('allowNestedDefScopes')
-                       and [name for name in self._openDirectivesStack if name=='def'])
+                       and [name for name in self._openDirectivesStack if name == 'def'])
         if not isNestedDef:
             self._compiler.closeDef()
         else:
@@ -2430,7 +2429,6 @@ class _HighLevelParser(_LowLevelParser):
             self.setSetting('useSearchList', self._useSearchList_orig)
             self._compiler.commitStrConst()
             self._compiler.dedent()
-    ###
 
     def pushToOpenDirectivesStack(self, directiveName):
         assert directiveName in self._closeableDirectives
@@ -2443,16 +2441,12 @@ class _HighLevelParser(_LowLevelParser):
         if self._openDirectivesStack[-1] == directiveName:
             del self._openDirectivesStack[-1]
         else:
-            raise ParseError(self, msg="#end %s found, expected #end %s" %(
-                directiveName, self._openDirectivesStack[-1]))
+            raise ParseError(self, msg="#end %s found, expected #end %s" % (
+                             directiveName, self._openDirectivesStack[-1]))
 
     def assertEmptyOpenDirectivesStack(self):
         if self._openDirectivesStack:
             errorMsg = (
-                "Some #directives are missing their corresponding #end ___ tag: %s" %(
-                ', '.join(self._openDirectivesStack)))
+                "Some #directives are missing their corresponding #end ___ tag: %s" % (
+                    ', '.join(self._openDirectivesStack)))
             raise ParseError(self, msg=errorMsg)
-
-##################################################
-## Make an alias to export
-Parser = _HighLevelParser
