@@ -16,15 +16,15 @@ import sys
 import os
 import getopt
 import os.path
-try:
-    from cPickle import load
-except ImportError:
-    from pickle import load
+import textwrap
+from pickle import load
 
 from Cheetah.Version import Version
 
+
 class Error(Exception):
     pass
+
 
 class CmdLineIface:
     """A command line interface to compiled Cheetah template modules."""
@@ -47,9 +47,9 @@ class CmdLineIface:
         try:
             self._opts, self._args = getopt.getopt(
                 self._cmdLineArgs, 'h', ['help',
-                                            'env',
-                                            'pickle=',
-                                            ])
+                                         'env',
+                                         'pickle=',
+                                         ])
 
         except getopt.GetoptError, v:
             # print help information and exit:
@@ -74,34 +74,38 @@ class CmdLineIface:
                     self._template.searchList().insert(0, unpickled)
 
     def usage(self):
-        return """Cheetah %(Version)s template module command-line interface
+        return textwrap.dedent(
+            """
+            Cheetah %(Version)s template module command-line interface
 
-Usage
------
-  %(scriptName)s [OPTION]
+            Usage
+            -----
+              %(scriptName)s [OPTION]
 
-Options
--------
-  -h, --help                 Print this help information
+            Options
+            -------
+              -h, --help                 Print this help information
 
-  --env                      Use shell ENVIRONMENT variables to fill the
-                             $placeholders in the template.
+              --env                      Use shell ENVIRONMENT variables to fill the
+                                         $placeholders in the template.
 
-  --pickle <file>            Use a variables from a dictionary stored in Python
-                             pickle file to fill $placeholders in the template.
-                             If <file> is - stdin is used:
-                             '%(scriptName)s --pickle -'
+              --pickle <file>            Use a variables from a dictionary stored in Python
+                                         pickle file to fill $placeholders in the template.
+                                         If <file> is - stdin is used:
+                                         '%(scriptName)s --pickle -'
 
-Description
------------
+            Description
+            -----------
 
-This interface allows you to execute a Cheetah template from the command line
-and collect the output.  It can prepend the shell ENVIRONMENT or a pickled
-Python dictionary to the template's $placeholder searchList, overriding the
-defaults for the $placeholders.
+            This interface allows you to execute a Cheetah template from the command line
+            and collect the output.  It can prepend the shell ENVIRONMENT or a pickled
+            Python dictionary to the template's $placeholder searchList, overriding the
+            defaults for the $placeholders.
 
-""" % {'scriptName': self._scriptName,
-       'Version': Version,
-       }
+            """
+        ).strip() % {
+            'scriptName': self._scriptName,
+            'Version': Version,
+        }
 
 # vim: shiftwidth=4 tabstop=4 expandtab
