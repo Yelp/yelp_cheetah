@@ -22,17 +22,21 @@ from Cheetah.Template import Template
 from Cheetah.Parser import ParseError
 from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
 
+
 class Unspecified(object):
     pass
 
 majorVer, minorVer = sys.version_info[0], sys.version_info[1]
 versionTuple = (majorVer, minorVer)
 
+
 def testdecorator(func):
     return func
 
+
 class DummyClass:
     _called = False
+
     def __str__(self):
         return 'object'
 
@@ -51,7 +55,7 @@ class DummyClass:
     def callIt(self, arg=1234):
         self._called = True
         self._callArg = arg
-        
+
 
 def dummyFunc(arg="Scooby"):
     return arg
@@ -63,16 +67,16 @@ defaultTestNameSpace = {
     'aList': ['item0', 'item1', 'item2'],
     'aDict': {'one': 'item1',
               'two': 'item2',
-              'nestedDict': {1:'nestedItem1',
-                          'two':'nestedItem2'
-                          },
+              'nestedDict': {1: 'nestedItem1',
+                             'two': 'nestedItem2'
+                             },
               'nestedFunc': dummyFunc,
               },
     'aFunc': dummyFunc,
     'anObj': DummyClass(),
     'aMeth': DummyClass().meth1,
     'aStrToBeIncluded': "$aStr $anInt",
-    'none': None,  
+    'none': None,
     'emptyString': '',
     'numOne': 1,
     'numTwo': 2,
@@ -82,16 +86,16 @@ defaultTestNameSpace = {
     'strip1': '  \t   strippable whitespace   \t\t  \n',
     'strip2': '  \t   strippable whitespace   \t\t  ',
     'strip3': '  \t   strippable whitespace   \t\t\n1 2  3\n',
-    
+
     'blockToBeParsed': """$numOne $numTwo""",
     'includeBlock2': """$numOne $numTwo $aSetVar""",
-    
+
     'includeFileName': 'parseTest.txt',
-    'listOfLambdas': [lambda x: x, lambda x: x, lambda x: x,],
+    'listOfLambdas': [lambda x: x, lambda x: x, lambda x: x],
     'list': [
-    	{'index': 0, 'numOne': 1, 'numTwo': 2},
-    	{'index': 1, 'numOne': 1, 'numTwo': 2},
-        ],
+        {'index': 0, 'numOne': 1, 'numTwo': 2},
+        {'index': 1, 'numOne': 1, 'numTwo': 2},
+    ],
     'nameList': [('john', 'doe'), ('jane', 'smith')],
     'letterList': ['a', 'b', 'c'],
     '_': lambda x: 'Translated: ' + x,
@@ -100,11 +104,11 @@ defaultTestNameSpace = {
 
 
 ##################################################
-## TEST BASE CLASSES
+# TEST BASE CLASSES
 
 class OutputTest(unittest.TestCase):
     report = '''
-Template output mismatch: 
+Template output mismatch:
 
     Input Template =
 %(template)s%(end)s
@@ -123,7 +127,6 @@ Template output mismatch:
     _searchList = [defaultTestNameSpace]
 
     _useNewStyleCompilation = True
-    #_useNewStyleCompilation = False
 
     _extraCompileKwArgs = None
 
@@ -144,7 +147,7 @@ Template output mismatch:
         self._input = input
         if self._useNewStyleCompilation:
             extraKwArgs = self._extraCompileKwArgs or {}
-            
+
             templateClass = Template.compile(
                 source=input,
                 compilerSettings=self._getCompilerSettings(),
@@ -163,12 +166,12 @@ Template output mismatch:
             moduleCode = templateObj._CHEETAH_generatedModuleCode
         if self.DEBUGLEV >= 1:
             print(moduleCode)
-        output = templateObj.respond() # rather than __str__, because of unicode
-        assert output==expectedOutput, self._outputMismatchReport(output, expectedOutput)
+        output = templateObj.respond()  # rather than __str__, because of unicode
+        assert output == expectedOutput, self._outputMismatchReport(output, expectedOutput)
 
     def _getCompilerSettings(self):
         return {}
-            
+
     def _outputMismatchReport(self, output, expectedOutput):
         if self._debugEOLReplacement and self._EOLreplacement:
             EOLrepl = self._EOLreplacement
@@ -182,7 +185,7 @@ Template output mismatch:
                                   'expected': expectedOutput,
                                   'actual': output,
                                   'end': '(end)'}
-        
+
     def genClassCode(self):
         if hasattr(self, 'template'):
             return self.template.generatedClassCode()
@@ -192,13 +195,15 @@ Template output mismatch:
             return self.template.generatedModuleCode()
 
 ##################################################
-## TEST CASE CLASSES
+# TEST CASE CLASSES
+
 
 class EmptyTemplate(OutputTest):
     convertEOLs = False
+
     def test1(self):
         """an empty string for the template"""
-        
+
         filters_copy = warnings.filters[:]
         warnings.filterwarnings('error',
                                 'You supplied an empty string for the source!',
@@ -209,7 +214,7 @@ class EmptyTemplate(OutputTest):
             pass
         else:
             self.fail("Should warn about empty source strings.")
-        
+
         try:
             self.verify("#implements foo", "")
         except NotImplementedError:
@@ -233,11 +238,11 @@ class Backslashes(OutputTest):
         fp.write(r'\ #LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n')
         fp.flush()
         fp.close
-    
+
     def tearDown(self):
         if os.path.exists('backslashes.txt'):
             os.remove('backslashes.txt')
-        
+
     def test1(self):
         """ a single \\ using rawstrings"""
         self.verify(r"\ ",
@@ -265,7 +270,7 @@ class Backslashes(OutputTest):
         is handling long and short strings in the same fashion.  It uses
         triple-quotes for strings with lots of \\n in them and repr(theStr) for
         shorter strings with only a few newlines."""
-        
+
         self.verify(r'#LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n',
                     r'#LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n')
 
@@ -280,12 +285,13 @@ class Backslashes(OutputTest):
                     "\ \ " + "\n\n\n\n\n\n\n\n\n")
 
     def test8(self):
-        """ single line from an apache conf file with single quotes and many NEWLINES 
+        """ single line from an apache conf file with single quotes and many NEWLINES
         """
-        
+
         self.verify(r"""#LogFormat '%h %l %u %t \"%r\" %>s %b'""" + '\n\n\n\n\n\n\n',
                     r"""#LogFormat '%h %l %u %t \"%r\" %>s %b'""" + '\n\n\n\n\n\n\n')
-        
+
+
 class NonTokens(OutputTest):
     def test1(self):
         """dollar signs not in Cheetah $vars"""
@@ -311,20 +317,24 @@ class NonTokens(OutputTest):
         """1 dollar sign"""
         self.verify("$",
                     "$")
-    def _X_test6(self):
+
+    def test6_was_disabled(self):
         """1 dollar sign followed by hash"""
+        print('this test is disabled')
+        return
         self.verify("\n$#\n",
                     "\n$#\n")
 
     def test6(self):
         """1 dollar sign followed by EOL Slurp Token"""
         if DEFAULT_COMPILER_SETTINGS['EOLSlurpToken']:
-            self.verify("\n$%s\n"%DEFAULT_COMPILER_SETTINGS['EOLSlurpToken'],
+            self.verify("\n$%s\n" % DEFAULT_COMPILER_SETTINGS['EOLSlurpToken'],
                         "\n$")
         else:
             self.verify("\n$#\n",
                         "\n$#\n")
-            
+
+
 class Comments_SingleLine(OutputTest):
     def test1(self):
         """## followed by WS"""
@@ -340,6 +350,7 @@ class Comments_SingleLine(OutputTest):
         """## followed by text then NEWLINE"""
         self.verify("## oeuao aoe uaoe \n",
                     "")
+
     def test4(self):
         """## gobbles leading WS"""
         self.verify("    ## oeuao aoe uaoe \n",
@@ -354,12 +365,12 @@ class Comments_SingleLine(OutputTest):
         """## followed by EOF"""
         self.verify("##",
                     "")
-        
+
     def test7(self):
         """## followed by EOF with leading WS"""
         self.verify("    ##",
                     "")
-        
+
     def test8(self):
         """## gobble line
         with text on previous and following lines"""
@@ -388,11 +399,11 @@ class Comments_SingleLine(OutputTest):
 class Comments_MultiLine_NoGobble(OutputTest):
     """
     Multiline comments used to not gobble whitespace.  They do now, but this can
-    be turned off with a compilerSetting    
+    be turned off with a compilerSetting
     """
 
     def _getCompilerSettings(self):
-        return {'gobbleWhitespaceAroundMultiLineComments':False}
+        return {'gobbleWhitespaceAroundMultiLineComments': False}
 
     def test1(self):
         """#* *# followed by WS
@@ -400,21 +411,21 @@ class Comments_MultiLine_NoGobble(OutputTest):
         """
         self.verify("#* blarg *#   ",
                     "   ")
-        
+
     def test2(self):
         """#* *# preceded and followed by WS
         Shouldn't gobble WS
         """
         self.verify("   #* blarg *#   ",
                     "      ")
-        
+
     def test3(self):
         """#* *# followed by WS, with NEWLINE
         Shouldn't gobble WS
         """
         self.verify("#* \nblarg\n *#   ",
                     "   ")
-        
+
     def test4(self):
         """#* *# preceded and followed by WS, with NEWLINE
         Shouldn't gobble WS
@@ -422,32 +433,33 @@ class Comments_MultiLine_NoGobble(OutputTest):
         self.verify("   #* \nblarg\n *#   ",
                     "      ")
 
+
 class Comments_MultiLine(OutputTest):
     """
     Note: Multiline comments don't gobble whitespace!
     """
-    
+
     def test1(self):
         """#* *# followed by WS
         Should gobble WS
         """
         self.verify("#* blarg *#   ",
                     "")
-        
+
     def test2(self):
         """#* *# preceded and followed by WS
         Should gobble WS
         """
         self.verify("   #* blarg *#   ",
                     "")
-        
+
     def test3(self):
         """#* *# followed by WS, with NEWLINE
         Shouldn't gobble WS
         """
         self.verify("#* \nblarg\n *#   ",
                     "")
-        
+
     def test4(self):
         """#* *# preceded and followed by WS, with NEWLINE
         Shouldn't gobble WS
@@ -456,11 +468,11 @@ class Comments_MultiLine(OutputTest):
                     "")
 
     def test5(self):
-        """#* *# containing nothing 
+        """#* *# containing nothing
         """
         self.verify("#**#",
                     "")
-        
+
     def test6(self):
         """#* *# containing only NEWLINES
         """
@@ -472,7 +484,7 @@ class Comments_MultiLine(OutputTest):
         """
         self.verify("#* $var $var(1234*$c) *#",
                     "")
-        
+
     def test8(self):
         """#* *# containing #for directive
         """
@@ -499,11 +511,12 @@ class Comments_MultiLine(OutputTest):
         self.verify("foo\nfoo bar #* \n\n#for $i in range(15) \n\n*#   \ntest",
                     "foo\nfoo bar \ntest")
 
+
 class Placeholders(OutputTest):
     def test1(self):
         """1 placeholder"""
         self.verify("$aStr", "blarg")
-        
+
     def test2(self):
         """2 placeholders"""
         self.verify("$aStr $anInt", "blarg 1")
@@ -515,7 +528,7 @@ class Placeholders(OutputTest):
     def test4(self):
         """1 placeholder enclosed in ()"""
         self.verify("$(aStr)", "blarg")
-        
+
     def test5(self):
         """1 placeholder enclosed in {}"""
         self.verify("${aStr}", "blarg")
@@ -547,6 +560,7 @@ class Placeholders(OutputTest):
 
 class Placeholders_Vals(OutputTest):
     convertEOLs = False
+
     def test1(self):
         """string"""
         self.verify("$aStr", "blarg")
@@ -581,7 +595,7 @@ class Placeholders_Vals(OutputTest):
     def test8(self):
         """True, False
         """
-        self.verify("$True $False", "%s %s"%(repr(True), repr(False)))
+        self.verify("$True $False", "%s %s" % (repr(True), repr(False)))
 
     def test9(self):
         """$_
@@ -593,14 +607,15 @@ class UnicodeStrings(OutputTest):
     def test1(self):
         """unicode data in placeholder
         """
-        #self.verify(u"$unicodeData", defaultTestNameSpace['unicodeData'], outputEncoding='utf8')
+        # self.verify(u"$unicodeData", defaultTestNameSpace['unicodeData'], outputEncoding='utf8')
         self.verify(u"$unicodeData", defaultTestNameSpace['unicodeData'])
 
     def test2(self):
         """unicode data in body
         """
         self.verify(u"aoeu12345\u1234", u"aoeu12345\u1234")
-        #self.verify(u"#encoding utf8#aoeu12345\u1234", u"aoeu12345\u1234")
+        # self.verify(u"#encoding utf8#aoeu12345\u1234", u"aoeu12345\u1234")
+
 
 class EncodingDirective(OutputTest):
     def test1(self):
@@ -634,12 +649,13 @@ class EncodingDirective(OutputTest):
 #encoding utf-8\n\xe1\x88\xb4""",
                     u'\u1234', outputEncoding='utf8')
 
+
 class UnicodeDirective(OutputTest):
     def test1(self):
         """basic #unicode """
         self.verify("#unicode utf-8\n1234",
                     u"1234")
-        
+
         self.verify("#unicode ascii\n1234",
                     u"1234")
 
@@ -659,13 +675,15 @@ class UnicodeDirective(OutputTest):
         self.verify("#encoding latin-1\n1234ü",
                     u"1234ü")
 
+
 class Placeholders_Esc(OutputTest):
     convertEOLs = False
+
     def test1(self):
         """1 escaped placeholder"""
         self.verify("\$var",
                     "$var")
-    
+
     def test2(self):
         """2 escaped placeholders"""
         self.verify("\$var \$_",
@@ -707,7 +725,7 @@ class Placeholders_Calls(OutputTest):
         r"""func placeholder - with (\n\n) and ${} enclosure"""
         self.verify("${aFunc(\n\n)}",
                     "Scooby", convertEOLs=False)
-        
+
     def test6(self):
         """func placeholder - with (int)"""
         self.verify("$aFunc(1234)",
@@ -717,15 +735,17 @@ class Placeholders_Calls(OutputTest):
         r"""func placeholder - with (\nint\n)"""
         self.verify("$aFunc(\n1234\n)",
                     "1234", convertEOLs=False)
+
     def test8(self):
         """func placeholder - with (string)"""
         self.verify("$aFunc('aoeu')",
                     "aoeu")
-        
+
     def test9(self):
         """func placeholder - with ('''string''')"""
         self.verify("$aFunc('''aoeu''')",
                     "aoeu")
+
     def test10(self):
         r"""func placeholder - with ('''\nstring\n''')"""
         self.verify("$aFunc('''\naoeu\n''')",
@@ -780,11 +800,12 @@ class Placeholders_Calls(OutputTest):
         """deeply nested argstring, no enclosure + with WS"""
         self.verify("$aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) )",
                     "1")
+
     def test21(self):
         """deeply nested argstring, () enclosure + with WS"""
         self.verify("$(aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) )",
                     "1")
-        
+
     def test22(self):
         """deeply nested argstring, {} enclosure + with WS"""
         self.verify("${aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) }",
@@ -795,11 +816,11 @@ class Placeholders_Calls(OutputTest):
         self.verify("$[aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) ]",
                     "1")
 
-
     def test26(self):
         """a function call with the Python None kw."""
         self.verify("$aFunc(None)",
                     "")
+
 
 class NameMapper(OutputTest):
     def test1(self):
@@ -821,7 +842,7 @@ class NameMapper(OutputTest):
         """list slicing"""
         self.verify("$aList[:2]",
                     "['item0', 'item1']")
-        
+
     def test5(self):
         """list slicing and subcription combined"""
         self.verify("$aList[:2][0]",
@@ -831,7 +852,7 @@ class NameMapper(OutputTest):
         """dictionary access - NameMapper style"""
         self.verify("$aDict.one",
                     "item1")
-        
+
     def test7(self):
         """dictionary access - Python style"""
         self.verify("$aDict['one']",
@@ -846,7 +867,7 @@ class NameMapper(OutputTest):
         """nested dictionary access - NameMapper style"""
         self.verify("$aDict.nestedDict.two",
                     "nestedItem2")
-        
+
     def test11(self):
         """nested dictionary access - Python style"""
         self.verify("$aDict['nestedDict']['two']",
@@ -903,7 +924,7 @@ class NameMapper(OutputTest):
 
         This tests a bug that Jeff Johnson found and submitted a patch to SF
         for."""
-        
+
         self.verify("$anObj.methWithPercentSignDefaultArg()",
                     "110%")
 
@@ -930,19 +951,8 @@ class NameMapper(OutputTest):
                     "$aDict['nestedDict']['two']",
                     "nestedItem2")
 
-#class NameMapperDict(OutputTest):
-#
-#    _searchList = [{"update": "Yabba dabba doo!"}]
-#
-#    def test1(self):
-#        if NameMapper_C_VERSION:
-#            return # This feature is not in the C version yet.
-#        self.verify("$update", "Yabba dabba doo!")
-#
-
 
 class CallDirective(OutputTest):
-    
     def test1(self):
         r"""simple #call """
         self.verify("#call int\n$anInt#end call",
@@ -967,7 +977,7 @@ $arg.upper()#slurp
 #call $meth
 $(1234+1) foo#slurp
 #end call''',
-        "1235 FOO")
+                    "1235 FOO")
 
     def test4(self):
         r"""#call with keyword #args"""
@@ -981,7 +991,7 @@ $(1234+1) foo#slurp
 #arg arg2
 UPPER#slurp
 #end call''',
-        "1235 FOO - upper")
+                    "1235 FOO - upper")
 
     def test5(self):
         r"""#call with single-line keyword #args """
@@ -993,12 +1003,12 @@ $arg1.upper() - $arg2.lower()#slurp
 #arg arg1:$(1234+1) foo#slurp
 #arg arg2:UPPER#slurp
 #end call''',
-        "1235 FOO - upper")
-        
+                    "1235 FOO - upper")
+
     def test6(self):
         """#call with python kwargs and cheetah output for the 1s positional
         arg"""
-        
+
         self.verify('''\
 #def meth(arg1, arg2)
 $arg1.upper() - $arg2.lower()#slurp
@@ -1006,7 +1016,7 @@ $arg1.upper() - $arg2.lower()#slurp
 #call self.meth arg2="UPPER"
 $(1234+1) foo#slurp
 #end call''',
-        "1235 FOO - upper")
+                    "1235 FOO - upper")
 
     def test7(self):
         """#call with python kwargs and #args"""
@@ -1017,8 +1027,8 @@ $arg1.upper() - $arg2.lower() - $arg3#slurp
 #call self.meth arg2="UPPER", arg3=999
 #arg arg1:$(1234+1) foo#slurp
 #end call''',
-        "1235 FOO - upper - 999")
-        
+                    "1235 FOO - upper - 999")
+
     def test8(self):
         """#call with python kwargs and #args, and using a function to get the
         function that will be called"""
@@ -1029,7 +1039,7 @@ $arg1.upper() - $arg2.lower() - $arg3#slurp
 #call getattr(self, "meth") arg2="UPPER", arg3=999
 #arg arg1:$(1234+1) foo#slurp
 #end call''',
-        "1235 FOO - upper - 999")
+                    "1235 FOO - upper - 999")
 
     def test9(self):
         """nested #call directives"""
@@ -1055,15 +1065,15 @@ $x$y#slurp
 #end call 4
 #end call 2
 #end call 1''',
-        "12345")
+                    "12345")
 
 
-class I18nDirective(OutputTest):   
+class I18nDirective(OutputTest):
     def test1(self):
         r"""simple #call """
         self.verify("#i18n \n$anInt#end i18n",
                     "1")
-        
+
         # single line version
         self.verify("#i18n: $anInt",
                     "1")
@@ -1080,8 +1090,7 @@ $(1234+1) foo#slurp
 #end capture
 $cap1#slurp
 ''',
-        "1235 foo")
-
+                    "1235 foo")
 
     def test2(self):
         r"""slightly more complex #capture"""
@@ -1094,7 +1103,7 @@ $(1234+1) $anInt $meth("foo")#slurp
 #end capture
 $cap1#slurp
 ''',
-        "1235 1 FOO")
+                    "1235 1 FOO")
 
 
 class SlurpDirective(OutputTest):
@@ -1108,13 +1117,13 @@ class SlurpDirective(OutputTest):
         Should gobble"""
         self.verify("       #slurp\n",
                     "")
-        
+
     def test3(self):
         r"""#slurp with 1 \n, leading content
         Shouldn't gobble"""
         self.verify(" 1234 #slurp\n",
                     " 1234 ")
-        
+
     def test4(self):
         r"""#slurp with WS then \n, leading content
         Shouldn't gobble"""
@@ -1130,36 +1139,39 @@ class SlurpDirective(OutputTest):
 
 class EOLSlurpToken(OutputTest):
     _EOLSlurpToken = DEFAULT_COMPILER_SETTINGS['EOLSlurpToken']
+
     def test1(self):
         r"""#slurp with 1 \n """
-        self.verify("%s\n"%self._EOLSlurpToken,
+        self.verify("%s\n" % self._EOLSlurpToken,
                     "")
 
     def test2(self):
         r"""#slurp with 1 \n, leading whitespace
         Should gobble"""
-        self.verify("       %s\n"%self._EOLSlurpToken,
+        self.verify("       %s\n" % self._EOLSlurpToken,
                     "")
+
     def test3(self):
         r"""#slurp with 1 \n, leading content
         Shouldn't gobble"""
-        self.verify(" 1234 %s\n"%self._EOLSlurpToken,
+        self.verify(" 1234 %s\n" % self._EOLSlurpToken,
                     " 1234 ")
-        
+
     def test4(self):
         r"""#slurp with WS then \n, leading content
         Shouldn't gobble"""
-        self.verify(" 1234 %s    \n"%self._EOLSlurpToken,
+        self.verify(" 1234 %s    \n" % self._EOLSlurpToken,
                     " 1234 ")
 
     def test5(self):
         r"""#slurp with garbage chars then \n, leading content
         Should NOT eat the garbage"""
-        self.verify(" 1234 %s garbage   \n"%self._EOLSlurpToken,
-                    " 1234 %s garbage   \n"%self._EOLSlurpToken)
+        self.verify(" 1234 %s garbage   \n" % self._EOLSlurpToken,
+                    " 1234 %s garbage   \n" % self._EOLSlurpToken)
 
 if not DEFAULT_COMPILER_SETTINGS['EOLSlurpToken']:
     del EOLSlurpToken
+
 
 class RawDirective(OutputTest):
     def test1(self):
@@ -1171,7 +1183,7 @@ class RawDirective(OutputTest):
         """#raw till #end raw"""
         self.verify("#raw\n$aFunc().\n#end raw\n$anInt",
                     "$aFunc().\n1")
-        
+
     def test3(self):
         """#raw till #end raw gobble WS"""
         self.verify("  #raw  \n$aFunc().\n   #end raw  \n$anInt",
@@ -1193,8 +1205,18 @@ class RawDirective(OutputTest):
 
     def test6(self):
         """ Escape characters in a #raw block """
-        self.verify( """#raw: This escape should be preserved: \\$unexpanded So should this one: \\#blah The string "\\012" should not disappear.""",
-                r"""This escape should be preserved: \$unexpanded So should this one: \#blah The string "\012" should not disappear.""")
+        self.verify(
+            (
+                '#raw: This escape should be preserved: \\$unexpanded '
+                'So should this one: \\#blah '
+                'The string "\\012" should not disappear.'
+            ),
+            (
+                r'This escape should be preserved: \$unexpanded '
+                r'So should this one: \#blah '
+                r'The string "\012" should not disappear.'
+            ),
+        )
 
 
 class BreakpointDirective(OutputTest):
@@ -1238,7 +1260,7 @@ inside the if block
 #stop
 #end if
 blarg""",
-        "1\ninside the if block\n")
+                    "1\ninside the if block\n")
 
     def test5(self):
         """#stop in neg test block"""
@@ -1248,11 +1270,11 @@ inside the if block
 #stop
 #end if
 blarg""",
-        "1\nblarg")
+                    "1\nblarg")
 
 
 class ReturnDirective(OutputTest):
-    
+
     def test1(self):
         """#return'ing an int """
         self.verify("""1
@@ -1261,7 +1283,7 @@ $str($test()-6)
 #def test
 #if 1
 #return (3   *2)  \
-  + 2 
+  + 2
 #else
 aoeuoaeu
 #end if
@@ -1303,33 +1325,28 @@ aoeuoaeu
 
 class YieldDirective(OutputTest):
     convertEOLs = False
+
     def test1(self):
         """simple #yield """
-        
+
         src1 = """#for i in range(10)\n#yield i\n#end for"""
         src2 = """#for i in range(10)\n$i#slurp\n#yield\n#end for"""
         src3 = ("#def iterator\n"
-               "#for i in range(10)\n#yield i\n#end for\n"
-               "#end def\n"
-               "#for i in $iterator()\n$i#end for"
-               )
-
+                "#for i in range(10)\n#yield i\n#end for\n"
+                "#end def\n"
+                "#for i in $iterator()\n$i#end for"
+                )
 
         for src in (src1, src2, src3):
             klass = Template.compile(src, keepRefToGeneratedCode=True)
-            #print klass._CHEETAH_generatedModuleCode
             iter = klass().respond()
             output = [str(i) for i in iter]
-            assert ''.join(output)=='0123456789'
-            #print ''.join(output)
+            assert ''.join(output) == '0123456789'
 
         # @@TR: need to expand this to cover error conditions etc.
 
-if versionTuple < (2, 3):
-    del YieldDirective
-        
-class ForDirective(OutputTest):
 
+class ForDirective(OutputTest):
     def test1(self):
         """#for loop with one local var"""
         self.verify("#for $i in range(5)\n$i\n#end for",
@@ -1344,12 +1361,11 @@ class ForDirective(OutputTest):
         self.verify("#for $i in range(5) ##comment\n$i\n#end for",
                     "0\n1\n2\n3\n4\n")
 
-
     def test2(self):
         """#for loop with WS in loop"""
         self.verify("#for $i in range(5)\n$i \n#end for",
                     "0 \n1 \n2 \n3 \n4 \n")
-        
+
     def test3(self):
         """#for loop gobble WS"""
         self.verify("   #for $i in range(5)   \n$i \n   #end for   ",
@@ -1359,7 +1375,7 @@ class ForDirective(OutputTest):
         """#for loop over list"""
         self.verify("#for $i, $j in [(0,1),(2,3)]\n$i,$j\n#end for",
                     "0,1\n2,3\n")
-        
+
     def test5(self):
         """#for loop over list, with #slurp"""
         self.verify("#for $i, $j in [(0,1),(2,3)]\n$i,$j#slurp\n#end for",
@@ -1384,7 +1400,6 @@ class ForDirective(OutputTest):
         """test methods in for loops"""
         self.verify("#for $func in $listOfLambdas\n$func($anInt)\n#end for",
                     "1\n1\n1\n")
-
 
     def test10(self):
         """#for loop over list, using methods of the items"""
@@ -1427,11 +1442,8 @@ class ForDirective(OutputTest):
         self.verify("#for $i in range(5): \n$i\n#end for",
                     "0\n1\n2\n3\n4\n")
 
-if versionTuple < (2, 3):
-    del ForDirective.test12
 
 class RepeatDirective(OutputTest):
-
     def test1(self):
         """basic #repeat"""
         self.verify("#repeat 3\n1\n#end repeat",
@@ -1449,17 +1461,17 @@ class RepeatDirective(OutputTest):
         """#repeat with numeric expression"""
         self.verify("#repeat 3*3/3\n1\n#end repeat",
                     "1\n1\n1\n")
-    
+
     def test3(self):
         """#repeat with placeholder"""
         self.verify("#repeat $numTwo\n1\n#end repeat",
                     "1\n1\n")
-    
+
     def test4(self):
         """#repeat with placeholder * num"""
         self.verify("#repeat $numTwo*1\n1\n#end repeat",
                     "1\n1\n")
-        
+
     def test5(self):
         """#repeat with placeholder and WS"""
         self.verify("   #repeat $numTwo   \n1\n   #end repeat   ",
@@ -1472,7 +1484,7 @@ class RepeatDirective(OutputTest):
         self.verify("#repeat $numTwo: 1\n"*2,
                     "1\n1\n"*2)
 
-        #false single-line
+        # false single-line
         self.verify("#repeat 3:  \n1\n#end repeat",
                     "1\n1\n1\n")
 
@@ -1566,7 +1578,6 @@ class DefDirective(OutputTest):
             "  #def testMeth($*args, $**KWs)   \n1234-$args-$KWs.a\n  #end def\n$testMeth(1,2, a=1)",
             "1234-(1, 2)-1\n")
 
-
     def test11(self):
         """single line #def with extra WS"""
         self.verify(
@@ -1615,11 +1626,12 @@ class DefDirective(OutputTest):
     def test19(self):
         """#def that extends over two lines with arguments"""
         self.verify("#def $testMeth($arg=1234,\n"
-                    +"  $arg2=5678)\n"
-                    +"$arg $arg2\n"
-                    +"#end def\n"
-                    +"$testMeth()",
+                    + "  $arg2=5678)\n"
+                    + "$arg $arg2\n"
+                    + "#end def\n"
+                    + "$testMeth()",
                     "1234 5678\n")
+
 
 class DecoratorDirective(OutputTest):
     def test1(self):
@@ -1630,23 +1642,20 @@ class DecoratorDirective(OutputTest):
         self.verify("#@@TR: comment", "#@@TR: comment")
 
         self.verify("#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
-                    +"#@testdecorator"
-                    +"\n#def $testMeth():1234\n$testMeth()",
-                    
+                    + "#@testdecorator"
+                    + "\n#def $testMeth():1234\n$testMeth()",
                     "1234")
 
         self.verify("#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
-                    +"#@testdecorator"
-                    +"\n#block $testMeth():1234",
-                    
+                    + "#@testdecorator"
+                    + "\n#block $testMeth():1234",
                     "1234")
 
         try:
             self.verify(
                 "#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
-                +"#@testdecorator\n sdf"
-                +"\n#def $testMeth():1234\n$testMeth()",                        
-
+                + "#@testdecorator\n sdf"
+                + "\n#def $testMeth():1234\n$testMeth()",
                 "1234")
         except ParseError:
             pass
@@ -1656,19 +1665,16 @@ class DecoratorDirective(OutputTest):
     def test2(self):
         """#def with multiple decorators"""
         self.verify("#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
-                    +"#@testdecorator\n"
-                    +"#@testdecorator\n"
-                    +"#def testMeth\n"
-                    +"1234\n"
+                    + "#@testdecorator\n"
+                    + "#@testdecorator\n"
+                    + "#def testMeth\n"
+                    + "1234\n"
                     "#end def\n"
                     "$testMeth()",
                     "1234\n")
 
-if versionTuple < (2, 4):
-    del DecoratorDirective
 
 class BlockDirective(OutputTest):
-
     def test1(self):
         """#block without argstring"""
         self.verify("#block testBlock\n1234\n#end block",
@@ -1687,7 +1693,7 @@ class BlockDirective(OutputTest):
 
         Because blocks can be reused in multiple parts of the template arguments
         (!!with defaults!!) can be given."""
-        
+
         self.verify("  #block testBlock($a=999)   \n1234-$a\n  #end block  ",
                     "1234-999\n")
 
@@ -1696,13 +1702,12 @@ class BlockDirective(OutputTest):
         self.verify("  #block testBlock($a=999, $b=444)   \n1234-$a$b\n  #end block  ",
                     "1234-999444\n")
 
-
     def test5(self):
         """#block with 2 nested blocks
 
         Blocks can be nested to any depth and the name of the block is optional
         for the #end block part: #end block OR #end block [name] """
-        
+
         self.verify("""#block testBlock
 this is a test block
 #block outerNest
@@ -1715,7 +1720,6 @@ inner
 #end block testBlock
 """,
                     "this is a test block\nouter\ninner\n---\n")
-
 
     def test6(self):
         """single line #block """
@@ -1776,8 +1780,8 @@ inner
             """#block $testMeth: \nfoo\n#end block\ntest $testMeth()-""",
             "foo\ntest foo\n-")
 
-class IncludeDirective(OutputTest):
 
+class IncludeDirective(OutputTest):
     def setUp(self):
         fp = open('parseTest.txt', 'w')
         fp.write("$numOne $numTwo")
@@ -1822,7 +1826,7 @@ class IncludeDirective(OutputTest):
         """#include of $blockToBeParsed"""
         self.verify("#include source=$blockToBeParsed",
                     "1 2")
-        
+
     def test8(self):
         """#include of $blockToBeParsed, with WS"""
         self.verify("   #include source=$blockToBeParsed   ",
@@ -1837,7 +1841,7 @@ class IncludeDirective(OutputTest):
         """#include of "parseTest.txt", with WS"""
         self.verify("   #include source=$blockToBeParsed   ",
                     "1 2")
-        
+
     def test11(self):
         """#include of 'parseTest.txt', with WS and surrounding text"""
         self.verify("aoeu\n  #include source=$blockToBeParsed  \naoeu",
@@ -1884,7 +1888,6 @@ class SetDirective(OutputTest):
         self.verify("#set testVar = 'blarg'\n$testVar",
                     "blarg")
 
-
         self.verify("#set testVar = 'blarg'##comment\n$testVar",
                     "blarg")
 
@@ -1892,11 +1895,12 @@ class SetDirective(OutputTest):
         """simple #set with no WS between operands"""
         self.verify("#set       $testVar='blarg'",
                     "")
+
     def test3(self):
         """#set + use of var"""
         self.verify("#set $testVar = 'blarg'\n$testVar",
                     "blarg")
-        
+
     def test4(self):
         """#set + use in an #include"""
         self.verify("#set global $aSetVar = 1234\n#include source=$includeBlock2",
@@ -1904,14 +1908,14 @@ class SetDirective(OutputTest):
 
     def test5(self):
         """#set with a dictionary"""
-        self.verify(     """#set $testDict = {'one':'one1','two':'two2','three':'three3'}
+        self.verify("""#set $testDict = {'one':'one1','two':'two2','three':'three3'}
 $testDict.one
 $testDict.two""",
-                         "one1\ntwo2")
+                    "one1\ntwo2")
 
     def test6(self):
         """#set with string, then used in #if block"""
-    
+
         self.verify("""#set $test='a string'\n#if $test#blarg#end if""",
                     "blarg")
 
@@ -1991,10 +1995,10 @@ class IfDirective(OutputTest):
                     "blarg\n")
 
         self.verify("#if 1: ##comment \n$aStr\n#end if\n",
-                        "blarg\n")
+                    "blarg\n")
 
         self.verify("#if 1 ##comment \n$aStr\n#end if\n",
-                        "blarg\n")
+                    "blarg\n")
 
         self.verify("#if 1##for i in range(10)#$i#end for##end if",
                     '0123456789')
@@ -2009,6 +2013,7 @@ class IfDirective(OutputTest):
         """simple #if block, with WS"""
         self.verify("   #if 1\n$aStr\n  #end if  \n",
                     "blarg\n")
+
     def test3(self):
         """simple #if block, with WS and explicit closures"""
         self.verify("   #if 1#\n$aStr\n  #end if #--\n",
@@ -2023,15 +2028,17 @@ class IfDirective(OutputTest):
         """#if block using $zero"""
         self.verify("#if $zero\n$aStr\n#end if\n",
                     "")
+
     def test6(self):
         """#if block using $emptyString"""
         self.verify("#if $emptyString\n$aStr\n#end if\n",
                     "")
+
     def test7(self):
         """#if ... #else ... block using a $emptyString"""
         self.verify("#if $emptyString\n$anInt\n#else\n$anInt - $anInt\n#end if",
                     "1 - 1\n")
-        
+
     def test8(self):
         """#if ... #elif ... #else ... block using a $emptyString"""
         self.verify("#if $emptyString\n$c\n#elif $numOne\n$numOne\n#else\n$c - $c\n#end if",
@@ -2070,13 +2077,12 @@ class IfDirective(OutputTest):
                 pass
             else:
                 self.fail('This should barf')
-            
+
     def test12(self):
         """#if ... #else if ... #else ... block using a $emptyString
         Same as test 8 but using else if instead of elif"""
         self.verify("#if $emptyString\n$c\n#else if $numOne\n$numOne\n#else\n$c - $c\n#end if",
                     "1\n")
-
 
     def test13(self):
         """#if# ... #else # ... block using a $emptyString with """
@@ -2103,7 +2109,6 @@ class IfDirective(OutputTest):
         self.verify("#if 1: foo\n#if 0: bar\n#if 1: foo",
                     "foo\nfoo")
 
-
         self.verify("#if 1: foo\n#if 0: bar\n#if 1: foo",
                     "foo\nfoo")
 
@@ -2118,8 +2123,8 @@ class IfDirective(OutputTest):
         self.verify("#if 0: foo\n#elif 0: bar\n#else: blarg\n",
                     "blarg\n")
 
+
 class UnlessDirective(OutputTest):
-    
     def test1(self):
         """#unless 1"""
         self.verify("#unless 1\n 1234 \n#end unless",
@@ -2133,7 +2138,6 @@ class UnlessDirective(OutputTest):
 
         self.verify("#unless 1 ##comment\n 1234 \n#end unless",
                     "")
-
 
     def test2(self):
         """#unless 0"""
@@ -2160,11 +2164,12 @@ class UnlessDirective(OutputTest):
         self.verify("#unless 1: 1234", "")
         self.verify("#unless 0: 1234", "1234")
         self.verify("#unless 0: 1234\n"*2, "1234\n"*2)
-        
+
+
 class PSP(OutputTest):
     def searchList(self):
         return None
-    
+
     def test1(self):
         """simple <%= [int] %>"""
         self.verify("<%= 1234 %>",  "1234")
@@ -2176,6 +2181,7 @@ class PSP(OutputTest):
     def test3(self):
         """simple <%= None %>"""
         self.verify("<%= None %>", "")
+
     def test4(self):
         """simple <%= [string] %> + $anInt"""
         self.verify("<%= 'blarg' %>$anInt", "blarg1")
@@ -2204,7 +2210,7 @@ class PSP(OutputTest):
 
     def test10(self):
         """ Using getVar and write within a PSP """
-        self._searchList = [{'me' : 1}]
+        self._searchList = [{'me': 1}]
         template = '''This is my template
 <%
 me = self.getVar('me')
@@ -2222,19 +2228,20 @@ class WhileDirective(OutputTest):
         self.verify("#set $i = 0\n#while $i < 5\n$i#slurp\n#set $i += 1\n#end while",
                     "01234")
 
+
 class ContinueDirective(OutputTest):
     def test1(self):
         """#continue with a #while"""
         self.verify("""#set $i = 0
 #while $i < 5
 #if $i == 3
-  #set $i += 1        
+  #set $i += 1
   #continue
 #end if
 $i#slurp
 #set $i += 1
 #end while""",
-        "0124")
+                    "0124")
 
     def test2(self):
         """#continue with a #for"""
@@ -2244,7 +2251,8 @@ $i#slurp
 #end if
 $i#slurp
 #end for""",
-        "0124")
+                    "0124")
+
 
 class BreakDirective(OutputTest):
     def test1(self):
@@ -2257,7 +2265,7 @@ class BreakDirective(OutputTest):
 $i#slurp
 #set $i += 1
 #end while""",
-        "012")
+                    "012")
 
     def test2(self):
         """#break with a #for"""
@@ -2267,13 +2275,13 @@ $i#slurp
 #end if
 $i#slurp
 #end for""",
-        "012")
+                    "012")
 
 
 class TryDirective(OutputTest):
 
     def test1(self):
-        """simple #try 
+        """simple #try
         """
         self.verify("#try\n1234\n#except\nblarg\n#end try",
                     "1234\n")
@@ -2283,7 +2291,7 @@ class TryDirective(OutputTest):
         """
         self.verify("#try\n#raise ValueError\n#except\nblarg\n#end try",
                     "blarg\n")
-        
+
     def test3(self):
         """#try / #except with #raise + WS
 
@@ -2292,10 +2300,9 @@ class TryDirective(OutputTest):
         self.verify("  #try  \n  #raise ValueError \n  #except \nblarg\n  #end try",
                     "blarg\n")
 
-
     def test4(self):
         """#try / #except with #raise + WS and leading text
-        
+
         Shouldn't gobble
         """
         self.verify("--#try  \n  #raise ValueError \n  #except \nblarg\n  #end try#--",
@@ -2304,8 +2311,7 @@ class TryDirective(OutputTest):
     def test5(self):
         """nested #try / #except with #raise
         """
-        self.verify(
-"""#try
+        self.verify("""#try
   #raise ValueError
 #except
   #try
@@ -2315,6 +2321,7 @@ blarg
   #end try
 #end try""",
                     "blarg\n")
+
 
 class PassDirective(OutputTest):
     def test1(self):
@@ -2332,7 +2339,7 @@ class PassDirective(OutputTest):
 
 class AssertDirective(OutputTest):
     def test1(self):
-        """simple #assert 
+        """simple #assert
         """
         self.verify("#set $x = 1234\n#assert $x == 1234",
                     "")
@@ -2344,7 +2351,7 @@ class AssertDirective(OutputTest):
             self.verify("#set $x = 1234\n#assert $x == 999",
                         ""),
         self.failUnlessRaises(AssertionError, test)
-        
+
     def test3(self):
         """simple #assert with WS
         """
@@ -2362,7 +2369,7 @@ class RaiseDirective(OutputTest):
             self.verify("#raise ValueError",
                         ""),
         self.failUnlessRaises(ValueError, test)
-                              
+
     def test2(self):
         """#raise ValueError in #if block
 
@@ -2372,7 +2379,6 @@ class RaiseDirective(OutputTest):
             self.verify("#if 1\n#raise ValueError\n#end if\n",
                         "")
         self.failUnlessRaises(ValueError, test)
-
 
     def test3(self):
         """#raise ValueError in #if block
@@ -2400,12 +2406,12 @@ class ImportDirective(OutputTest):
 
     def test3(self):
         """#import math + WS + leading text
-        
+
         Shouldn't gobble
         """
         self.verify("  --  #import math    ",
                     "  --  ")
-        
+
     def test4(self):
         """#from math import syn
         """
@@ -2441,7 +2447,7 @@ class ImportDirective(OutputTest):
     def test9(self):
         """#import os.path -- use it
         """
-        
+
         self.verify("#import os.path\n$os.path.exists('.')",
                     repr(True))
 
@@ -2459,9 +2465,10 @@ $os.path.exists('.')""",
     def test11(self):
         """#from math import *
         """
-        
+
         self.verify("#from math import *\n$pow(1,2) $log10(10)",
                     "1.0 1.0")
+
 
 class CompilerDirective(OutputTest):
     def test1(self):
@@ -2486,7 +2493,7 @@ $anInt//comment
 
 
 class CompilerSettingsDirective(OutputTest):
-    
+
     def test1(self):
         """overriding the cheetahVarStartToken
         """
@@ -2545,7 +2552,6 @@ $spacer()
 """,
                     '<img src="spacer.gif" width="1" height="1" alt="" />\n')
 
-
         self.verify("""#from Cheetah.Tests.SyntaxAndOutput import SyntaxAndOutput
 #extends SyntaxAndOutput
 #implements respond(foo=1234)
@@ -2598,7 +2604,7 @@ class SuperDirective(OutputTest):
         expected = ('this is base foo          '
                     'This is child foo\nthis is base foo          '
                     'super-1234\n super-99')
-        assert str(tmpl2()).strip()==expected
+        assert str(tmpl2()).strip() == expected
 
 
 class ImportantExampleCases(OutputTest):
@@ -2612,12 +2618,13 @@ $sep$letter#slurp
 """,
                     "a, b, c")
 
+
 class FilterDirective(OutputTest):
-    convertEOLs=False
+    convertEOLs = False
 
     def _getCompilerSettings(self):
-        return {'useFilterArgsInPlaceholders':True}
-    
+        return {'useFilterArgsInPlaceholders': True}
+
     def test1(self):
         """#filter Filter
         """
@@ -2656,7 +2663,7 @@ class FilterDirective(OutputTest):
         """
         self.verify("#filter WebSafe  \n${webSafeTest, $also=' '}#end filter",
                     "abc&nbsp;&lt;=&gt;&nbsp;&amp;")
-        
+
     def test7(self):
         """#filter WebSafe -- also space, without $ on the args
         """
@@ -2697,7 +2704,7 @@ class EchoDirective(OutputTest):
 
 
 class VarExists(OutputTest):               # Template.varExists()
-    
+
     def test1(self):
         """$varExists('$anInt')
         """
@@ -2728,6 +2735,7 @@ class VarExists(OutputTest):               # Template.varExists()
         self.verify("#if $varExists('$anInt')\n1234\n#else\n999#end if",
                     "1234\n")
 
+
 class GetVar(OutputTest):               # Template.getVar()
     def test1(self):
         """$getVar('$anInt')
@@ -2746,13 +2754,13 @@ class GetVar(OutputTest):               # Template.getVar()
         """
         self.verify("$self.getVar('anInt')",
                     "1")
-        
+
     def test4(self):
         """$getVar('bogus', 1234)
         """
         self.verify("$getVar('bogus',  1234)",
                     "1234")
-        
+
     def test5(self):
         """$getVar('$bogus', 1234)
         """
@@ -2773,7 +2781,7 @@ class MiscComplexSyntax(OutputTest):
 
 class WhitespaceAfterDirectiveTokens(OutputTest):
     def _getCompilerSettings(self):
-        return {'allowWhitespaceAfterDirectiveStartToken':True}
+        return {'allowWhitespaceAfterDirectiveStartToken': True}
 
     def test1(self):
         self.verify("# for i in range(10): $i",
@@ -2788,9 +2796,8 @@ class DefmacroDirective(OutputTest):
     def _getCompilerSettings(self):
         def aMacro(src):
             return '$aStr'
-        
-        return {'macroDirectives':{'aMacro':aMacro
-                                   }}
+
+        return {'macroDirectives': {'aMacro': aMacro}}
 
     def test1(self):
         self.verify("""\
@@ -2814,7 +2821,7 @@ $i""",
 #end defmacro
 #test: $i-foo
 #for i in range(3): $i""",
-  "0-foo\n1-foo\n2-foo\n3-foo\n4-foo\n5-foo\n6-foo\n7-foo\n8-foo\n9-foo\n012")
+                    "0-foo\n1-foo\n2-foo\n3-foo\n4-foo\n5-foo\n6-foo\n7-foo\n8-foo\n9-foo\n012")
 
         self.verify("""\
 #defmacro test: #for i in range(10): @src
@@ -2856,25 +2863,22 @@ $i""",
 
 
 ##################################################
-## CREATE CONVERTED EOL VERSIONS OF THE TEST CASES
-    
+# CREATE CONVERTED EOL VERSIONS OF THE TEST CASES
+
 
 def install_eols():
     klasses = [v for v in globals().values() if isinstance(v, type) and issubclass(v, unittest.TestCase)]
     for klass in klasses:
-        name = klass.__name__        
+        name = klass.__name__
         if hasattr(klass, 'convertEOLs') and klass.convertEOLs:
-            win32Src = r"class %(name)s_Win32EOL(%(name)s): _EOLreplacement = '\r\n'"%locals()
-            macSrc = r"class %(name)s_MacEOL(%(name)s): _EOLreplacement = '\r'"%locals()
-            exec(win32Src, globals()) 
+            win32Src = r"class %(name)s_Win32EOL(%(name)s): _EOLreplacement = '\r\n'" % locals()
+            macSrc = r"class %(name)s_MacEOL(%(name)s): _EOLreplacement = '\r'" % locals()
+            exec(win32Src, globals())
             exec(macSrc, globals())
 
         del name
         del klass
 
-##################################################
-## if run from the command line ##
-        
 if __name__ == '__main__':
     install_eols()
     unittest.main()

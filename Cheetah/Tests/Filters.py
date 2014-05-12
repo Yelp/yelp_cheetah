@@ -9,12 +9,13 @@ import Cheetah.Filters
 majorVer, minorVer = sys.version_info[0], sys.version_info[1]
 versionTuple = (majorVer, minorVer)
 
+
 class BasicMarkdownFilterTest(unittest.TestCase):
     '''
         Test that our markdown filter works
     '''
     def test_BasicHeader(self):
-        template = '''  
+        template = '''
 #from Cheetah.Filters import Markdown
 #transform Markdown
 $foo
@@ -25,7 +26,7 @@ Header
         expected = '''<p>bar</p>
 <h1>Header</h1>'''
         try:
-            template = Cheetah.Template.Template(template, searchList=[{'foo' : 'bar'}])
+            template = Cheetah.Template.Template(template, searchList=[{'foo': 'bar'}])
             template = str(template)
             assert template == expected
         except ImportError, ex:
@@ -43,25 +44,25 @@ class BasicCodeHighlighterFilterTest(unittest.TestCase):
         Test that our code highlighter filter works
     '''
     def test_Python(self):
-        template = '''  
+        template = '''
 #from Cheetah.Filters import CodeHighlighter
 #transform CodeHighlighter
 
 def foo(self):
     return '$foo'
         '''
-        template = Cheetah.Template.Template(template, searchList=[{'foo' : 'bar'}])
+        template = Cheetah.Template.Template(template, searchList=[{'foo': 'bar'}])
         template = str(template)
         assert template, (template, 'We should have some content here...')
 
     def test_Html(self):
-        template = '''  
+        template = '''
 #from Cheetah.Filters import CodeHighlighter
 #transform CodeHighlighter
 
 <html><head></head><body>$foo</body></html>
         '''
-        template = Cheetah.Template.Template(template, searchList=[{'foo' : 'bar'}])
+        template = Cheetah.Template.Template(template, searchList=[{'foo': 'bar'}])
         template = str(template)
         assert template, (template, 'We should have some content here...')
 
@@ -75,6 +76,7 @@ class UniqueFilter(Cheetah.Filters.Filter):
     same string.
     """
     count = 0
+
     def filter(self, s, rawExpr=None):
         self.count += 1
         return '<%i>%s</%i>' % (self.count, s, self.count)
@@ -88,10 +90,10 @@ class SingleTransactionModeTest(unittest.TestCase):
     def render(self, template_source):
         scope = dict(
             # Dummy variable
-            foo = 'bar',
+            foo='bar',
 
             # No-op function, for use with #call
-            identity = lambda body: body,
+            identity=lambda body: body,
         )
 
         template = Cheetah.Template.Template(
@@ -110,7 +112,6 @@ class SingleTransactionModeTest(unittest.TestCase):
             $print_foo()
         """)
 
-
         expected = '<1>bar</1>'
         assert output == expected, "%r should be %r" % (output, expected)
 
@@ -125,6 +126,7 @@ class SingleTransactionModeTest(unittest.TestCase):
         """)
         expected = '<2> [<1>bar</1>] </2>'
         assert output == expected, "%r should be %r" % (output, expected)
+
 
 class NotSingleTransactionModeTest(unittest.TestCase):
     """Ensure that filters continue to apply to the results of function calls.

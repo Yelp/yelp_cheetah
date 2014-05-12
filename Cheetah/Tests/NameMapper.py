@@ -15,7 +15,7 @@ class DummyClass(object):
 
     def __init__(self):
         self.instanceVar1 = 123
-        
+
     def __str__(self):
         return 'object'
 
@@ -30,18 +30,19 @@ class DummyClass(object):
 
     def meth3(self):
         """Tests a bug that Jeff Johnson reported on Oct 1, 2001"""
-        
+
         x = 'A string'
         try:
             for i in [1, 2, 3, 4]:
-                if x == 2:	
+                if x == 2:
                     pass
-                
+
                 if x == 'xx':
                     pass
             return x
         except:
             raise
+
 
 class DummyClassGetAttrRaises(object):
     def __getattr__(self, name):
@@ -51,10 +52,11 @@ class DummyClassGetAttrRaises(object):
 def dummyFunc(arg="Scooby"):
     return arg
 
+
 def funcThatRaises():
     raise ValueError
 
-                 
+
 testNamespace = {
     'aStr': 'blarg',
     'anInt': 1,
@@ -62,22 +64,22 @@ testNamespace = {
     'aDict': {'one': 'item1',
               'two': 'item2',
               'nestedDict': {'one': 'nestedItem1',
-                            'two': 'nestedItem2',
-                            'funcThatRaises': funcThatRaises,
-                            'aClass': DummyClass,
-                            },
+                             'two': 'nestedItem2',
+                             'funcThatRaises': funcThatRaises,
+                             'aClass': DummyClass,
+                             },
               'nestedFunc': dummyFunc,
               },
-    'aClass': DummyClass,    
+    'aClass': DummyClass,
     'aFunc': dummyFunc,
     'anObj': DummyClass(),
     'anObjThatRaises': DummyClassGetAttrRaises(),
     'aMeth': DummyClass().meth1,
-    'none': None,  
+    'none': None,
     'emptyString': '',
     'funcThatRaises': funcThatRaises,
     }
-    
+
 autoCallResults = {'aFunc': 'Scooby',
                    'aMeth': 'doo',
                    }
@@ -96,16 +98,17 @@ results.update({'anObj.meth1': 'doo',
 
 for k in testNamespace.keys():
     # put them in the globals for the valueFromFrame tests
-    exec('%s = testNamespace[k]'%k)
+    exec('%s = testNamespace[k]' % k)
 
 ##################################################
-## TEST BASE CLASSES
+# TEST BASE CLASSES
+
 
 class NameMapperTest(unittest.TestCase):
     failureException = NotFound
     _testNamespace = testNamespace
     _results = results
-    
+
     def namespace(self):
         return self._testNamespace
 
@@ -115,7 +118,6 @@ class NameMapperTest(unittest.TestCase):
     def VFS(self, searchList, name, autocall=True):
         return valueFromSearchList(searchList, name, autocall)
 
-    
     # alias to be overriden later
     get = VFN
 
@@ -126,10 +128,10 @@ class NameMapperTest(unittest.TestCase):
         else:
             expected = self._results[name]
         assert got == expected
-        
+
 
 ##################################################
-## TEST CASE CLASSES
+# TEST CASE CLASSES
 
 class VFN(NameMapperTest):
 
@@ -141,7 +143,7 @@ class VFN(NameMapperTest):
         """string in dict lookup in a loop"""
         for i in range(10):
             self.check('aStr')
-            
+
     def test3(self):
         """int in dict lookup"""
         self.check('anInt')
@@ -159,7 +161,7 @@ class VFN(NameMapperTest):
         """float in dict lookup in a loop"""
         for i in range(10):
             self.check('aFloat')
-          
+
     def test7(self):
         """class in dict lookup"""
         self.check('aClass')
@@ -168,7 +170,7 @@ class VFN(NameMapperTest):
         """class in dict lookup in a loop"""
         for i in range(10):
             self.check('aClass')
-            
+
     def test9(self):
         """aFunc in dict lookup"""
         self.check('aFunc')
@@ -223,7 +225,6 @@ class VFN(NameMapperTest):
         for i in range(10):
             self.check('aClass.classVar1')
 
-
     def test23(self):
         """anObj.instanceVar1 in dict lookup"""
         self.check('anObj.instanceVar1')
@@ -233,7 +234,7 @@ class VFN(NameMapperTest):
         for i in range(10):
             self.check('anObj.instanceVar1')
 
-    ## tests 22, 25, and 26 removed when the underscored lookup was removed
+    # tests 22, 25, and 26 removed when the underscored lookup was removed
 
     def test27(self):
         """anObj.meth1 in dict lookup"""
@@ -261,7 +262,7 @@ class VFN(NameMapperTest):
         """aDict.nestedDict in dict lookup in a loop"""
         for i in range(10):
             self.check('aDict.nestedDict')
-            
+
     def test33(self):
         """aDict.nestedDict.one in dict lookup"""
         self.check('aDict.nestedDict.one')
@@ -270,7 +271,7 @@ class VFN(NameMapperTest):
         """aDict.nestedDict.one in dict lookup in a loop"""
         for i in range(10):
             self.check('aDict.nestedDict.one')
-            
+
     def test35(self):
         """aDict.nestedFunc in dict lookup"""
         self.check('aDict.nestedFunc')
@@ -311,28 +312,28 @@ class VFN(NameMapperTest):
         """NotFound test"""
 
         def test(self=self):
-            self.get('anObj.methX')    
+            self.get('anObj.methX')
         self.assertRaises(NotFound, test)
-        
+
     def test44(self):
         """NotFound test in a loop"""
         def test(self=self):
-            self.get('anObj.methX')    
+            self.get('anObj.methX')
 
         for i in range(10):
             self.assertRaises(NotFound, test)
-            
+
     def test45(self):
         """Other exception from meth test"""
 
         def test(self=self):
-            self.get('anObj.meth2')    
+            self.get('anObj.meth2')
         self.assertRaises(ValueError, test)
-        
+
     def test46(self):
         """Other exception from meth test in a loop"""
         def test(self=self):
-            self.get('anObj.meth2')    
+            self.get('anObj.meth2')
 
         for i in range(10):
             self.assertRaises(ValueError, test)
@@ -345,7 +346,7 @@ class VFN(NameMapperTest):
         """None in dict lookup in a loop"""
         for i in range(10):
             self.check('none')
-            
+
     def test49(self):
         """EmptyString in dict lookup"""
         self.check('emptyString')
@@ -359,29 +360,28 @@ class VFN(NameMapperTest):
         """Other exception from func test"""
 
         def test(self=self):
-            self.get('funcThatRaises')    
+            self.get('funcThatRaises')
         self.assertRaises(ValueError, test)
-        
+
     def test52(self):
         """Other exception from func test in a loop"""
         def test(self=self):
-            self.get('funcThatRaises')    
+            self.get('funcThatRaises')
 
         for i in range(10):
             self.assertRaises(ValueError, test)
-
 
     def test53(self):
         """Other exception from func test"""
 
         def test(self=self):
-            self.get('aDict.nestedDict.funcThatRaises')    
+            self.get('aDict.nestedDict.funcThatRaises')
         self.assertRaises(ValueError, test)
-        
+
     def test54(self):
         """Other exception from func test in a loop"""
         def test(self=self):
-            self.get('aDict.nestedDict.funcThatRaises')    
+            self.get('aDict.nestedDict.funcThatRaises')
 
         for i in range(10):
             self.assertRaises(ValueError, test)
@@ -407,13 +407,13 @@ class VFN(NameMapperTest):
     def test59(self):
         """Other exception from func test -- but without autocalling shouldn't raise"""
 
-        self.get('aDict.nestedDict.funcThatRaises', False)    
-        
+        self.get('aDict.nestedDict.funcThatRaises', False)
+
     def test60(self):
         """Other exception from func test in a loop -- but without autocalling shouldn't raise"""
 
         for i in range(10):
-            self.get('aDict.nestedDict.funcThatRaises', False)    
+            self.get('aDict.nestedDict.funcThatRaises', False)
 
     def test61(self):
         """Accessing attribute where __getattr__ raises shouldn't segfault if something follows it"""
@@ -425,16 +425,16 @@ class VFN(NameMapperTest):
 
 class VFS(VFN):
     _searchListLength = 1
-    
+
     def searchList(self):
         lng = self._searchListLength
         if lng == 1:
             return [self.namespace()]
         elif lng == 2:
-            return [self.namespace(), {'dummy':1234}]
+            return [self.namespace(), {'dummy': 1234}]
         elif lng == 3:
             # a tuple for kicks
-            return ({'dummy':1234}, self.namespace(), {'dummy':1234})
+            return ({'dummy': 1234}, self.namespace(), {'dummy': 1234})
         elif lng == 4:
             # a generator for more kicks
             return self.searchListGenerator()
@@ -442,22 +442,26 @@ class VFS(VFN):
     def searchListGenerator(self):
         class Test:
             pass
-        for i in [Test(), {'dummy':1234}, self.namespace(), {'dummy':1234}]:
+        for i in [Test(), {'dummy': 1234}, self.namespace(), {'dummy': 1234}]:
             yield i
-  
+
     def get(self, name, autocall=True):
         return self.VFS(self.searchList(), name, autocall)
-        
+
+
 class VFS_2namespaces(VFS):
     _searchListLength = 2
-    
+
+
 class VFS_3namespaces(VFS):
     _searchListLength = 3
 
+
 class VFS_4namespaces(VFS):
     _searchListLength = 4
-    
-class VFF(VFN): 
+
+
+class VFF(VFN):
     def get(self, name, autocall=True):
         locals().update({
             'ns': self._testNamespace,
@@ -485,8 +489,9 @@ class VFF(VFN):
         self.check('True')
         self.check('None')
         self.check('False')
-        assert self.get('eval', False)==eval
-        assert self.get('range', False)==range
+        assert self.get('eval', False) == eval
+        assert self.get('range', False) == range
+
 
 class VFFSL(VFS):
     _searchListLength = 1
@@ -499,27 +504,27 @@ class VFFSL(VFS):
         ns['aStr'] = res['aStr'] = 'BLARG'
         ns['aFloat'] = res['aFloat'] = 0.1234
         res['none'] = 'some'
-        
-        del ns['anInt'] # will be picked up by globals
-        
+
+        del ns['anInt']  # will be picked up by globals
+
     def VFFSL(self, searchList, name, autocall=True):
         locals().update({'anInt': 1, 'none': 'some'})
         return valueFromFrameOrSearchList(searchList, name, autocall)
-    
+
     def get(self, name, autocall=True):
         return self.VFFSL(self.searchList(), name, autocall)
+
 
 class VFFSL_2(VFFSL):
     _searchListLength = 2
 
+
 class VFFSL_3(VFFSL):
     _searchListLength = 3
 
+
 class VFFSL_4(VFFSL):
     _searchListLength = 4
-
-if sys.platform.startswith('java'):
-    del VFF, VFFSL, VFFSL_2, VFFSL_3, VFFSL_4
 
 
 class MapBuiltins(unittest.TestCase):
@@ -528,7 +533,7 @@ class MapBuiltins(unittest.TestCase):
         t = Template('''
             #def intify(val)
                 #return $int(val)
-            #end def''', compilerSettings={'useStackFrames' : False})
+            #end def''', compilerSettings={'useStackFrames': False})
         self.assertEquals(5, t.intify('5'))
 
 
@@ -537,6 +542,7 @@ class NameSpaceObject(object):
         class bar(object):
             class baz(object):
                 pass
+
 
 class NameSpaceObject2(object):
     """Exercise an edge case wherein the first reference is also the last."""
@@ -597,7 +603,6 @@ class RefCountTest(unittest.TestCase):
         self._test_refcounting2(func, NameSpaceObject, style)
         self._test_refcounting2(func, NameSpaceObject2, style)
 
-
     def test_VFL(self):
         self._test_refcounting(valueFromSearchList, 'searchlist')
 
@@ -638,7 +643,7 @@ def get_refcount_tree(obj):
     seen = set()
     refcounts = {}
 
-    stack = [ ("<global>", obj) ]
+    stack = [("<global>", obj)]
     while stack:
         name, obj = stack.pop()
         if obj in seen:
@@ -654,9 +659,5 @@ def get_refcount_tree(obj):
 
     return refcounts
 
-
-##################################################
-## if run from the command line ##
-        
 if __name__ == '__main__':
     unittest.main()

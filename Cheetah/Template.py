@@ -5,7 +5,7 @@ See the docstring in the Template class and the Users' Guide for more informatio
 '''
 
 ################################################################################
-## DEPENDENCIES
+# DEPENDENCIES
 import sys                        # used in the error handling code
 import re                         # used to define the internal delims regex
 import logging
@@ -23,6 +23,7 @@ except ImportError:
     class Lock:
         def acquire(self):
             pass
+
         def release(self):
             pass
 
@@ -31,14 +32,15 @@ filetype = None
 if isinstance(sys.version_info[:], tuple):
     # Python 2.xx
     filetype = types.FileType
+
     def createMethod(func, cls):
         return types.MethodType(func, None, cls)
 else:
     import io
     filetype = io.IOBase
+
     def createMethod(func, cls):
         return types.MethodType(func, cls)
-
 
 
 from Cheetah.Version import convertVersionStringToTuple, MinCompatibleVersionTuple
@@ -53,13 +55,19 @@ from Cheetah.Unspecified import Unspecified
 
 # Decide whether to use the file modification time in file's cache key
 __checkFileMtime = True
+
+
 def checkFileMtime(value):
     globals()['__checkFileMtime'] = value
 
+
 class Error(Exception):
     pass
+
+
 class PreprocessError(Error):
     pass
+
 
 def hashList(l):
     hashedList = []
@@ -70,6 +78,7 @@ def hashList(l):
             v = hashList(v)
         hashedList.append(v)
     return hash(tuple(hashedList))
+
 
 def hashDict(d):
     items = sorted(d.items())
@@ -84,11 +93,12 @@ def hashDict(d):
 
 
 ################################################################################
-## MODULE GLOBALS AND CONSTANTS
+# MODULE GLOBALS AND CONSTANTS
 
 # Singleton object, representing no data to be written.
 # None or empty-string can be filtered into useful data, unlike NO_CONTENT.
 NO_CONTENT = object()
+
 
 def _genUniqueModuleName(baseModuleName):
     """The calling code is responsible for concurrency locking.
@@ -96,10 +106,11 @@ def _genUniqueModuleName(baseModuleName):
     if baseModuleName not in sys.modules:
         finalName = baseModuleName
     else:
-        finalName = ('cheetah_%s_%s_%s'%(baseModuleName,
-                                         str(time.time()).replace('.', '_'),
-                                         str(randrange(10000, 99999))))
+        finalName = ('cheetah_%s_%s_%s' % (baseModuleName,
+                                           str(time.time()).replace('.', '_'),
+                                           str(randrange(10000, 99999))))
     return finalName
+
 
 def updateLinecache(filename, src):
     import linecache
@@ -109,8 +120,10 @@ def updateLinecache(filename, src):
     fullname = filename
     linecache.cache[filename] = size, mtime, lines, fullname
 
+
 class CompileCacheItem(object):
     pass
+
 
 class TemplatePreprocessor(object):
     '''
@@ -129,8 +142,8 @@ class TemplatePreprocessor(object):
         it outputs
         """
         settings = self._settings
-        if not source: # @@TR: this needs improving
-            if isinstance(file, (str, unicode)): # it's a filename.
+        if not source:  # @@TR: this needs improving
+            if isinstance(file, (str, unicode)):  # it's a filename.
                 f = open(file)
                 source = f.read()
                 f.close()
@@ -154,6 +167,7 @@ class TemplatePreprocessor(object):
         outputSource = settings.outputTransformer(tmplInstance)
         outputFile = None
         return outputSource, outputFile
+
 
 class Template(object):
     '''
@@ -237,31 +251,31 @@ class Template(object):
 
     # this is used by ._addCheetahPlumbingCodeToClass()
     _CHEETAH_requiredCheetahMethods = (
-         '_initCheetahInstance',
-         'searchList',
-         'getVar',
-         'varExists',
-         'getFileContents',
-         'i18n',
-         'runAsMainProgram',
-         'generatedClassCode',
-         'generatedModuleCode',
-         '_handleCheetahInclude',
-         '_getTemplateAPIClassForIncludeDirectiveCompilation',
-         )
+        '_initCheetahInstance',
+        'searchList',
+        'getVar',
+        'varExists',
+        'getFileContents',
+        'i18n',
+        'runAsMainProgram',
+        'generatedClassCode',
+        'generatedModuleCode',
+        '_handleCheetahInclude',
+        '_getTemplateAPIClassForIncludeDirectiveCompilation',
+    )
     _CHEETAH_requiredCheetahClassMethods = ('subclass',)
 
-    ## the following are used by .compile(). Most are documented in its docstring.
+    # the following are used by .compile(). Most are documented in its docstring.
     _CHEETAH_cacheModuleFilesForTracebacks = False
-    _CHEETAH_cacheDirForModuleFiles = None # change to a dirname
+    _CHEETAH_cacheDirForModuleFiles = None  # change to a dirname
 
-    _CHEETAH_compileCache = dict() # cache store for compiled code and classes
+    _CHEETAH_compileCache = dict()  # cache store for compiled code and classes
     # To do something other than simple in-memory caching you can create an
     # alternative cache store. It just needs to support the basics of Python's
     # mapping/dict protocol. E.g.:
     #   class AdvCachingTemplate(Template):
     #       _CHEETAH_compileCache = MemoryOrFileCache()
-    _CHEETAH_compileLock = Lock() # used to prevent race conditions
+    _CHEETAH_compileLock = Lock()  # used to prevent race conditions
     _CHEETAH_defaultMainMethodName = None
     _CHEETAH_compilerSettings = None
     _CHEETAH_compilerClass = Compiler
@@ -278,7 +292,7 @@ class Template(object):
     _CHEETAH_preprocessors = None
     _CHEETAH_defaultPreprocessorClass = TemplatePreprocessor
 
-    ## The following attributes are used by instance methods:
+    # The following attributes are used by instance methods:
     _CHEETAH_generatedModuleCode = None
 
     @classmethod
@@ -608,7 +622,7 @@ class Template(object):
 
         if not isinstance(className, (types.NoneType, basestring)):
             raise TypeError(errmsg % ('className', 'string or None'))
-        className = re.sub(r'^_+','', className or moduleName)
+        className = re.sub(r'^_+', '', className or moduleName)
 
         if mainMethodName is Unspecified:
             mainMethodName = klass._CHEETAH_defaultMainMethodNameForTemplates
@@ -634,12 +648,12 @@ class Template(object):
                             ('cacheDirForModuleFiles', 'string or None'))
 
         ##################################################
-        ## handle any preprocessors
+        # handle any preprocessors
         if preprocessors:
             source, file = klass._preprocessSource(source, file, preprocessors)
 
         ##################################################
-        ## compilation, using cache if requested/possible
+        # compilation, using cache if requested/possible
         baseclassValue = None
         baseclassName = None
         if baseclass:
@@ -649,7 +663,6 @@ class Template(object):
                 # @@TR: should soft-code this
                 baseclassName = 'CHEETAH_dynamicallyAssignedBaseClass_'+baseclass.__name__
                 baseclassValue = baseclass
-
 
         cacheHash = None
         cacheItem = None
@@ -686,8 +699,8 @@ class Template(object):
                                       moduleGlobalsHash,
                                       hash(cacheDirForModuleFiles),
                                       ]])
-            except:
-                #@@TR: should add some logging to this
+            except Exception:
+                # @@TR: should add some logging to this
                 pass
         outputEncoding = 'ascii'
         compiler = None
@@ -723,11 +736,11 @@ class Template(object):
             try:
                 klass._CHEETAH_compileLock.acquire()
                 uniqueModuleName = _genUniqueModuleName(moduleName)
-                __file__ = uniqueModuleName+'.py' # relative file path with no dir part
+                __file__ = uniqueModuleName + '.py'  # relative file path with no dir part
 
                 if cacheModuleFilesForTracebacks:
                     if not os.path.exists(cacheDirForModuleFiles):
-                        raise Exception('%s does not exist'%cacheDirForModuleFiles)
+                        raise Exception('%s does not exist' % cacheDirForModuleFiles)
 
                     __file__ = os.path.join(cacheDirForModuleFiles, __file__)
                     # @@TR: might want to assert that it doesn't already exist
@@ -745,7 +758,7 @@ class Template(object):
 
                 if baseclass and baseclassValue:
                     setattr(mod, baseclassName, baseclassValue)
-                ##
+
                 try:
                     co = compile(generatedModuleCode, __file__, 'exec')
                     exec(co, mod.__dict__)
@@ -763,17 +776,18 @@ class Template(object):
                     updateLinecache(__file__, generatedModuleCode)
                     e.generatedModuleCode = generatedModuleCode
                     raise
-                ##
+
                 sys.modules[uniqueModuleName] = mod
             finally:
                 klass._CHEETAH_compileLock.release()
 
             templateClass = getattr(mod, className)
 
-            if (cacheCompilationResults
-                and cacheHash
-                and cacheHash not in klass._CHEETAH_compileCache):
-
+            if (
+                cacheCompilationResults and
+                cacheHash and
+                cacheHash not in klass._CHEETAH_compileCache
+            ):
                 cacheItem = CompileCacheItem()
                 cacheItem.cacheTime = cacheItem.lastCheckoutTime = time.time()
                 cacheItem.code = generatedModuleCode
@@ -852,7 +866,6 @@ class Template(object):
             settings = klass._normalizePreprocessorSettings(settings)
             return klass._CHEETAH_defaultPreprocessorClass(settings)
 
-
     @classmethod
     def _normalizePreprocessorSettings(klass, settings):
         settings.keepRefToGeneratedCode = True
@@ -864,19 +877,20 @@ class Template(object):
 
         def normalizeTokens(tokens):
             if isinstance(tokens, str):
-                return tokens.split() # space delimited string e.g.'@ %'
+                return tokens.split()  # space delimited string e.g.'@ %'
             elif isinstance(tokens, (list, tuple)):
                 return tokens
             else:
-                raise PreprocessError('invalid tokens argument: %r'%tokens)
+                raise PreprocessError('invalid tokens argument: %r' % tokens)
 
         if hasattr(settings, 'tokens'):
             (settings.placeholderToken,
              settings.directiveToken) = normalizeTokens(settings.tokens)
 
-        if (not getattr(settings, 'compilerSettings', None)
-            and not getattr(settings, 'placeholderToken', None) ):
-
+        if (
+            not getattr(settings, 'compilerSettings', None) and
+            not getattr(settings, 'placeholderToken', None)
+        ):
             raise TypeError(
                 'Preprocessor requires either a "tokens" or a "compilerSettings" arg.'
                 ' Neither was provided.')
@@ -896,7 +910,8 @@ class Template(object):
             settings.outputTransformer = unicode
 
         if not hasattr(settings, 'templateAPIClass'):
-            class PreprocessTemplateAPIClass(klass): pass
+            class PreprocessTemplateAPIClass(klass):
+                pass
             settings.templateAPIClass = PreprocessTemplateAPIClass
 
         if not hasattr(settings, 'compilerSettings'):
@@ -911,8 +926,8 @@ class Template(object):
 
     @classmethod
     def _updateSettingsWithPreprocessTokens(
-        klass, compilerSettings, placeholderToken, directiveToken):
-
+        klass, compilerSettings, placeholderToken, directiveToken
+    ):
         if (placeholderToken and 'cheetahVarStartToken' not in compilerSettings):
             compilerSettings['cheetahVarStartToken'] = placeholderToken
         if directiveToken:
@@ -952,9 +967,10 @@ class Template(object):
                 meth = getattr(klass, classMethName)
                 setattr(concreteTemplateClass, classMethName, classmethod(meth.im_func))
 
-        if (not hasattr(concreteTemplateClass, '__str__')
-            or concreteTemplateClass.__str__ is object.__str__):
-
+        if (
+            not hasattr(concreteTemplateClass, '__str__') or
+            concreteTemplateClass.__str__ is object.__str__
+        ):
             mainMethNameAttr = '_mainCheetahMethod_for_'+concreteTemplateClass.__name__
             mainMethName = getattr(concreteTemplateClass, mainMethNameAttr, None)
             if mainMethName:
@@ -963,6 +979,7 @@ class Template(object):
                     if isinstance(rc, unicode):
                         return rc.encode('utf-8')
                     return rc
+
                 def __unicode__(self):
                     return getattr(self, mainMethName)()
             elif hasattr(concreteTemplateClass, 'respond'):
@@ -971,6 +988,7 @@ class Template(object):
                     if isinstance(rc, unicode):
                         return rc.encode('utf-8')
                     return rc
+
                 def __unicode__(self):
                     return self.respond()
             else:
@@ -985,6 +1003,7 @@ class Template(object):
                     if isinstance(rc, unicode):
                         return rc.encode('utf-8')
                     return rc
+
                 def __unicode__(self):
                     if hasattr(self, mainMethNameAttr):
                         return getattr(self, mainMethNameAttr)()
@@ -998,19 +1017,18 @@ class Template(object):
             setattr(concreteTemplateClass, '__str__', __str__)
             setattr(concreteTemplateClass, '__unicode__', __unicode__)
 
-
     def __init__(self, source=None,
 
                  namespaces=None, searchList=None,
                  # use either or.  They are aliases for the same thing.
 
                  file=None,
-                 filter='RawOrEncodedUnicode', # which filter from Cheetah.Filters
+                 filter='RawOrEncodedUnicode',  # which filter from Cheetah.Filters
                  filtersLib=Filters,
 
-                 compilerSettings=Unspecified, # control the behaviour of the compiler
-                 _globalSetVars=None, # used internally for #include'd templates
-                 _preBuiltSearchList=None # used internally for #include'd templates
+                 compilerSettings=Unspecified,  # control the behaviour of the compiler
+                 _globalSetVars=None,  # used internally for #include'd templates
+                 _preBuiltSearchList=None,  # used internally for #include'd templates
                  ):
         """a) compiles a new template OR b) instantiates an existing template.
 
@@ -1136,11 +1154,11 @@ class Template(object):
                             " 'file' keyword argument, but not both")
 
         ##################################################
-        ## Do superclass initialization.
+        # Do superclass initialization.
         super(Template, self).__init__()
 
         ##################################################
-        ## Do required version check
+        # Do required version check
         if not hasattr(self, '_CHEETAH_versionTuple'):
             try:
                 mod = sys.modules[self.__class__.__module__]
@@ -1148,17 +1166,19 @@ class Template(object):
                 compiledVersionTuple = convertVersionStringToTuple(compiledVersion)
                 if compiledVersionTuple < MinCompatibleVersionTuple:
                     raise AssertionError(
-                     'This template was compiled with Cheetah version'
-                     ' %s. Templates compiled before version %s must be recompiled.'%(
-                        compiledVersion, MinCompatibleVersion))
+                        'This template was compiled with Cheetah version'
+                        ' %s. Templates compiled before version %s must be recompiled.' % (
+                            compiledVersion, MinCompatibleVersion,
+                        )
+                    )
             except AssertionError:
                 raise
             except:
                 pass
 
         ##################################################
-        ## Setup instance state attributes used during the life of template
-        ## post-compile
+        # Setup instance state attributes used during the life of template
+        # post-compile
         if searchList:
             for namespace in searchList:
                 if isinstance(namespace, dict):
@@ -1169,11 +1189,16 @@ class Template(object):
                     if isinstance(compilerSettings, dict) and compilerSettings.get('prioritizeSearchListOverSelf'):
                         warn = False
                     if warn:
-                        logging.info(''' The following keys are members of the Template class and will result in NameMapper collisions! ''')
-                        logging.info('''  > %s ''' % ', '.join(list(intersection)))
-                        logging.info(''' Please change the key's name or use the compiler setting "prioritizeSearchListOverSelf=True" to prevent the NameMapper from using ''')
-                        logging.info(''' the Template member in place of your searchList variable ''')
-
+                        logging.info(
+                            'The following keys are members of the Template class '
+                            'and will result in NameMapper collisions!'
+                        )
+                        logging.info('  > %s ' % ', '.join(list(intersection)))
+                        logging.info(
+                            "Please change the key's name or use the compiler setting "
+                            '"prioritizeSearchListOverSelf=True" to prevent the NameMapper from using'
+                        )
+                        logging.info('the Template member in place of your searchList variable')
 
         self._initCheetahInstance(
             searchList=searchList, namespaces=namespaces,
@@ -1183,7 +1208,7 @@ class Template(object):
             _preBuiltSearchList=_preBuiltSearchList)
 
         ##################################################
-        ## Now, compile if we're meant to
+        # Now, compile if we're meant to
         if (source is not None) or (file is not None):
             self._compile(source, file, compilerSettings=compilerSettings)
 
@@ -1200,15 +1225,16 @@ class Template(object):
         """
 
         return self._CHEETAH_generatedModuleCode[
-                    self._CHEETAH_generatedModuleCode.find('\nclass '):
-                    self._CHEETAH_generatedModuleCode.find('\n## END CLASS DEFINITION')]
+            self._CHEETAH_generatedModuleCode.find('\nclass '):
+            self._CHEETAH_generatedModuleCode.find('\n## END CLASS DEFINITION')
+        ]
 
     def searchList(self):
         """Return a reference to the searchlist
         """
         return self._CHEETAH__searchList
 
-    ## utility functions ##
+    # utility functions
 
     def getVar(self, varName, default=Unspecified, autoCall=True, useDottedNotation=True):
         """Get a variable from the searchList.  If the variable can't be found
@@ -1233,7 +1259,6 @@ class Template(object):
         except NotFound:
             return False
 
-
     hasVar = varExists
 
     def i18n(self, message,
@@ -1248,14 +1273,14 @@ class Template(object):
              ):
         """This is just a stub at this time.
 
-	   plural = the plural form of the message
-	   n = a sized argument to distinguish between single and plural forms
+       plural = the plural form of the message
+       n = a sized argument to distinguish between single and plural forms
 
-      	   id = msgid in the translation catalog
-	   domain = translation domain
-	   source = source lang
-	   target = a specific target lang
-	   comment = a comment to the translation team
+       id = msgid in the translation catalog
+       domain = translation domain
+       source = source lang
+       target = a specific target lang
+       comment = a comment to the translation team
 
         See the following for some ideas
         http://www.zope.org/DevHome/Wikis/DevSite/Projects/ComponentArchitecture/ZPTInternationalizationSupport
@@ -1263,8 +1288,6 @@ class Template(object):
         Other notes:
         - There is no need to replicate the i18n:name attribute from plone / PTL,
           as cheetah placeholders serve the same purpose
-
-
        """
 
         return message
@@ -1292,12 +1315,12 @@ class Template(object):
         CmdLineIface(templateObj=self).run()
 
     ##################################################
-    ## internal methods -- not to be called by end-users
+    # internal methods -- not to be called by end-users
 
     def _initCheetahInstance(self,
                              searchList=None,
                              namespaces=None,
-                             filter='RawOrEncodedUnicode', # which filter from Cheetah.Filters
+                             filter='RawOrEncodedUnicode',  # which filter from Cheetah.Filters
                              filtersLib=Filters,
                              _globalSetVars=None,
                              compilerSettings=None,
@@ -1381,10 +1404,10 @@ class Template(object):
             self._fileDirName, self._fileBaseName = os.path.split(file)
         self._filePath = file
         templateClass = self.compile(source, file,
-                                      moduleName=moduleName,
-                                      mainMethodName=mainMethodName,
-                                      compilerSettings=compilerSettings,
-                                      keepRefToGeneratedCode=True)
+                                     moduleName=moduleName,
+                                     mainMethodName=mainMethodName,
+                                     compilerSettings=compilerSettings,
+                                     keepRefToGeneratedCode=True)
 
         if not self.__class__ == Template:
             # Only propogate attributes if we're in a subclass of
@@ -1392,17 +1415,14 @@ class Template(object):
             for k, v in self.__class__.__dict__.iteritems():
                 if not v or k.startswith('__'):
                     continue
-                ## Propogate the class attributes to the instance
-                ## since we're about to obliterate self.__class__
-                ## (see: cheetah.Tests.Tepmlate.SubclassSearchListTest)
+                # Propogate the class attributes to the instance
+                # since we're about to obliterate self.__class__
+                # (see: cheetah.Tests.Tepmlate.SubclassSearchListTest)
                 setattr(self, k, v)
 
         self.__class__ = templateClass
         # must initialize it so instance attributes are accessible
-        templateClass.__init__(self,
-                               #_globalSetVars=self._CHEETAH__globalSetVars,
-                               #_preBuiltSearchList=self._CHEETAH__searchList
-                               )
+        templateClass.__init__(self)
         if not hasattr(self, 'transaction'):
             self.transaction = None
 
@@ -1417,7 +1437,7 @@ class Template(object):
                     if isinstance(srcArg, basestring):
                         file = os.path.normpath(srcArg)
                     else:
-                        file = srcArg ## a file-like object
+                        file = srcArg  # a file-like object
                 else:
                     source = srcArg
                     file = None
@@ -1440,7 +1460,7 @@ class Template(object):
                     self._CHEETAH__cheetahIncludes[_includeID] = self.getFileContents(srcArg)
                 else:
                     self._CHEETAH__cheetahIncludes[_includeID] = srcArg
-        ##
+
         if not raw:
             self._CHEETAH__cheetahIncludes[_includeID].respond(trans)
         else:
@@ -1461,10 +1481,8 @@ class Template(object):
 T = Template   # Short and sweet for debugging at the >>> prompt.
 Template.Reserved_SearchList = set(dir(Template))
 
+
 def genParserErrorFromPythonException(source, file, generatedPyCode, exception):
-
-    #print dir(exception)
-
     filename = isinstance(file, (str, unicode)) and file or None
 
     sio = StringIO.StringIO()
@@ -1480,29 +1498,28 @@ def genParserErrorFromPythonException(source, file, generatedPyCode, exception):
 
     prevLines = []                  # (i, content)
     for i in range(1, 4):
-        if pyLineno-i <=0:
+        if pyLineno-i <= 0:
             break
-        prevLines.append( (pyLineno+1-i, lines[pyLineno-i]) )
+        prevLines.append((pyLineno+1-i, lines[pyLineno-i]))
 
     nextLines = []                  # (i, content)
     for i in range(1, 4):
         if not pyLineno+i < len(lines):
             break
-        nextLines.append( (pyLineno+i, lines[pyLineno+i]) )
+        nextLines.append((pyLineno+i, lines[pyLineno+i]))
     nextLines.reverse()
     report = 'Line|Python Code\n'
     report += '----|-------------------------------------------------------------\n'
     while prevLines:
         lineInfo = prevLines.pop()
-        report += "%(row)-4d|%(line)s\n"% {'row':lineInfo[0], 'line':lineInfo[1]}
+        report += "%(row)-4d|%(line)s\n" % {'row': lineInfo[0], 'line': lineInfo[1]}
 
     if hasattr(exception, 'offset'):
         report += ' '*(3+(exception.offset or 0)) + '^\n'
 
     while nextLines:
         lineInfo = nextLines.pop()
-        report += "%(row)-4d|%(line)s\n"% {'row':lineInfo[0], 'line':lineInfo[1]}
-
+        report += "%(row)-4d|%(line)s\n" % {'row': lineInfo[0], 'line': lineInfo[1]}
 
     message = [
         "Error in the Python code which Cheetah generated for this template:",
@@ -1517,7 +1534,7 @@ def genParserErrorFromPythonException(source, file, generatedPyCode, exception):
     if cheetahPosMatch:
         lineno = int(cheetahPosMatch.group(1))
         col = int(cheetahPosMatch.group(2))
-        #if hasattr(exception, 'offset'):
+        # if hasattr(exception, 'offset'):
         #    col = exception.offset
         message.append('\nHere is the corresponding Cheetah code:\n')
     else:
@@ -1532,10 +1549,8 @@ def genParserErrorFromPythonException(source, file, generatedPyCode, exception):
             message.append('** I had to guess the line & column numbers,'
                            ' so they are probably incorrect:\n')
 
-
     message = '\n'.join(message)
     reader = SourceReader(source, filename=filename)
     return ParseError(reader, message, lineno=lineno, col=col)
-
 
 # vim: shiftwidth=4 tabstop=4 expandtab

@@ -27,7 +27,7 @@ def list_benchmarks():
 def run_bench(name):
     sys.stdout.write('{0:32}'.format(name))
     sys.stdout.flush()
-    
+
     bench = __import__('bench_' + name).run
 
     def get_iterations():

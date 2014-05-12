@@ -26,15 +26,15 @@ from Cheetah.Tests import Unicode
 SyntaxAndOutput.install_eols()
 
 suites = [
-   unittest.findTestCases(SyntaxAndOutput),
-   unittest.findTestCases(NameMapper),
-   unittest.findTestCases(Filters),
-   unittest.findTestCases(Template),
-   unittest.findTestCases(Cheps),
-   unittest.findTestCases(Regressions),
-   unittest.findTestCases(Unicode),
-   unittest.findTestCases(Misc),
-   unittest.findTestCases(Parser),
+    unittest.findTestCases(SyntaxAndOutput),
+    unittest.findTestCases(NameMapper),
+    unittest.findTestCases(Filters),
+    unittest.findTestCases(Template),
+    unittest.findTestCases(Cheps),
+    unittest.findTestCases(Regressions),
+    unittest.findTestCases(Unicode),
+    unittest.findTestCases(Misc),
+    unittest.findTestCases(Parser),
 ]
 
 if __name__ == '__main__':
@@ -42,4 +42,3 @@ if __name__ == '__main__':
     results = runner.run(unittest.TestSuite(suites))
     ret = 1 if results.errors or results.failures else 0
     sys.exit(ret)
-

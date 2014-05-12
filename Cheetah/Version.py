@@ -4,18 +4,18 @@ VersionTuple = (2, 4, 7, 'development', 1)
 MinCompatibleVersion = '2.0rc6'
 MinCompatibleVersionTuple = (2, 0, 0, 'candidate', 6)
 
-####
+
 def convertVersionStringToTuple(s):
     versionNum = [0, 0, 0]
     releaseType = 'final'
     releaseTypeSubNum = 0
-    if s.find('a')!=-1:
+    if s.find('a') != -1:
         num, releaseTypeSubNum = s.split('a')
         releaseType = 'alpha'
-    elif s.find('b')!=-1:
+    elif s.find('b') != -1:
         num, releaseTypeSubNum = s.split('b')
         releaseType = 'beta'
-    elif s.find('rc')!=-1:
+    elif s.find('rc') != -1:
         num, releaseTypeSubNum = s.split('rc')
         releaseType = 'candidate'
     else:
@@ -23,11 +23,11 @@ def convertVersionStringToTuple(s):
     num = num.split('.')
     for i in range(len(num)):
         versionNum[i] = int(num[i])
-    if len(versionNum)<3:
+    if len(versionNum) < 3:
         versionNum += [0]
     releaseTypeSubNum = int(releaseTypeSubNum)
 
-    return tuple(versionNum+[releaseType, releaseTypeSubNum])
+    return tuple(versionNum + [releaseType, releaseTypeSubNum])
 
 
 if __name__ == '__main__':
@@ -37,7 +37,6 @@ if __name__ == '__main__':
     print(c('2.0rc1'))
     print(c('2.0'))
     print(c('2.0.2'))
-
 
     assert c('0.9.19b1') < c('0.9.19')
     assert c('0.9b1') < c('0.9.19')

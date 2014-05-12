@@ -5,8 +5,8 @@ python:
   - 2.7
 
 install:
-  - python setup.py install
+  - pip install virtualenv
 
 script:
-  - ./Cheetah/Tests/Test.py
+  - make
   - ./bench/runbench
