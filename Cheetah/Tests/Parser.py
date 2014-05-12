@@ -4,6 +4,7 @@ import unittest
 
 from Cheetah import Parser
 
+
 class ArgListTest(unittest.TestCase):
     def setUp(self):
         super(ArgListTest, self).setUp()
@@ -31,8 +32,6 @@ class ArgListTest(unittest.TestCase):
         expect = [(u'a', u'999'), (u'b', u'444')]
 
         self.assertEquals(expect, self.al.merge())
-
-
 
     def test_merge3(self):
         '''

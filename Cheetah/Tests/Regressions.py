@@ -10,16 +10,15 @@ import unittest
 majorVer, minorVer = sys.version_info[0], sys.version_info[1]
 versionTuple = (majorVer, minorVer)
 
-def isPython23():
-    ''' Python 2.3 is still supported by Cheetah, but doesn't support decorators '''
-    return majorVer == 2 and minorVer < 4
 
 class GetAttrException(Exception):
     pass
 
+
 class CustomGetAttrClass(object):
     def __getattr__(self, name):
         raise GetAttrException('FAIL, %s' % name)
+
 
 class GetAttrTest(unittest.TestCase):
     '''
@@ -44,7 +43,7 @@ class GetAttrTest(unittest.TestCase):
             #end def'''
 
         template = Cheetah.Template.Template.compile(template, compilerSettings={}, keepRefToGeneratedCode=True)
-        template = template(searchList=[{'obj' : CustomGetAttrClass()}])
+        template = template(searchList=[{'obj': CustomGetAttrClass()}])
         assert template, 'We should have a valid template object by now'
 
         self.failUnlessRaises(GetAttrException, template.raiseme)
@@ -67,7 +66,11 @@ class InlineImportTest(unittest.TestCase):
                 #end if
             #end def
         '''
-        template = Cheetah.Template.Template.compile(template, compilerSettings={'useLegacyImportMode' : False}, keepRefToGeneratedCode=True)
+        template = Cheetah.Template.Template.compile(
+            template,
+            compilerSettings={'useLegacyImportMode': False},
+            keepRefToGeneratedCode=True,
+        )
         template = template(searchList=[{}])
 
         assert template, 'We should have a valid template object by now'
@@ -85,7 +88,11 @@ class InlineImportTest(unittest.TestCase):
 
             $invalidmodule.FOO
         '''
-        template = Cheetah.Template.Template.compile(template, compilerSettings={'useLegacyImportMode' : False}, keepRefToGeneratedCode=True)
+        template = Cheetah.Template.Template.compile(
+            template,
+            compilerSettings={'useLegacyImportMode': False},
+            keepRefToGeneratedCode=True,
+        )
         template = template(searchList=[{}])
 
         assert template, 'We should have a valid template object by now'
@@ -97,7 +104,13 @@ class InlineImportTest(unittest.TestCase):
 
             This should totally $fail
         '''
-        self.failUnlessRaises(ImportError, Cheetah.Template.Template.compile, template, compilerSettings={'useLegacyImportMode' : False}, keepRefToGeneratedCode=True)
+        self.failUnlessRaises(
+            ImportError,
+            Cheetah.Template.Template.compile,
+            template,
+            compilerSettings={'useLegacyImportMode': False},
+            keepRefToGeneratedCode=True,
+        )
 
     def test_AutoImporting(self):
         template = '''
@@ -115,7 +128,13 @@ class InlineImportTest(unittest.TestCase):
 #extends Foo
 Bar
 '''
-        self.failUnlessRaises(ImportError, Cheetah.Template.Template.compile, template, compilerSettings={'useLegacyImportMode' : True}, keepRefToGeneratedCode=True)
+        self.failUnlessRaises(
+            ImportError,
+            Cheetah.Template.Template.compile,
+            template,
+            compilerSettings={'useLegacyImportMode': True},
+            keepRefToGeneratedCode=True,
+        )
 
 
 class Mantis_Issue_11_Regression_Test(unittest.TestCase):
@@ -135,17 +154,23 @@ class Mantis_Issue_11_Regression_Test(unittest.TestCase):
         # This used to break because Cheetah.Servlet.request used to be a class property that
         # was None and came up earlier in VFSSL than the things in the search list.
         # Currently, request is available when being passed through the search list.
-        template = Cheetah.Template.Template("$escape($request)", searchList=[{'escape' : cgi.escape, 'request' : 'foobar'}])
+        template = Cheetah.Template.Template(
+            "$escape($request)",
+            searchList=[{'escape': cgi.escape, 'request': 'foobar'}],
+        )
         assert template
         assert template.respond()
 
     def test_FailingBehaviorWithSetting(self):
         import cgi
-        template = Cheetah.Template.Template("$escape($request)",
-                searchList=[{'escape' : cgi.escape, 'request' : 'foobar'}],
-                compilerSettings={'prioritizeSearchListOverSelf' : True})
+        template = Cheetah.Template.Template(
+            "$escape($request)",
+            searchList=[{'escape': cgi.escape, 'request': 'foobar'}],
+            compilerSettings={'prioritizeSearchListOverSelf': True},
+        )
         assert template
         assert template.respond()
+
 
 class Mantis_Issue_21_Regression_Test(unittest.TestCase):
     '''
@@ -157,10 +182,8 @@ class Mantis_Issue_21_Regression_Test(unittest.TestCase):
         when using the NameMapper
     '''
     def runTest(self):
-        print 'this test is disabled'
+        print('this test is disabled')
         return
-        if isPython23():
-            return
         template = '''
             #@staticmethod
             #def testMethod()
@@ -169,7 +192,7 @@ class Mantis_Issue_21_Regression_Test(unittest.TestCase):
         '''
         template = Cheetah.Template.Template.compile(template)
         assert template
-        assert template.testMethod(output='bug') # raises a NameError: global name '_filter' is not defined
+        assert template.testMethod(output='bug')  # raises a NameError: global name '_filter' is not defined
 
 
 class Mantis_Issue_22_Regression_Test(unittest.TestCase):
@@ -182,10 +205,8 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
         on the `self` local, breaking the function
     '''
     def test_NoneFilter(self):
-        # XXX: Disabling this test for now
+        print('this test is disabled')
         return
-        if isPython23():
-            return
         template = '''
             #@staticmethod
             #def testMethod()
@@ -199,10 +220,8 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
         assert template.testMethod(output='bug')
 
     def test_DefinedFilter(self):
-        # XXX: Disabling this test for now
+        print('this test is disabled')
         return
-        if isPython23():
-            return
         template = '''
             #@staticmethod
             #def testMethod()

@@ -43,6 +43,7 @@ class DummyClass(object):
         except:
             raise
 
+
 class DummyClassGetAttrRaises(object):
     def __getattr__(self, name):
         raise ValueError
@@ -50,6 +51,7 @@ class DummyClassGetAttrRaises(object):
 
 def dummyFunc(arg="Scooby"):
     return arg
+
 
 def funcThatRaises():
     raise ValueError
@@ -62,10 +64,10 @@ testNamespace = {
     'aDict': {'one': 'item1',
               'two': 'item2',
               'nestedDict': {'one': 'nestedItem1',
-                            'two': 'nestedItem2',
-                            'funcThatRaises': funcThatRaises,
-                            'aClass': DummyClass,
-                            },
+                             'two': 'nestedItem2',
+                             'funcThatRaises': funcThatRaises,
+                             'aClass': DummyClass,
+                             },
               'nestedFunc': dummyFunc,
               },
     'aClass': DummyClass,
@@ -96,10 +98,11 @@ results.update({'anObj.meth1': 'doo',
 
 for k in testNamespace.keys():
     # put them in the globals for the valueFromFrame tests
-    exec('%s = testNamespace[k]'%k)
+    exec('%s = testNamespace[k]' % k)
 
 ##################################################
-## TEST BASE CLASSES
+# TEST BASE CLASSES
+
 
 class NameMapperTest(unittest.TestCase):
     failureException = NotFound
@@ -115,7 +118,6 @@ class NameMapperTest(unittest.TestCase):
     def VFS(self, searchList, name, autocall=True):
         return valueFromSearchList(searchList, name, autocall)
 
-
     # alias to be overriden later
     get = VFN
 
@@ -129,7 +131,7 @@ class NameMapperTest(unittest.TestCase):
 
 
 ##################################################
-## TEST CASE CLASSES
+# TEST CASE CLASSES
 
 class VFN(NameMapperTest):
 
@@ -223,7 +225,6 @@ class VFN(NameMapperTest):
         for i in range(10):
             self.check('aClass.classVar1')
 
-
     def test23(self):
         """anObj.instanceVar1 in dict lookup"""
         self.check('anObj.instanceVar1')
@@ -233,7 +234,7 @@ class VFN(NameMapperTest):
         for i in range(10):
             self.check('anObj.instanceVar1')
 
-    ## tests 22, 25, and 26 removed when the underscored lookup was removed
+    # tests 22, 25, and 26 removed when the underscored lookup was removed
 
     def test27(self):
         """anObj.meth1 in dict lookup"""
@@ -370,7 +371,6 @@ class VFN(NameMapperTest):
         for i in range(10):
             self.assertRaises(ValueError, test)
 
-
     def test53(self):
         """Other exception from func test"""
 
@@ -431,10 +431,10 @@ class VFS(VFN):
         if lng == 1:
             return [self.namespace()]
         elif lng == 2:
-            return [self.namespace(), {'dummy':1234}]
+            return [self.namespace(), {'dummy': 1234}]
         elif lng == 3:
             # a tuple for kicks
-            return ({'dummy':1234}, self.namespace(), {'dummy':1234})
+            return ({'dummy': 1234}, self.namespace(), {'dummy': 1234})
         elif lng == 4:
             # a generator for more kicks
             return self.searchListGenerator()
@@ -442,20 +442,24 @@ class VFS(VFN):
     def searchListGenerator(self):
         class Test:
             pass
-        for i in [Test(), {'dummy':1234}, self.namespace(), {'dummy':1234}]:
+        for i in [Test(), {'dummy': 1234}, self.namespace(), {'dummy': 1234}]:
             yield i
 
     def get(self, name, autocall=True):
         return self.VFS(self.searchList(), name, autocall)
 
+
 class VFS_2namespaces(VFS):
     _searchListLength = 2
+
 
 class VFS_3namespaces(VFS):
     _searchListLength = 3
 
+
 class VFS_4namespaces(VFS):
     _searchListLength = 4
+
 
 class VFF(VFN):
     def get(self, name, autocall=True):
@@ -485,8 +489,9 @@ class VFF(VFN):
         self.check('True')
         self.check('None')
         self.check('False')
-        assert self.get('eval', False)==eval
-        assert self.get('range', False)==range
+        assert self.get('eval', False) == eval
+        assert self.get('range', False) == range
+
 
 class VFFSL(VFS):
     _searchListLength = 1
@@ -500,7 +505,7 @@ class VFFSL(VFS):
         ns['aFloat'] = res['aFloat'] = 0.1234
         res['none'] = 'some'
 
-        del ns['anInt'] # will be picked up by globals
+        del ns['anInt']  # will be picked up by globals
 
     def VFFSL(self, searchList, name, autocall=True):
         locals().update({'anInt': 1, 'none': 'some'})
@@ -509,17 +514,17 @@ class VFFSL(VFS):
     def get(self, name, autocall=True):
         return self.VFFSL(self.searchList(), name, autocall)
 
+
 class VFFSL_2(VFFSL):
     _searchListLength = 2
+
 
 class VFFSL_3(VFFSL):
     _searchListLength = 3
 
+
 class VFFSL_4(VFFSL):
     _searchListLength = 4
-
-if sys.platform.startswith('java'):
-    del VFF, VFFSL, VFFSL_2, VFFSL_3, VFFSL_4
 
 
 class MapBuiltins(unittest.TestCase):
@@ -528,7 +533,7 @@ class MapBuiltins(unittest.TestCase):
         t = Template('''
             #def intify(val)
                 #return $int(val)
-            #end def''', compilerSettings={'useStackFrames' : False})
+            #end def''', compilerSettings={'useStackFrames': False})
         self.assertEquals(5, t.intify('5'))
 
 
@@ -537,6 +542,7 @@ class NameSpaceObject(object):
         class bar(object):
             class baz(object):
                 pass
+
 
 class NameSpaceObject2(object):
     """Exercise an edge case wherein the first reference is also the last."""
@@ -597,7 +603,6 @@ class RefCountTest(unittest.TestCase):
         self._test_refcounting2(func, NameSpaceObject, style)
         self._test_refcounting2(func, NameSpaceObject2, style)
 
-
     def test_VFL(self):
         self._test_refcounting(valueFromSearchList, 'searchlist')
 
@@ -638,7 +643,7 @@ def get_refcount_tree(obj):
     seen = set()
     refcounts = {}
 
-    stack = [ ("<global>", obj) ]
+    stack = [("<global>", obj)]
     while stack:
         name, obj = stack.pop()
         if obj in seen:
@@ -653,10 +658,6 @@ def get_refcount_tree(obj):
                 stack.append(('%s.%s' % (name, attr), obj))
 
     return refcounts
-
-
-##################################################
-## if run from the command line ##
 
 if __name__ == '__main__':
     unittest.main()
