@@ -4,21 +4,23 @@ Provides dummy Transaction and Response classes is used by Cheetah in place
 of real Webware transactions when the Template obj is not used directly as a
 Webware servlet.
 
-Warning: This may be deprecated in the future, please do not rely on any 
+Warning: This may be deprecated in the future, please do not rely on any
 specific DummyTransaction or DummyResponse behavior
 '''
 
 import logging
 
+
 class DummyResponseFailure(Exception):
     pass
+
 
 class DummyResponse(object):
     '''
         A dummy Response class is used by Cheetah in place of real Webware
         Response objects when the Template obj is not used directly as a Webware
         servlet
-    ''' 
+    '''
     def __init__(self):
         self._outputChunks = []
 
@@ -54,7 +56,7 @@ class DummyResponse(object):
             logging.debug('Trying to work around a UnicodeDecodeError in getvalue()')
             logging.debug('...perhaps you could fix "%s" while you\'re debugging')
             return ''.join((self.safeConvert(c) for c in chunks))
-        
+
 
 class DummyTransaction(object):
     '''
@@ -92,8 +94,8 @@ class TransformerResponse(DummyResponse):
 class TransformerTransaction(object):
     def __init__(self, *args, **kwargs):
         self._response = None
+
     def response(self):
         if self._response:
             return self._response
         return TransformerResponse()
-
