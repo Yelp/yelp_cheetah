@@ -459,11 +459,12 @@ class VFS_4namespaces(VFS):
     
 class VFF(VFN): 
     def get(self, name, autocall=True):
-        ns = self._testNamespace
-        aStr = ns['aStr'] 
-        aFloat = ns['aFloat']
-        none = 'some'
-        _, _, _, _ = (ns, aStr, aFloat, none)  # pyflakes
+        locals().update({
+            'ns': self._testNamespace,
+            'aStr': self._testNamespace['aStr'],
+            'aFloat': self._testNamespace['aFloat'],
+            'none': 'some',
+        })
         return valueFromFrame(name, autocall)
 
     def setUp(self):
@@ -502,9 +503,7 @@ class VFFSL(VFS):
         del ns['anInt'] # will be picked up by globals
         
     def VFFSL(self, searchList, name, autocall=True):
-        anInt = 1
-        none = 'some'
-        _, _ = (anInt, none)  # pyflakes
+        locals().update({'anInt': 1, 'none': 'some'})
         return valueFromFrameOrSearchList(searchList, name, autocall)
     
     def get(self, name, autocall=True):

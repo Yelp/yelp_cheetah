@@ -291,6 +291,7 @@ def valueFromFrame(name, executeCallables=False, useDottedNotation=True, frame=N
 try:
     from Cheetah._namemapper import NotFound, valueForKey, valueForName, \
          valueFromSearchList, valueFromFrameOrSearchList, valueFromFrame
+
     # it is possible with Jython or Windows, for example, that _namemapper.c hasn't been compiled
     C_VERSION = True
 except:

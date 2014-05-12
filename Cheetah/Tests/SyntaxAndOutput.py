@@ -1850,7 +1850,6 @@ class IncludeDirective(OutputTest):
 
 
 class SilentDirective(OutputTest):
-
     def test1(self):
         """simple #silent"""
         self.verify("#silent $aFunc()",
@@ -1858,16 +1857,23 @@ class SilentDirective(OutputTest):
 
     def test2(self):
         """simple #silent"""
-        self.verify("#silent $anObj.callIt\n$anObj.callArg",
+        self.verify("#silent $anObj.callIt()\n$anObj._callArg",
                     "1234")
 
-        self.verify("#silent $anObj.callIt ##comment\n$anObj.callArg",
+        self.verify("#silent $anObj.callIt() ##comment\n$anObj._callArg",
                     "1234")
 
     def test3(self):
         """simple #silent"""
-        self.verify("#silent $anObj.callIt(99)\n$anObj.callArg",
+        self.verify("#silent $anObj.callIt(99)\n$anObj._callArg",
                     "99")
+
+    def test4(self):
+        """#silent 1234
+        """
+        self.verify("#silent 1234",
+                    "")
+
 
 class SetDirective(OutputTest):
 
@@ -2688,13 +2694,6 @@ class EchoDirective(OutputTest):
         """
         self.verify("#echo 1234",
                     "1234")
-
-class SilentDirective(OutputTest):
-    def test1(self):
-        """#silent 1234
-        """
-        self.verify("#silent 1234",
-                    "")
 
 
 class VarExists(OutputTest):               # Template.varExists()
