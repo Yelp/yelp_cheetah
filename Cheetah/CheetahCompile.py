@@ -28,8 +28,9 @@ class Parser(Cheetah.Parser.Parser):
             self.setPos(startPos)
             raise Cheetah.Parser.ParseError(
                 self,
-                msg='Bad macro name: "{0}". You may want to escape that # sign?'.format(
-                     macroName
+                msg=(
+                    'Bad macro name: "{0}". '
+                    'You may want to escape that # sign?'.format(macroName)
                 ),
             )
 
@@ -68,6 +69,7 @@ class AnyString(unicode):
     """Represents "any string"."""
     def startswith(self, other):
         return True
+
     def __eq__(self, other):
         return True
 
@@ -75,6 +77,7 @@ class AnyString(unicode):
 class AutoDict(collections.defaultdict):
     "Like defaultdict, but auto-populates for .get() as well."
     no_default = []
+
     def get(self, key, default=no_default):
         if default is self.no_default:
             return self[key]
