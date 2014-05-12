@@ -905,7 +905,6 @@ class _LowLevelParser(SourceReader):
                 # it has syntax that is only valid at the top level
                 self._raiseErrorAboutInvalidCheetahVarSyntaxInExpr()
             else:
-                beforeTokenPos = self.pos()
                 token = self.getPyToken()
                 if token in ('{', '(', '['):
                     self.rev()
@@ -982,7 +981,6 @@ class _LowLevelParser(SourceReader):
                     # it has syntax that is only valid at the top level                    
                     self._raiseErrorAboutInvalidCheetahVarSyntaxInExpr()
                 else:
-                    beforeTokenPos = self.pos()
                     token = self.getPyToken()
                     if token in ('{', '(', '['):
                         self.rev()
@@ -1141,9 +1139,7 @@ class _LowLevelParser(SourceReader):
 
         startPos = self.pos()
         lineCol = self.getRowCol(startPos)
-        # TODO: the following variable is unused, but I assume the function has
-        # a side-effect
-        startToken = self.getCheetahVarStartToken()
+        self.getCheetahVarStartToken()
             
         if self.peek() in '({[':         
             pos = self.pos()
@@ -1997,9 +1993,6 @@ class _HighLevelParser(_LowLevelParser):
             self.getWhiteSpace()
             style = SET_MODULE
 
-        # TODO: the following variable is unused but I assume the function has
-        # a side-effect
-        startsWithDollar = self.matchCheetahVarStart()
         startPos = self.pos()
         LVALUE = self.getExpression(pyTokensToBreakAt=assignmentOps, useNameMapper=False).strip()
         OP = self.getAssignmentOperator()
