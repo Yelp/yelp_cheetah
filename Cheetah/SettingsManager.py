@@ -3,15 +3,16 @@ import copy as copyModule
 import re
 import types
 from ConfigParser import ConfigParser
-from StringIO import StringIO # not cStringIO because of unicode support
+from StringIO import StringIO
 from tokenize import Number
 
 
 numberRE = re.compile(Number)
-complexNumberRE = re.compile('[\(]*' +Number + r'[ \t]*\+[ \t]*' + Number + '[\)]*')
+complexNumberRE = re.compile('[\(]*' + Number + r'[ \t]*\+[ \t]*' + Number + '[\)]*')
 
 ##################################################
-## FUNCTIONS ##
+# FUNCTIONS ##
+
 
 def mergeNestedDictionaries(dict1, dict2, copy=False, deepcopy=False):
     """Recursively merge the values of dict2 into dict1.
@@ -32,6 +33,7 @@ def mergeNestedDictionaries(dict1, dict2, copy=False, deepcopy=False):
             dict1[key] = val
     return dict1
 
+
 def stringIsNumber(S):
     """Return True if theString represents a Python number, False otherwise.
     This also works for complex numbers and numbers with +/- in front."""
@@ -49,6 +51,7 @@ def stringIsNumber(S):
     else:
         return True
 
+
 def convStringToNum(theString):
     """Convert a string representation of a Python number to the Python version"""
 
@@ -60,8 +63,10 @@ def convStringToNum(theString):
 class Error(Exception):
     pass
 
+
 class NoDefault(object):
     pass
+
 
 class ConfigParserCaseSensitive(ConfigParser):
     """A case sensitive version of the standard Python ConfigParser."""
@@ -69,6 +74,7 @@ class ConfigParserCaseSensitive(ConfigParser):
     def optionxform(self, optionstr):
         """Don't change the case as is done in the default implemenation."""
         return optionstr
+
 
 class _SettingsCollector(object):
     """An abstract base class that provides the methods SettingsManager uses to
@@ -95,11 +101,11 @@ class _SettingsCollector(object):
     def readSettingsFromPySrcStr(self, theString):
         """Return a dictionary of the settings in a Python src string."""
 
-        globalsDict = {'True': (1==1),
-                       'False': (0==1),
+        globalsDict = {'True': (1 == 1),
+                       'False': (0 == 1),
                        }
-        newSettings = {'self':self}
-        exec((theString+os.linesep), globalsDict, newSettings)
+        newSettings = {'self': self}
+        exec((theString + os.linesep), globalsDict, newSettings)
         del newSettings['self']
         module = types.ModuleType('temp_settings_module')
         module.__dict__.update(newSettings)
@@ -147,8 +153,8 @@ class _SettingsCollector(object):
                 if o != '__name__':
                     newSettings[s][o] = p.get(s, o)
 
-        ## loop through new settings -> deal with global settings, numbers,
-        ## booleans and None ++ also deal with 'importSettings' commands
+        # loop through new settings -> deal with global settings, numbers,
+        # booleans and None ++ also deal with 'importSettings' commands
 
         for sect, subDict in newSettings.items():
             for key, val in subDict.items():
@@ -164,7 +170,7 @@ class _SettingsCollector(object):
                     if stringIsNumber(val):
                         subDict[key] = convStringToNum(val)
 
-                ## now deal with any 'importSettings' commands
+                # now deal with any 'importSettings' commands
                 if key.lower() == 'importsettings':
                     if val.find(';') < 0:
                         importedSettings = self.readSettingsFromPySrcFile(val)
@@ -209,7 +215,7 @@ class SettingsManager(_SettingsCollector):
 
         pass
 
-    ## core post startup methods
+    # core post startup methods
 
     def setting(self, name, default=NoDefault):
         """Get a setting from self._settings, with or without a default value."""
@@ -218,7 +224,6 @@ class SettingsManager(_SettingsCollector):
             return self._settings[name]
         else:
             return self._settings.get(name, default)
-
 
     def hasSetting(self, key):
         """True/False"""
@@ -248,16 +253,14 @@ class SettingsManager(_SettingsCollector):
         else:
             self._settings.update(newSettings)
 
-
-    ## source specific update methods
+    # source specific update methods
 
     def updateSettingsFromPySrcStr(self, theString, merge=True):
         """Update the settings from a code in a Python src string."""
 
         newSettings = self.readSettingsFromPySrcStr(theString)
         self.updateSettings(newSettings,
-                            merge=newSettings.get('mergeSettings', merge) )
-
+                            merge=newSettings.get('mergeSettings', merge))
 
     def updateSettingsFromConfigFileObj(self, inFile, convert=True, merge=True):
         """See the docstring for .updateSettingsFromConfigFile()
