@@ -1038,11 +1038,6 @@ class Template(object):
              tclass = Template.compile(file='some/path')
                  # or
              tclass = Template.compile(file=someFileObject)
-                 # or
-             # if you used the command line compiler or have Cheetah's ImportHooks
-             # installed your template class is also available via Python's
-             # standard import mechanism:
-             from ACompileTemplate import AcompiledTemplate as tclass
 
              ## ii) then you create an instance
              t = tclass(namespaces=namespaces)

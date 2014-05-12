@@ -80,8 +80,7 @@ def run_setup(with_binary):
         platforms=['linux'],
         entry_points={
             'console_scripts': [
-                'cheetah = Cheetah.CheetahWrapper:_cheetah',
-                'cheetah-compile = Cheetah.CheetahWrapper:_cheetah_compile',
+                'cheetah-compile = Cheetah.CheetahCompile:main',
             ],
         },
         **kwargs

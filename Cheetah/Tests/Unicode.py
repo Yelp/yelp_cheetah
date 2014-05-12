@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- encoding: utf8 -*-
+
 import imp
 import os
 import sys
+import subprocess
 import tempfile
 import unittest
 from Cheetah.Template import Template
-from Cheetah import CheetahWrapper
 
 
 class CommandLineTest(unittest.TestCase):
@@ -15,12 +16,11 @@ class CommandLineTest(unittest.TestCase):
         while sourcefile.find('-') != -1:
             sourcefile = tempfile.mktemp()
         
-        fd = open('%s.tmpl' % sourcefile, 'w')
-        fd.write(source)
-        fd.close()
+        tmpl_file = '{0}.tmpl'.format(sourcefile)
+        with open(tmpl_file, 'w') as fd:
+            fd.write(source)
 
-        wrap = CheetahWrapper.CheetahWrapper()
-        wrap.main(['cheetah', 'compile', '--quiet', '--nobackup', sourcefile])
+        subprocess.check_call(['cheetah-compile', tmpl_file])
         module_path, module_name = os.path.split(sourcefile)
         module = loadModule(module_name, [module_path])
         template = getattr(module, module_name)
