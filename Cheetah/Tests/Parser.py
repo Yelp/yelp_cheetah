@@ -10,8 +10,8 @@ class ArgListTest(unittest.TestCase):
         self.al = Parser.ArgList()
 
     def test_merge1(self):
-        ''' 
-            Testing the ArgList case results from Template.Preprocessors.test_complexUsage 
+        '''
+            Testing the ArgList case results from Template.Preprocessors.test_complexUsage
         '''
         self.al.add_argument('arg')
         expect = [('arg', None)]
@@ -46,4 +46,3 @@ class ArgListTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

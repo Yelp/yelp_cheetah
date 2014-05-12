@@ -18,7 +18,7 @@ class ClassMethods_compile(TemplateTest):
     """I am using the same Cheetah source for each test to root out clashes
     caused by the compile caching in Template.compile().
     """
-    
+
     def test_basicUsage(self):
         klass = Template.compile(source='$foo')
         t = klass(namespaces={'foo':1234})
@@ -140,7 +140,7 @@ class ClassMethods_compile(TemplateTest):
         t = klass3(namespaces={'foo':1234})
         assert str(t)=='1234'
         # still there as this class came from the cache
-        assert t.generatedModuleCode() 
+        assert t.generatedModuleCode()
 
 
     def test_compilationCache(self):
@@ -182,7 +182,7 @@ class ClassMethods_subclass(TemplateTest):
         klass3 = klass2.subclass(source='#implements dummy\n$bar')
         t = klass3({'foo':1234})
         assert str(t)=='1234'
-        
+
 
 class Preprocessors(TemplateTest):
 
@@ -201,9 +201,9 @@ class Preprocessors(TemplateTest):
     def test_normalizePreprocessorArgVariants(self):
         src='%set foo = 12\n%%comment\n$(@foo*10)'
 
-        class Settings1: tokens = '@ %' 
+        class Settings1: tokens = '@ %'
         Settings1 = Settings1()
-            
+
         from Cheetah.Template import TemplatePreprocessor
         settings = Template._normalizePreprocessorSettings(Settings1)
         preprocObj = TemplatePreprocessor(settings)
@@ -218,7 +218,7 @@ class Preprocessors(TemplateTest):
                             'directiveStartToken': '%',
                             'commentStartToken': '%%',
                             }
-        
+
         for arg in ['@ %',
                     {'tokens':'@ %'},
                     {'compilerSettings':compilerSettings},
@@ -228,9 +228,9 @@ class Preprocessors(TemplateTest):
                      'templateAPIClass':TemplateSubclass},
                     Settings1,
                     preprocObj,
-                    preprocFunc,                    
+                    preprocFunc,
                     ]:
-            
+
             klass = Template.compile(src, preprocessors=arg)
             assert str(klass())=='120'
 
@@ -331,6 +331,6 @@ class SubclassSearchListTest(TemplateTest):
 
 ##################################################
 ## if run from the command line ##
-        
+
 if __name__ == '__main__':
     unittest.main()

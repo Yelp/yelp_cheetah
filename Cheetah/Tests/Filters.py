@@ -14,7 +14,7 @@ class BasicMarkdownFilterTest(unittest.TestCase):
         Test that our markdown filter works
     '''
     def test_BasicHeader(self):
-        template = '''  
+        template = '''
 #from Cheetah.Filters import Markdown
 #transform Markdown
 $foo
@@ -43,7 +43,7 @@ class BasicCodeHighlighterFilterTest(unittest.TestCase):
         Test that our code highlighter filter works
     '''
     def test_Python(self):
-        template = '''  
+        template = '''
 #from Cheetah.Filters import CodeHighlighter
 #transform CodeHighlighter
 
@@ -55,7 +55,7 @@ def foo(self):
         assert template, (template, 'We should have some content here...')
 
     def test_Html(self):
-        template = '''  
+        template = '''
 #from Cheetah.Filters import CodeHighlighter
 #transform CodeHighlighter
 

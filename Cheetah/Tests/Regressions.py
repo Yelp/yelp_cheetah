@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import Cheetah.NameMapper 
+import Cheetah.NameMapper
 import Cheetah.Template
 
 import sys
@@ -94,7 +94,7 @@ class InlineImportTest(unittest.TestCase):
     def test_ProperImportOfBadModule(self):
         template = '''
             #from invalid import fail
-                
+
             This should totally $fail
         '''
         self.failUnlessRaises(ImportError, Cheetah.Template.Template.compile, template, compilerSettings={'useLegacyImportMode' : False}, keepRefToGeneratedCode=True)
@@ -119,16 +119,16 @@ Bar
 
 
 class Mantis_Issue_11_Regression_Test(unittest.TestCase):
-    ''' 
+    '''
         Test case for bug outlined in Mantis issue #11:
-            
+
         Output:
         Traceback (most recent call last):
           File "test.py", line 12, in <module>
             t.respond()
           File "DynamicallyCompiledCheetahTemplate.py", line 86, in respond
           File "/usr/lib64/python2.6/cgi.py", line 1035, in escape
-            s = s.replace("&", "&") # Must be done first! 
+            s = s.replace("&", "&") # Must be done first!
     '''
     def test_RequestInSearchList(self):
         import cgi
@@ -141,18 +141,18 @@ class Mantis_Issue_11_Regression_Test(unittest.TestCase):
 
     def test_FailingBehaviorWithSetting(self):
         import cgi
-        template = Cheetah.Template.Template("$escape($request)", 
-                searchList=[{'escape' : cgi.escape, 'request' : 'foobar'}], 
+        template = Cheetah.Template.Template("$escape($request)",
+                searchList=[{'escape' : cgi.escape, 'request' : 'foobar'}],
                 compilerSettings={'prioritizeSearchListOverSelf' : True})
         assert template
         assert template.respond()
 
 class Mantis_Issue_21_Regression_Test(unittest.TestCase):
-    ''' 
+    '''
         Test case for bug outlined in issue #21
 
         Effectively @staticmethod and @classmethod
-        decorated methods in templates don't 
+        decorated methods in templates don't
         properly define the _filter local, which breaks
         when using the NameMapper
     '''
@@ -173,7 +173,7 @@ class Mantis_Issue_21_Regression_Test(unittest.TestCase):
 
 
 class Mantis_Issue_22_Regression_Test(unittest.TestCase):
-    ''' 
+    '''
         Test case for bug outlined in issue #22
 
         When using @staticmethod and @classmethod
