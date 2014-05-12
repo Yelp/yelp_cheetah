@@ -152,31 +152,35 @@ if not hasattr(inspect.imp, 'get_suffixes'):
     # http://bugs.communitycheetah.org/view.php?id=10
     setattr(inspect.imp, 'get_suffixes', lambda: [('.py', 'U', 1)])
 
-## N.B. An attempt is made at the end of this module to import C versions of
-## these functions.  If _namemapper.c has been compiled succesfully and the
-## import goes smoothly, the Python versions defined here will be replaced with
-## the C versions.
+# N.B. An attempt is made at the end of this module to import C versions of
+# these functions.  If _namemapper.c has been compiled succesfully and the
+# import goes smoothly, the Python versions defined here will be replaced with
+# the C versions.
+
 
 class NotFound(LookupError):
     pass
 
+
 def _raiseNotFoundException(key, namespace):
-    excString = "cannot find '%s'"%key
+    excString = "cannot find '%s'" % key
     if _INCLUDE_NAMESPACE_REPR_IN_NOTFOUND_EXCEPTIONS:
-        excString += ' in the namespace %s'%pformat(namespace)
+        excString += ' in the namespace %s' % pformat(namespace)
     raise NotFound(excString)
+
 
 def _wrapNotFoundException(exc, fullName, namespace):
     if not _ALLOW_WRAPPING_OF_NOTFOUND_EXCEPTIONS:
         raise
     else:
         excStr = exc.args[0]
-        if excStr.find('while searching')==-1: # only wrap once!
-            excStr +=" while searching for '%s'"%fullName
+        if excStr.find('while searching') == -1:  # only wrap once!
+            excStr += " while searching for '%s'" % fullName
             if _INCLUDE_NAMESPACE_REPR_IN_NOTFOUND_EXCEPTIONS:
-                excStr += ' in the namespace %s'%pformat(namespace)
+                excStr += ' in the namespace %s' % pformat(namespace)
             exc.args = (excStr,)
         raise
+
 
 def _isInstanceOrClass(obj):
     if isinstance(obj, type):
@@ -196,6 +200,7 @@ def _isInstanceOrClass(obj):
             return True
     return False
 
+
 def hasKey(obj, key):
     """Determine if 'obj' has 'key' """
     if hasattr(obj, 'has_key') and key in obj:
@@ -205,6 +210,7 @@ def hasKey(obj, key):
     else:
         return False
 
+
 def valueForKey(obj, key):
     if hasattr(obj, 'has_key') and key in obj:
         return obj[key]
@@ -213,8 +219,9 @@ def valueForKey(obj, key):
     else:
         _raiseNotFoundException(key, obj)
 
+
 def _valueForName(obj, name, executeCallables=False, useDottedNotation=True):
-    nameChunks=name.split('.')
+    nameChunks = name.split('.')
     for i in range(len(nameChunks)):
         key = nameChunks[i]
         if useDottedNotation and hasattr(obj, 'has_key') and key in obj:
@@ -231,20 +238,23 @@ def _valueForName(obj, name, executeCallables=False, useDottedNotation=True):
             obj = nextObj
     return obj
 
+
 def valueForName(obj, name, executeCallables=False, useDottedNotation=True):
     try:
         return _valueForName(obj, name, executeCallables, useDottedNotation)
     except NotFound, e:
         _wrapNotFoundException(e, fullName=name, namespace=obj)
 
+
 def valueFromSearchList(searchList, name, executeCallables=False, useDottedNotation=True):
     key = name.split('.')[0]
     for namespace in searchList:
         if hasKey(namespace, key):
             return _valueForName(namespace, name,
-                                executeCallables=executeCallables,
-                                useDottedNotation=useDottedNotation)
+                                 executeCallables=executeCallables,
+                                 useDottedNotation=useDottedNotation)
     _raiseNotFoundException(key, searchList)
+
 
 def _namespaces(callerFrame, searchList=None):
     yield callerFrame.f_locals
@@ -254,12 +264,17 @@ def _namespaces(callerFrame, searchList=None):
     yield callerFrame.f_globals
     yield __builtins__
 
+
 def valueFromFrameOrSearchList(searchList, name, executeCallables=False, useDottedNotation=True,
                                frame=None):
     def __valueForName():
         try:
-            return _valueForName(namespace, name,
-                    executeCallables=executeCallables, useDottedNotation=useDottedNotation)
+            return _valueForName(
+                namespace,
+                name,
+                executeCallables=executeCallables,
+                useDottedNotation=useDottedNotation,
+            )
         except NotFound, e:
             _wrapNotFoundException(e, fullName=name, namespace=searchList)
     try:
@@ -272,6 +287,7 @@ def valueFromFrameOrSearchList(searchList, name, executeCallables=False, useDott
         _raiseNotFoundException(key, searchList)
     finally:
         del frame
+
 
 def valueFromFrame(name, executeCallables=False, useDottedNotation=True, frame=None):
     # @@TR consider implementing the C version the same way
@@ -289,21 +305,14 @@ def valueFromFrame(name, executeCallables=False, useDottedNotation=True, frame=N
         del frame
 
 try:
-    from Cheetah._namemapper import NotFound, valueForKey, valueForName, \
-         valueFromSearchList, valueFromFrameOrSearchList, valueFromFrame
+    from Cheetah._namemapper import NotFound  # noqa (intentional masking)
+    from Cheetah._namemapper import valueForKey  # noqa (intentional masking)
+    from Cheetah._namemapper import valueForName  # noqa (intentional masking)
+    from Cheetah._namemapper import valueFromSearchList  # noqa (intentional masking)
+    from Cheetah._namemapper import valueFromFrameOrSearchList  # noqa (intentional masking)
+    from Cheetah._namemapper import valueFromFrame  # noqa (intentional masking)
 
     # it is possible with Jython or Windows, for example, that _namemapper.c hasn't been compiled
     C_VERSION = True
 except:
     C_VERSION = False
-
-##################################################
-## CLASSES
-
-class Mixin:
-    """@@ document me"""
-    def valueForName(self, name):
-        return valueForName(self, name)
-
-    def valueForKey(self, key):
-        return valueForKey(self, key)
