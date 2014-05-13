@@ -9,8 +9,8 @@ venv: .venv.touch
 	tox -e venv $(REBUILD_FLAG)
 
 .PHONY: bench
-bench: .venv.touch
-	tox -e bench $(REBUILD_FLAG)
+bench:
+	tox -e bench
 
 .PHONY: tests test
 tests: test

@@ -9,7 +9,6 @@
 /.pydevproject
 /.tox
 /.venv.touch
-/build
 /coverage-html
 /dist
 /venv-*
