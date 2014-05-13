@@ -1,11 +1,11 @@
 '''
     Compiler classes for Cheetah:
-    ModuleCompiler aka 'Compiler'
+    Compiler
     ClassCompiler
     MethodCompiler
 
-    If you are trying to grok this code start with ModuleCompiler.__init__,
-    ModuleCompiler.compile, and ModuleCompiler.__getattr__.
+    If you are trying to grok this code start with Compiler.__init__,
+    Compiler.compile, and Compiler.__getattr__.
 '''
 
 import sys
@@ -1338,7 +1338,7 @@ class AutoClassCompiler(ClassCompiler):
 # MODULE COMPILERS
 
 
-class ModuleCompiler(SettingsManager, GenUtils):
+class Compiler(SettingsManager, GenUtils):
 
     parserClass = Parser
     classCompilerClass = AutoClassCompiler
@@ -1351,7 +1351,7 @@ class ModuleCompiler(SettingsManager, GenUtils):
                  extraImportStatements=None,  # list of strings
                  settings=None  # dict
                  ):
-        super(ModuleCompiler, self).__init__()
+        super(Compiler, self).__init__()
         if settings:
             self.updateSettings(settings)
         # disable useStackFrames if the C version of NameMapper isn't compiled
@@ -1459,7 +1459,6 @@ class ModuleCompiler(SettingsManager, GenUtils):
         self._finishedClassesList = []      # listed by ordered
         self._finishedClassIndex = {}  # listed by name
         self._moduleDef = None
-        self._moduleShBang = '#!/usr/bin/env python'
         self._moduleEncoding = 'ascii'
         self._moduleEncodingStr = ''
         self._moduleHeaderLines = []
@@ -1646,9 +1645,6 @@ class ModuleCompiler(SettingsManager, GenUtils):
         settingsReader(settingsStr)
         self._parser.configureParser()
 
-    def setShBang(self, shBang):
-        self._moduleShBang = shBang
-
     def setModuleEncoding(self, encoding):
         self._moduleEncoding = encoding
 
@@ -1797,8 +1793,7 @@ class ModuleCompiler(SettingsManager, GenUtils):
         return time.asctime(time.localtime(theTime))
 
     def moduleHeader(self):
-        header = self._moduleShBang + '\n'
-        header += self._moduleEncodingStr + '\n'
+        header = self._moduleEncodingStr + '\n'
         if self._moduleHeaderLines:
             offSet = self.setting('commentOffset')
 
@@ -1840,18 +1835,9 @@ class ModuleCompiler(SettingsManager, GenUtils):
 # with code, advice and input from many other volunteers.
 # For more information visit http://www.CheetahTemplate.org/
 
-##################################################
-# if run from command line:
 if __name__ == '__main__':
-    from Cheetah.TemplateCmdLineIface import CmdLineIface
-    CmdLineIface(templateObj=%(className)s()).run()
-
-""" % {'className': self._mainClassName}
-
-
-##################################################
-# Make Compiler an alias for ModuleCompiler
-
-Compiler = ModuleCompiler
+    from os import environ
+    print({main_class_name}(searchList=[environ]).respond())
+""".format(main_class_name=self._mainClassName)
 
 # vim: shiftwidth=4 tabstop=4 expandtab
