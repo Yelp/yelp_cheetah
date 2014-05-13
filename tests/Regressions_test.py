@@ -21,14 +21,8 @@ class GetAttrTest(unittest.TestCase):
     '''
     def test_ValidException(self):
         o = CustomGetAttrClass()
-        try:
+        with pytest.raises(GetAttrException):
             print(o.attr)
-        except GetAttrException, e:
-            # expected
-            return
-        except:
-            self.fail('Invalid exception raised: %s' % e)
-        self.fail('Should have had an exception raised')
 
     def test_NotFoundException(self):
         template = '''

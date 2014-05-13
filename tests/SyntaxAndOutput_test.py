@@ -34,17 +34,11 @@ def dummydecorator(func):
 class DummyClass:
     _called = False
 
-    def __str__(self):
-        return 'object'
-
     def meth(self, arg="arff"):
         return str(arg)
 
     def meth1(self, arg="doo"):
         return arg
-
-    def meth2(self, arg1="a1", arg2="a2"):
-        return str(arg1) + str(arg2)
 
     def methWithPercentSignDefaultArg(self, arg1="110%"):
         return str(arg1)
@@ -100,9 +94,6 @@ defaultTestNameSpace = {
     }
 
 
-##################################################
-# TEST BASE CLASSES
-
 class OutputTest(unittest.TestCase):
     report = '''
 Template output mismatch:
@@ -118,12 +109,8 @@ Template output mismatch:
 
     convertEOLs = True
     _EOLreplacement = None
-    _debugEOLReplacement = False
 
-    DEBUGLEV = 0
     _searchList = [defaultTestNameSpace]
-
-    _useNewStyleCompilation = True
 
     _extraCompileKwArgs = None
 
@@ -142,27 +129,17 @@ Template output mismatch:
                 expectedOutput = expectedOutput.replace('\n', self._EOLreplacement)
 
         self._input = input
-        if self._useNewStyleCompilation:
-            extraKwArgs = self._extraCompileKwArgs or {}
 
-            templateClass = Template.compile(
-                source=input,
-                compilerSettings=self._getCompilerSettings(),
-                keepRefToGeneratedCode=True,
-                **extraKwArgs
-                )
-            moduleCode = templateClass._CHEETAH_generatedModuleCode
-            searchList = self.searchList() or self._searchList
-            self.template = templateObj = templateClass(searchList=searchList)
-        else:
-            self.template = templateObj = Template(
-                input,
-                searchList=self.searchList(),
-                compilerSettings=self._getCompilerSettings(),
-                )
-            moduleCode = templateObj._CHEETAH_generatedModuleCode
-        if self.DEBUGLEV >= 1:
-            print(moduleCode)
+        extraKwArgs = self._extraCompileKwArgs or {}
+        templateClass = Template.compile(
+            source=input,
+            compilerSettings=self._getCompilerSettings(),
+            keepRefToGeneratedCode=True,
+            **extraKwArgs
+        )
+        searchList = self.searchList() or self._searchList
+        self.template = templateObj = templateClass(searchList=searchList)
+
         output = templateObj.respond()  # rather than __str__, because of unicode
         assert output == expectedOutput, self._outputMismatchReport(output, expectedOutput)
 
@@ -170,29 +147,12 @@ Template output mismatch:
         return {}
 
     def _outputMismatchReport(self, output, expectedOutput):
-        if self._debugEOLReplacement and self._EOLreplacement:
-            EOLrepl = self._EOLreplacement
-            marker = '*EOL*'
-            return self.report % {'template': self._input.replace(EOLrepl, marker),
-                                  'expected': expectedOutput.replace(EOLrepl, marker),
-                                  'actual': output.replace(EOLrepl, marker),
-                                  'end': '(end)'}
-        else:
-            return self.report % {'template': self._input,
-                                  'expected': expectedOutput,
-                                  'actual': output,
-                                  'end': '(end)'}
-
-    def genClassCode(self):
-        if hasattr(self, 'template'):
-            return self.template.generatedClassCode()
-
-    def genModuleCode(self):
-        if hasattr(self, 'template'):
-            return self.template.generatedModuleCode()
-
-##################################################
-# TEST CASE CLASSES
+        EOLrepl = self._EOLreplacement
+        marker = '*EOL*'
+        return self.report % {'template': self._input.replace(EOLrepl, marker),
+                              'expected': expectedOutput.replace(EOLrepl, marker),
+                              'actual': output.replace(EOLrepl, marker),
+                              'end': '(end)'}
 
 
 class EmptyTemplate(OutputTest):
@@ -205,19 +165,11 @@ class EmptyTemplate(OutputTest):
         warnings.filterwarnings('error',
                                 'You supplied an empty string for the source!',
                                 UserWarning)
-        try:
+        with pytest.raises(UserWarning):
             self.verify("", "")
-        except UserWarning:
-            pass
-        else:
-            self.fail("Should warn about empty source strings.")
 
-        try:
+        with pytest.raises(NotImplementedError):
             self.verify("#implements foo", "")
-        except NotImplementedError:
-            pass
-        else:
-            self.fail("This should barf about respond() not being implemented.")
 
         self.verify("#implements respond", "")
 
@@ -323,12 +275,8 @@ class NonTokens(OutputTest):
 
     def test6(self):
         """1 dollar sign followed by EOL Slurp Token"""
-        if DEFAULT_COMPILER_SETTINGS['EOLSlurpToken']:
-            self.verify("\n$%s\n" % DEFAULT_COMPILER_SETTINGS['EOLSlurpToken'],
-                        "\n$")
-        else:
-            self.verify("\n$#\n",
-                        "\n$#\n")
+        self.verify("\n$%s\n" % DEFAULT_COMPILER_SETTINGS['EOLSlurpToken'],
+                    "\n$")
 
 
 class Comments_SingleLine(OutputTest):
@@ -927,16 +875,12 @@ class NameMapper(OutputTest):
     def test22a(self):
         """nested dictionary access - NameMapper style, with dotted notation
         disabled"""
-        try:
+        with pytest.raises(NotFound):
             self.verify("#compiler-settings\n"
                         "useDottedNotation = False\n"
                         "#end compiler-settings\n"
                         "$aDict.nestedDict.two",
                         "nestedItem2")
-        except NotFound:
-            pass
-        else:
-            self.fail("useDottedNotation = False should disable dotted notation for dicts")
 
     def test22b(self):
         """nested dictionary access - NameMapper style, with dotted notation
@@ -1164,9 +1108,6 @@ class EOLSlurpToken(OutputTest):
         Should NOT eat the garbage"""
         self.verify(" 1234 %s garbage   \n" % self._EOLSlurpToken,
                     " 1234 %s garbage   \n" % self._EOLSlurpToken)
-
-if not DEFAULT_COMPILER_SETTINGS['EOLSlurpToken']:
-    del EOLSlurpToken
 
 
 class RawDirective(OutputTest):
@@ -1647,16 +1588,12 @@ class DecoratorDirective(OutputTest):
                     + "\n#block $testMeth():1234",
                     "1234")
 
-        try:
+        with pytest.raises(ParseError):
             self.verify(
                 "#from tests.SyntaxAndOutput_test import dummydecorator\n"
                 + "#@dummydecorator\n sdf"
                 + "\n#def $testMeth():1234\n$testMeth()",
                 "1234")
-        except ParseError:
-            pass
-        else:
-            self.fail('should raise a ParseError')
 
     def test2(self):
         """#def with multiple decorators"""
@@ -2050,13 +1987,9 @@ class IfDirective(OutputTest):
 
         This should barf
         """
-        try:
+        with pytest.raises(ParseError):
             self.verify("#if $*emptyString\n$aStr\n#end if\n",
                         "")
-        except ParseError:
-            pass
-        else:
-            self.fail('This should barf')
 
     def test11(self):
         """#if block using invalid top-level $(placeholder) syntax - should barf"""
@@ -2067,12 +2000,8 @@ class IfDirective(OutputTest):
                           "#if $[emptyString]\n$aStr\n#end if\n",
                           "#if $!emptyString\n$aStr\n#end if\n",
                           ):
-            try:
+            with pytest.raises(ParseError):
                 self.verify(badSyntax, "")
-            except ParseError:
-                pass
-            else:
-                self.fail('This should barf')
 
     def test12(self):
         """#if ... #else if ... #else ... block using a $emptyString
@@ -2526,10 +2455,6 @@ commentStartToken = //
 $anInt//comment
 """,
                     "1\n1\n")
-
-if sys.platform.startswith('java'):
-    del CompilerDirective
-    del CompilerSettingsDirective
 
 
 class ExtendsDirective(OutputTest):

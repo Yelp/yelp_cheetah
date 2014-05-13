@@ -21,6 +21,7 @@ exclude_lines =
     \#\s*pragma: no cover
 
     # Don't complain if tests don't hit defensive assertion code:
+    ^\s*assert
     ^\s*raise AssertionError\b
     ^\s*raise NotImplementedError\b
     ^\s*return NotImplemented\b

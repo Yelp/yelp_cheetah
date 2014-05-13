@@ -111,16 +111,15 @@ def loadModule(moduleName, path=None):
     return mod
 
 
-class JBQ_UTF8_Test6(unittest.TestCase):
-    def runTest(self):
-        source = """#encoding utf-8
-        #set $someUnicodeString = u"Bébé"
-        Main file with |$v| and eacute in the template é"""
-        t = Template.compile(source=source)
+def test_JBQ_UTF8_Test6():
+    source = """#encoding utf-8
+    #set $someUnicodeString = u"Bébé"
+    Main file with |$v| and eacute in the template é"""
+    t = Template.compile(source=source)
 
-        t.v = u'Unicode String'
+    t.v = u'Unicode String'
 
-        assert unicode(t())
+    assert unicode(t())
 
 
 class JBQ_UTF8_Test7(CommandLineTest):

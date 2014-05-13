@@ -11,7 +11,7 @@ def xfail_if_coverage(func):
     if 'coverage' in sys.modules:
         return pytest.mark.xfail(func)
     else:
-        return func
+        return func  # pragma: no cover -- the other branch is with coverage
 
 
 class NameSpaceObject(object):
@@ -52,7 +52,7 @@ def test_refcounting(getter_func, namespace, style):
         locals().update(vars(namespace))
         SL = []
     else:
-        raise ValueError('Unknown style: %r' % style)
+        raise AssertionError('Unknown style: {0}'.format(style))
 
     # VFF has a differrent signature
     if SL is not None:
@@ -87,7 +87,7 @@ def test_refcounting(getter_func, namespace, style):
 
 
 @xfail_if_coverage
-def test_get_refcount_tree():
+def test_get_refcount_tree_1():
     """Demonstrate what that thing does."""
     t1 = get_refcount_tree(NameSpaceObject)
 
@@ -98,6 +98,9 @@ def test_get_refcount_tree():
     assert t1['<global>.foo.bar'][0] == 7
     assert t1['<global>.foo.bar.baz'][0] == 7
 
+
+@xfail_if_coverage
+def test_get_refcount_tree_2():
     t1 = get_refcount_tree(NameSpaceObject2)
 
     assert len(t1) == 3, t1.keys()

@@ -249,9 +249,6 @@ class TryExceptImportTest(unittest.TestCase):
 
 class ClassMethodSupport(unittest.TestCase):
     def test_BasicDecorator(self):
-        if sys.version_info[0] == 2 and sys.version_info[1] == 3:
-                print('This version of Python doesn\'t support decorators, skipping tests')
-                return
         template = '''
             #@classmethod
             #def myClassMethod()
@@ -259,18 +256,12 @@ class ClassMethodSupport(unittest.TestCase):
             #end def
         '''
         template = Template.compile(source=template)
-        try:
-            rc = template.myClassMethod(foo='bar')
-            assert rc == '$foo = bar', (rc, 'Template class method didn\'t return what I expected')
-        except AttributeError, ex:
-            self.fail(ex)
+        rc = template.myClassMethod(foo='bar')
+        assert rc == '$foo = bar'
 
 
 class StaticMethodSupport(unittest.TestCase):
     def test_BasicDecorator(self):
-        if sys.version_info[0] == 2 and sys.version_info[1] == 3:
-                print('This version of Python doesn\'t support decorators, skipping tests')
-                return
         template = '''
             #@staticmethod
             #def myStaticMethod()
@@ -278,11 +269,8 @@ class StaticMethodSupport(unittest.TestCase):
             #end def
         '''
         template = Template.compile(source=template)
-        try:
-            rc = template.myStaticMethod(foo='bar')
-            assert rc == '$foo = bar', (rc, 'Template class method didn\'t return what I expected')
-        except AttributeError, ex:
-            self.fail(ex)
+        rc = template.myStaticMethod(foo='bar')
+        assert rc == '$foo = bar'
 
 
 class Useless(object):
@@ -308,13 +296,11 @@ class MultipleInheritanceSupport(unittest.TestCase):
         assert result == [4, 5, 1, 2, 3], (result, 'Unexpected result')
 
 
-class SubclassSearchListTest(unittest.TestCase):
-    '''
-        Verify that if we subclass Template, we can still
-        use attributes on that subclass in the searchList
-    '''
-    def runTest(self):
-        class Sub(Template):
-            greeting = 'Hola'
-        tmpl = Sub('''When we meet, I say "${greeting}"''')
-        self.assertEquals(unicode(tmpl), 'When we meet, I say "Hola"')
+def test_SubclassSearchListTest():
+    """Verify that if we subclass Template, we can still use attributes on
+    that subclass in the searchList
+    """
+    class Sub(Template):
+        greeting = 'Hola'
+    tmpl = Sub('''When we meet, I say "${greeting}"''')
+    assert unicode(tmpl) == 'When we meet, I say "Hola"'

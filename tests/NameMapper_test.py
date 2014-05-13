@@ -13,12 +13,6 @@ class DummyClass(object):
     def __init__(self):
         self.instanceVar1 = 123
 
-    def __str__(self):
-        return 'object'
-
-    def meth(self, arg="arff"):
-        return str(arg)
-
     def meth1(self, arg="doo"):
         return arg
 
@@ -27,18 +21,8 @@ class DummyClass(object):
 
     def meth3(self):
         """Tests a bug that Jeff Johnson reported on Oct 1, 2001"""
-
         x = 'A string'
-        try:
-            for i in [1, 2, 3, 4]:
-                if x == 2:
-                    pass
-
-                if x == 'xx':
-                    pass
-            return x
-        except:
-            raise
+        return x
 
 
 class DummyClassGetAttrRaises(object):
