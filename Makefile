@@ -1,34 +1,31 @@
+
+REBUILD_FLAG =
+
 .PHONY: all
-all: test
+all: venv test
 
-.PHONY: test tests
-tests: test
-test: venv
-	sh -c '\
-		. venv/bin/activate && \
-		./Cheetah/Tests/Test.py && \
-		flake8 Cheetah setup.py bench --max-line-length=131 \
-	'
-
-venv: requirements-dev.txt
-	virtualenv --clear venv
-	sh -c '\
-		. venv/bin/activate && \
-		python --version && \
-		pip install -r requirements-dev.txt && \
-		pip install . \
-	'
+.PHONY: venv
+venv: .venv.touch
+	tox -e venv $(REBUILD_FLAG)
 
 .PHONY: bench
 bench:
-	./bench/runbench
+	tox -e bench
+
+.PHONY: tests test
+tests: test
+test: .venv.touch
+	tox $(REBUILD_FLAG)
+
+
+.venv.touch: setup.py requirements-dev.txt
+	$(eval REBUILD_FLAG := --recreate)
+	touch .venv.touch
+
 
 .PHONY: clean
 clean:
-	find -name "*.pyc" -print0 | xargs -r0 rm
-	rm -rf build
-	rm -rf *.egg-info
-	rm -rf venv
-	rm -rf bench/venv
-
-# vim:noet:ts=4:
+	find . -iname '*.pyc' -print0 | xargs -r0 rm -f
+	rm -rf .tox
+	rm -rf ./venv-*
+	rm -f .venv.touch

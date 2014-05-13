@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 
 import imp
 import os
@@ -112,16 +111,15 @@ def loadModule(moduleName, path=None):
     return mod
 
 
-class JBQ_UTF8_Test6(unittest.TestCase):
-    def runTest(self):
-        source = """#encoding utf-8
-        #set $someUnicodeString = u"Bébé"
-        Main file with |$v| and eacute in the template é"""
-        t = Template.compile(source=source)
+def test_JBQ_UTF8_Test6():
+    source = """#encoding utf-8
+    #set $someUnicodeString = u"Bébé"
+    Main file with |$v| and eacute in the template é"""
+    t = Template.compile(source=source)
 
-        t.v = u'Unicode String'
+    t.v = u'Unicode String'
 
-        assert unicode(t())
+    assert unicode(t())
 
 
 class JBQ_UTF8_Test7(CommandLineTest):
@@ -258,6 +256,3 @@ class InlineSpanishTest(unittest.TestCase):
             }]
         )
         self.assertTrue(unicode(template))
-
-if __name__ == '__main__':
-    unittest.main()
