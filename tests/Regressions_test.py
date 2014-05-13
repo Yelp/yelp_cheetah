@@ -1,14 +1,8 @@
-#!/usr/bin/env python
+import pytest
+import unittest
 
 import Cheetah.NameMapper
 import Cheetah.Template
-
-import sys
-import unittest
-
-
-majorVer, minorVer = sys.version_info[0], sys.version_info[1]
-versionTuple = (majorVer, minorVer)
 
 
 class GetAttrException(Exception):
@@ -181,9 +175,8 @@ class Mantis_Issue_21_Regression_Test(unittest.TestCase):
         properly define the _filter local, which breaks
         when using the NameMapper
     '''
+    @pytest.mark.xfail
     def runTest(self):
-        print('this test is disabled')
-        return
         template = '''
             #@staticmethod
             #def testMethod()
@@ -204,9 +197,8 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
         the generated code for the #filter is reliant
         on the `self` local, breaking the function
     '''
+    @pytest.mark.xfail
     def test_NoneFilter(self):
-        print('this test is disabled')
-        return
         template = '''
             #@staticmethod
             #def testMethod()
@@ -219,9 +211,8 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
         assert template
         assert template.testMethod(output='bug')
 
+    @pytest.mark.xfail
     def test_DefinedFilter(self):
-        print('this test is disabled')
-        return
         template = '''
             #@staticmethod
             #def testMethod()
@@ -264,7 +255,3 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
         template = Cheetah.Template.Template.compile(template)
         assert template
         assert template.testMethod(output='bug')
-
-
-if __name__ == '__main__':
-    unittest.main()

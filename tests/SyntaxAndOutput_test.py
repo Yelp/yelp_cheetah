@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: latin-1 -*-
 
 '''
@@ -13,6 +12,7 @@ TODO
 
 import os
 import os.path
+import pytest
 import sys
 import unittest
 import warnings
@@ -26,11 +26,8 @@ from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
 class Unspecified(object):
     pass
 
-majorVer, minorVer = sys.version_info[0], sys.version_info[1]
-versionTuple = (majorVer, minorVer)
 
-
-def testdecorator(func):
+def dummydecorator(func):
     return func
 
 
@@ -318,10 +315,9 @@ class NonTokens(OutputTest):
         self.verify("$",
                     "$")
 
+    @pytest.mark.xfail
     def test6_was_disabled(self):
         """1 dollar sign followed by hash"""
-        print('this test is disabled')
-        return
         self.verify("\n$#\n",
                     "\n$#\n")
 
@@ -1641,20 +1637,20 @@ class DecoratorDirective(OutputTest):
         self.verify("#@23 blah", "#@23 blah")
         self.verify("#@@TR: comment", "#@@TR: comment")
 
-        self.verify("#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
-                    + "#@testdecorator"
+        self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
+                    + "#@dummydecorator"
                     + "\n#def $testMeth():1234\n$testMeth()",
                     "1234")
 
-        self.verify("#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
-                    + "#@testdecorator"
+        self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
+                    + "#@dummydecorator"
                     + "\n#block $testMeth():1234",
                     "1234")
 
         try:
             self.verify(
-                "#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
-                + "#@testdecorator\n sdf"
+                "#from tests.SyntaxAndOutput_test import dummydecorator\n"
+                + "#@dummydecorator\n sdf"
                 + "\n#def $testMeth():1234\n$testMeth()",
                 "1234")
         except ParseError:
@@ -1664,9 +1660,9 @@ class DecoratorDirective(OutputTest):
 
     def test2(self):
         """#def with multiple decorators"""
-        self.verify("#from Cheetah.Tests.SyntaxAndOutput import testdecorator\n"
-                    + "#@testdecorator\n"
-                    + "#@testdecorator\n"
+        self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
+                    + "#@dummydecorator\n"
+                    + "#@dummydecorator\n"
                     + "#def testMeth\n"
                     + "1234\n"
                     "#end def\n"
@@ -2536,24 +2532,19 @@ if sys.platform.startswith('java'):
     del CompilerSettingsDirective
 
 
-class SyntaxAndOutput(Template):
-    def spacer(self):
-        return '<img src="spacer.gif" width="1" height="1" alt="" />'
-
-
 class ExtendsDirective(OutputTest):
 
     def test1(self):
-        """#extends Cheetah.Tests.SyntaxAndOutput"""
-        self.verify("""#from Cheetah.Tests.SyntaxAndOutput import SyntaxAndOutput
-#extends SyntaxAndOutput
+        """#extends testing.templates.extends_test_template"""
+        self.verify("""#from testing.templates.extends_test_template import extends_test_template
+#extends extends_test_template
 #implements respond
 $spacer()
 """,
                     '<img src="spacer.gif" width="1" height="1" alt="" />\n')
 
-        self.verify("""#from Cheetah.Tests.SyntaxAndOutput import SyntaxAndOutput
-#extends SyntaxAndOutput
+        self.verify("""#from testing.templates.extends_test_template import extends_test_template
+#extends extends_test_template
 #implements respond(foo=1234)
 $spacer()$foo
 """,
@@ -2561,7 +2552,7 @@ $spacer()$foo
 
     def test2(self):
         """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
-        self.verify("""#extends Cheetah.Tests.SyntaxAndOutput
+        self.verify("""#extends testing.templates.extends_test_template
 #implements respond
 $spacer()
 """,
@@ -2569,7 +2560,7 @@ $spacer()
 
     def test3(self):
         """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
-        self.verify("""#extends Cheetah.Tests.SyntaxAndOutput.SyntaxAndOutput
+        self.verify("""#extends testing.templates.extends_test_template.extends_test_template
 #implements respond
 $spacer()
 """,
@@ -2577,7 +2568,7 @@ $spacer()
 
     def test4(self):
         """#extends with globals and searchList test"""
-        self.verify("""#extends Cheetah.Tests.SyntaxAndOutput
+        self.verify("""#extends testing.templates.extends_test_template
 #set global g="Hello"
 #implements respond
 $g $numOne
@@ -2862,25 +2853,23 @@ $i""",
                     "blarg")
 
 
-##################################################
-# CREATE CONVERTED EOL VERSIONS OF THE TEST CASES
+# TODO: there's probably a pytest way to do this
+def __add_eol_tests():
+    """Add tests for different end-of-line formats."""
+    import inspect
+    module = sys.modules[__name__]
+    for clsname, cls in vars(module).items():
+        if not (inspect.isclass(cls) and issubclass(cls, unittest.TestCase)):
+            continue
+
+        for eolname, eol in (
+            ('Win32EOL', '\r\n'),
+            ('MacEOL', '\r'),
+        ):
+            new_clsname = '{0}_{1}'.format(clsname, eolname)
+            new_cls = type(new_clsname, (cls,), {'_EOLreplacement': eol})
+            setattr(module, new_clsname, new_cls)
 
 
-def install_eols():
-    klasses = [v for v in globals().values() if isinstance(v, type) and issubclass(v, unittest.TestCase)]
-    for klass in klasses:
-        name = klass.__name__
-        if hasattr(klass, 'convertEOLs') and klass.convertEOLs:
-            win32Src = r"class %(name)s_Win32EOL(%(name)s): _EOLreplacement = '\r\n'" % locals()
-            macSrc = r"class %(name)s_MacEOL(%(name)s): _EOLreplacement = '\r'" % locals()
-            exec(win32Src, globals())
-            exec(macSrc, globals())
-
-        del name
-        del klass
-
-if __name__ == '__main__':
-    install_eols()
-    unittest.main()
-
-# vim: shiftwidth=4 tabstop=4 expandtab
+__add_eol_tests()
+del __add_eol_tests

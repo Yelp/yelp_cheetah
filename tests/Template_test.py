@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import os
 import os.path
 import shutil
@@ -8,15 +6,8 @@ import tempfile
 import unittest
 from Cheetah.Template import Template
 
-majorVer, minorVer = sys.version_info[0], sys.version_info[1]
-versionTuple = (majorVer, minorVer)
 
-
-class TemplateTest(unittest.TestCase):
-    pass
-
-
-class ClassMethods_compile(TemplateTest):
+class ClassMethods_compile(unittest.TestCase):
     """I am using the same Cheetah source for each test to root out clashes
     caused by the compile caching in Template.compile().
     """
@@ -44,8 +35,6 @@ class ClassMethods_compile(TemplateTest):
         assert str(t) == '1234'
 
     def test_moduleFileCaching(self):
-        if versionTuple < (2, 3):
-            return
         tmpDir = tempfile.mkdtemp()
         try:
             assert os.path.exists(tmpDir)
@@ -162,7 +151,7 @@ class ClassMethods_compile(TemplateTest):
         assert klass._CHEETAH_isInCompilationCache
 
 
-class ClassMethods_subclass(TemplateTest):
+class ClassMethods_subclass(unittest.TestCase):
 
     def test_basicUsage(self):
         klass = Template.compile(source='$foo', baseclass=dict)
@@ -178,7 +167,7 @@ class ClassMethods_subclass(TemplateTest):
         assert str(t) == '1234'
 
 
-class Preprocessors(TemplateTest):
+class Preprocessors(unittest.TestCase):
     def test_basicUsage1(self):
         src = '''\
         %set foo = @a
@@ -240,7 +229,7 @@ class Preprocessors(TemplateTest):
         assert str(t) == ('This is a bit of text that needs translation\n' * 2)[:-1]
 
 
-class TryExceptImportTest(TemplateTest):
+class TryExceptImportTest(unittest.TestCase):
     def test_FailCase(self):
         ''' Test situation where an inline #import statement will get relocated '''
         source = '''
@@ -258,7 +247,7 @@ class TryExceptImportTest(TemplateTest):
         klass(namespaces={'foo': 1234})
 
 
-class ClassMethodSupport(TemplateTest):
+class ClassMethodSupport(unittest.TestCase):
     def test_BasicDecorator(self):
         if sys.version_info[0] == 2 and sys.version_info[1] == 3:
                 print('This version of Python doesn\'t support decorators, skipping tests')
@@ -277,7 +266,7 @@ class ClassMethodSupport(TemplateTest):
             self.fail(ex)
 
 
-class StaticMethodSupport(TemplateTest):
+class StaticMethodSupport(unittest.TestCase):
     def test_BasicDecorator(self):
         if sys.version_info[0] == 2 and sys.version_info[1] == 3:
                 print('This version of Python doesn\'t support decorators, skipping tests')
@@ -301,7 +290,7 @@ class Useless(object):
         return [1, 2, 3]
 
 
-class MultipleInheritanceSupport(TemplateTest):
+class MultipleInheritanceSupport(unittest.TestCase):
     def runTest(self):
         template = '''
             #extends Template, Useless
@@ -319,7 +308,7 @@ class MultipleInheritanceSupport(TemplateTest):
         assert result == [4, 5, 1, 2, 3], (result, 'Unexpected result')
 
 
-class SubclassSearchListTest(TemplateTest):
+class SubclassSearchListTest(unittest.TestCase):
     '''
         Verify that if we subclass Template, we can still
         use attributes on that subclass in the searchList
@@ -329,6 +318,3 @@ class SubclassSearchListTest(TemplateTest):
             greeting = 'Hola'
         tmpl = Sub('''When we meet, I say "${greeting}"''')
         self.assertEquals(unicode(tmpl), 'When we meet, I say "Hola"')
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 
 import imp
 import os
@@ -258,6 +257,3 @@ class InlineSpanishTest(unittest.TestCase):
             }]
         )
         self.assertTrue(unicode(template))
-
-if __name__ == '__main__':
-    unittest.main()

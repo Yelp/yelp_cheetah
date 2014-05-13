@@ -7,13 +7,13 @@ cd $HERE/..
 filename=bench/log/`date +%F_%T`.txt
 
 make clean
-virtualenv bench/venv --clear
-. bench/venv/bin/activate
+virtualenv venv-bench
+. venv-bench/bin/activate
 CHEETAH_C_EXT=false pip install .
 python ./bench/_runbench.py | tee -a "$filename"
 
 make clean
-virtualenv bench/venv --clear
-. bench/venv/bin/activate
+virtualenv venv-bench
+. venv-bench/bin/activate
 CHEETAH_C_EXT=true pip install .
 python ./bench/_runbench.py | tee -a "$filename"
