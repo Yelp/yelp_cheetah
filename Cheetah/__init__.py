@@ -17,10 +17,7 @@ Subscribe at
     http://lists.sourceforge.net/lists/listinfo/cheetahtemplate-discuss
 '''
 
-from .Version import Version
-from .Version import VersionTuple
-from .Version import MinCompatibleVersion
-from .Version import MinCompatibleVersionTuple
-
-# pyflakes
-(Version, VersionTuple, MinCompatibleVersion, MinCompatibleVersionTuple)
+from .Version import Version  # noqa
+from .Version import VersionTuple  # noqa
+from .Version import MinCompatibleVersion  # noqa
+from .Version import MinCompatibleVersionTuple  # noqa
