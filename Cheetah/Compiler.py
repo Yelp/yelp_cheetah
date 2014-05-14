@@ -131,22 +131,6 @@ class GenUtils(object):
     parsing themselves.
     """
 
-    def genTimeInterval(self, timeString):
-        # @@ TR: need to add some error handling here
-        if timeString[-1] == 's':
-            interval = float(timeString[:-1])
-        elif timeString[-1] == 'm':
-            interval = float(timeString[:-1])*60
-        elif timeString[-1] == 'h':
-            interval = float(timeString[:-1])*60*60
-        elif timeString[-1] == 'd':
-            interval = float(timeString[:-1])*60*60*24
-        elif timeString[-1] == 'w':
-            interval = float(timeString[:-1])*60*60*24*7
-        else:                       # default to minutes
-            interval = float(timeString)*60
-        return interval
-
     def genCheetahVar(self, nameChunks, plain=False):
         if nameChunks[0][0] in self.setting('gettextTokens'):
             self.addGetTextVar(nameChunks)

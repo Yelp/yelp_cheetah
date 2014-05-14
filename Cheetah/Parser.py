@@ -290,17 +290,6 @@ class ForbiddenDirective(ForbiddenSyntax):
     pass
 
 
-class CheetahVariable(object):
-    def __init__(self, nameChunks, useNameMapper=True, rawSource=None):
-        self.nameChunks = nameChunks
-        self.useNameMapper = useNameMapper
-        self.rawSource = rawSource
-
-
-class Placeholder(CheetahVariable):
-    pass
-
-
 class ArgList(object):
     """Used by _LowLevelParser.getArgList()"""
 
@@ -519,12 +508,6 @@ class _LowLevelParser(SourceReader):
         if self.EOLSlurpRE:
             return self.EOLSlurpRE.match(self.src(), self.pos())
 
-    def getEOLSlurpToken(self):
-        match = self.matchEOLSlurpToken()
-        if not match:
-            raise ParseError(self, msg='Invalid EOL slurp token')
-        return self.readTo(match.end())
-
     def matchCommentStartToken(self):
         return self.commentStartTokenRE.match(self.src(), self.pos())
 
@@ -617,18 +600,6 @@ class _LowLevelParser(SourceReader):
         match = self.matchIdentifier()
         if not match:
             raise ParseError(self, msg='Invalid identifier')
-        return self.readTo(match.end())
-
-    def matchOperator(self):
-        match = self.matchPyToken()
-        if match and match.group() not in operators:
-            match = None
-        return match
-
-    def getOperator(self):
-        match = self.matchOperator()
-        if not match:
-            raise ParseError(self, msg='Expected operator')
         return self.readTo(match.end())
 
     def matchAssignmentOperator(self):

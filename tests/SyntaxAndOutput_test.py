@@ -183,14 +183,13 @@ class Backslashes(OutputTest):
     convertEOLs = False
 
     def setUp(self):
-        fp = open('backslashes.txt', 'w')
-        fp.write(r'\ #LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n')
-        fp.flush()
-        fp.close
+        with open('backslashes.txt', 'w') as backslashes:
+            backslashes.write(
+                r'\ #LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n'
+            )
 
     def tearDown(self):
-        if os.path.exists('backslashes.txt'):
-            os.remove('backslashes.txt')
+        os.remove('backslashes.txt')
 
     def test1(self):
         """ a single \\ using rawstrings"""
@@ -1703,14 +1702,11 @@ inner
 
 class IncludeDirective(OutputTest):
     def setUp(self):
-        fp = open('parseTest.txt', 'w')
-        fp.write("$numOne $numTwo")
-        fp.flush()
-        fp.close
+        with open('parseTest.txt', 'w') as parse_text:
+            parse_text.write("$numOne $numTwo")
 
     def tearDown(self):
-        if os.path.exists('parseTest.txt'):
-            os.remove('parseTest.txt')
+        os.remove('parseTest.txt')
 
     def test1(self):
         """#include raw of source $emptyString"""
