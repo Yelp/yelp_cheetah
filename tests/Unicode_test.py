@@ -1,114 +1,98 @@
-# -*- encoding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import imp
+import io
 import os
-import sys
-import subprocess
-import tempfile
-import unittest
+import os.path
+import pytest
+
+from Cheetah.CheetahCompile import compile_template
 from Cheetah.Template import Template
 
 
-class CommandLineTest(unittest.TestCase):
-    def createAndCompile(self, source):
-        sourcefile = '-'
-        while sourcefile.find('-') != -1:
-            sourcefile = tempfile.mktemp()
+@pytest.yield_fixture
+def template_compiler(tmpdir):
+    class TemplateCompiler(object):
+        def __init__(self, path):
+            self.path = path
+            self.template_number = 0
 
-        tmpl_file = '{0}.tmpl'.format(sourcefile)
-        with open(tmpl_file, 'w') as fd:
-            fd.write(source)
+        def compile(self, src):
+            module_name = 'a{0}'.format(self.template_number)
+            self.template_number += 1
+            tmpl_path = os.path.join(self.path, '{0}.tmpl'.format(module_name))
+            py_path = os.path.join(self.path, '{0}.py'.format(module_name))
 
-        subprocess.check_call(['cheetah-compile', tmpl_file])
-        module_path, module_name = os.path.split(sourcefile)
-        module = loadModule(module_name, [module_path])
-        template = getattr(module, module_name)
-        return template
+            with io.open(tmpl_path, 'w') as tmpl_file:
+                tmpl_file.write(src)
 
+            compile_template(tmpl_path)
+            module = imp.load_source('__tmpl_mod', py_path)
+            return getattr(module, module_name)
 
-class JBQ_UTF8_Test1(unittest.TestCase):
-    def runTest(self):
-        t = Template.compile(source="""Main file with |$v|
-
-        $other""")
-
-        otherT = Template.compile(source="Other template with |$v|")
-        other = otherT()
-        t.other = other
-
-        t.v = u'Unicode String'
-        t.other.v = u'Unicode String'
-
-        assert unicode(t())
+    yield TemplateCompiler(tmpdir.strpath)
 
 
-class JBQ_UTF8_Test2(unittest.TestCase):
-    def runTest(self):
-        t = Template.compile(source="""Main file with |$v|
+def test_JBQ_UTF8_Test1():
+    t = Template.compile(source="""Main file with |$v|
 
-        $other""")
+    $other""")
 
-        otherT = Template.compile(source="Other template with |$v|")
-        other = otherT()
-        t.other = other
+    otherT = Template.compile(source="Other template with |$v|")
+    other = otherT()
+    t.other = other
 
-        t.v = u'Unicode String with eacute é'
-        t.other.v = u'Unicode String'
+    t.v = u'Unicode String'
+    t.other.v = u'Unicode String'
 
-        assert unicode(t())
-
-
-class JBQ_UTF8_Test3(unittest.TestCase):
-    def runTest(self):
-        t = Template.compile(source="""Main file with |$v|
-
-        $other""")
-
-        otherT = Template.compile(source="Other template with |$v|")
-        other = otherT()
-        t.other = other
-
-        t.v = u'Unicode String with eacute é'
-        t.other.v = u'Unicode String and an eacute é'
-
-        assert unicode(t())
+    assert unicode(t())
 
 
-class JBQ_UTF8_Test4(unittest.TestCase):
-    def runTest(self):
-        t = Template.compile(source="""#encoding utf-8
-        Main file with |$v| and eacute in the template é""")
+def test_JBQ_UTF8_Test2():
+    t = Template.compile(source="""Main file with |$v|
 
-        t.v = 'Unicode String'
+    $other""")
 
-        assert unicode(t())
+    otherT = Template.compile(source="Other template with |$v|")
+    other = otherT()
+    t.other = other
 
+    t.v = u'Unicode String with eacute é'
+    t.other.v = u'Unicode String'
 
-class JBQ_UTF8_Test5(unittest.TestCase):
-    def runTest(self):
-        t = Template.compile(source="""#encoding utf-8
-        Main file with |$v| and eacute in the template é""")
-
-        t.v = u'Unicode String'
-
-        assert unicode(t())
+    assert unicode(t())
 
 
-def loadModule(moduleName, path=None):
-    if path:
-        assert isinstance(path, list)
-    try:
-        mod = sys.modules[moduleName]
-    except KeyError:
-        fp = None
+def test_JBQ_UTF8_Test3():
+    t = Template.compile(source="""Main file with |$v|
 
-        try:
-            fp, pathname, description = imp.find_module(moduleName, path)
-            mod = imp.load_module(moduleName, fp, pathname, description)
-        finally:
-            if fp:
-                fp.close()
-    return mod
+    $other""")
+
+    otherT = Template.compile(source="Other template with |$v|")
+    other = otherT()
+    t.other = other
+
+    t.v = u'Unicode String with eacute é'
+    t.other.v = u'Unicode String and an eacute é'
+
+    assert unicode(t())
+
+
+def test_JBQ_UTF8_Test4():
+    t = Template.compile(source="""#encoding utf-8
+    Main file with |$v| and eacute in the template é""")
+
+    t.v = 'Unicode String'
+
+    assert unicode(t())
+
+
+def test_JBQ_UTF8_Test5():
+    t = Template.compile(source="""#encoding utf-8
+    Main file with |$v| and eacute in the template é""")
+
+    t.v = u'Unicode String'
+    assert unicode(t())
 
 
 def test_JBQ_UTF8_Test6():
@@ -122,94 +106,91 @@ def test_JBQ_UTF8_Test6():
     assert unicode(t())
 
 
-class JBQ_UTF8_Test7(CommandLineTest):
-    def runTest(self):
-        source = """#encoding utf-8
-        #set $someUnicodeString = u"Bébé"
-        Main file with |$v| and eacute in the template é"""
+def test_JBQ_UTF8_Test7(template_compiler):
+    source = u"""#encoding utf-8
+    #set $someUnicodeString = u"Bébé"
+    Main file with |$v| and eacute in the template é"""
 
-        template = self.createAndCompile(source)
-        template.v = u'Unicode String'
+    template = template_compiler.compile(source)
+    template.v = u'Unicode String'
 
-        assert unicode(template())
+    assert unicode(template())
 
 
-class JBQ_UTF8_Test8(CommandLineTest):
-    def testStaticCompile(self):
-        source = """#encoding utf-8
+def test_JBQ_UTF8_Test8_StaticCompile(template_compiler):
+    source = u"""#encoding utf-8
 #set $someUnicodeString = u"Bébé"
 $someUnicodeString"""
 
-        template = self.createAndCompile(source)()
+    template = template_compiler.compile(source)()
 
-        a = unicode(template).encode("utf-8")
-        self.assertEquals("Bébé", a)
+    a = unicode(template).encode("utf-8")
+    assert "Bébé" == a
 
-    def testDynamicCompile(self):
-        source = """#encoding utf-8
+
+def test_JBQ_UTF8_Test8_DynamicCompile():
+    source = """#encoding utf-8
 #set $someUnicodeString = u"Bébé"
 $someUnicodeString"""
 
-        template = Template(source=source)
+    template = Template(source=source)
 
-        a = unicode(template).encode("utf-8")
-        self.assertEquals("Bébé", a)
+    a = unicode(template).encode("utf-8")
+    assert "Bébé" == a
 
 
-class EncodeUnicodeCompatTest(unittest.TestCase):
+def test_EncodeUnicodeCompatTest():
+    """Taken initially from Red Hat's bugzilla #529332
+    https://bugzilla.redhat.com/show_bug.cgi?id=529332
     """
-        Taken initially from Red Hat's bugzilla #529332
-        https://bugzilla.redhat.com/show_bug.cgi?id=529332
-    """
-    def runTest(self):
-        t = Template("""Foo ${var}""", filter='EncodeUnicode')
-        t.var = u"Text with some non-ascii characters: åäö"
+    t = Template("Foo ${var}", filter='EncodeUnicode')
+    t.var = u"Text with some non-ascii characters: åäö"
 
-        rc = t.respond()
-        assert isinstance(rc, unicode), ('Template.respond() should return unicode', rc)
+    rc = t.respond()
+    assert isinstance(rc, unicode), ('Template.respond() should return unicode', rc)
 
-        rc = str(t)
-        assert isinstance(rc, str), ('Template.__str__() should return a UTF-8 encoded string', rc)
+    rc = str(t)
+    assert isinstance(rc, str), ('Template.__str__() should return a UTF-8 encoded string', rc)
 
 
-class Unicode_in_SearchList_Test(CommandLineTest):
-    def test_BasicASCII(self):
-        source = '''This is $adjective'''
+def test_Unicode_in_SearchList_BasicASCII(template_compiler):
+    source = u'This is $adjective'
 
-        template = self.createAndCompile(source)
-        assert template and issubclass(template, Template)
-        template = template(searchList=[{'adjective': u'neat'}])
-        assert template.respond()
-
-    def test_Thai(self):
-        # The string is something in Thai
-        source = '''This is $foo $adjective'''
-        template = self.createAndCompile(source)
-        assert template and issubclass(template, Template)
-        template = template(searchList=[{
-            'foo': 'bar',
-            'adjective': u'\u0e22\u0e34\u0e19\u0e14\u0e35\u0e15\u0e49\u0e2d\u0e19\u0e23\u0e31\u0e1a',
-        }])
-        assert template.respond()
-
-    def test_Thai_utf8(self):
-        utf8 = (
-            '\xe0\xb8\xa2\xe0\xb8\xb4\xe0\xb8\x99\xe0\xb8\x94\xe0\xb8\xb5\xe0'
-            '\xb8\x95\xe0\xb9\x89\xe0\xb8\xad\xe0\xb8\x99\xe0\xb8\xa3\xe0\xb8'
-            '\xb1\xe0\xb8\x9a'
-        )
-
-        source = '''This is $adjective'''
-        template = self.createAndCompile(source)
-        assert template and issubclass(template, Template)
-        template = template(searchList=[{'adjective': utf8}])
-        assert template.respond()
+    template = template_compiler.compile(source)
+    assert template and issubclass(template, Template)
+    template = template(searchList=[{'adjective': u'neat'}])
+    assert template.respond()
 
 
-class InlineSpanishTest(unittest.TestCase):
-    def setUp(self):
-        super(InlineSpanishTest, self).setUp()
-        self.template = '''
+def test_Unicode_in_SearcList_Thai(template_compiler):
+    # The string is something in Thai
+    source = u'This is $foo $adjective'
+    template = template_compiler.compile(source)
+    assert template and issubclass(template, Template)
+    template = template(searchList=[{
+        'foo': 'bar',
+        'adjective': u'\u0e22\u0e34\u0e19\u0e14\u0e35\u0e15\u0e49\u0e2d\u0e19\u0e23\u0e31\u0e1a',
+    }])
+    assert template.respond()
+
+
+def test_Unicode_in_SearchList_Thai_utf8(template_compiler):
+    utf8 = (
+        '\xe0\xb8\xa2\xe0\xb8\xb4\xe0\xb8\x99\xe0\xb8\x94\xe0\xb8\xb5\xe0'
+        '\xb8\x95\xe0\xb9\x89\xe0\xb8\xad\xe0\xb8\x99\xe0\xb8\xa3\xe0\xb8'
+        '\xb1\xe0\xb8\x9a'
+    )
+
+    source = u'This is $adjective'
+    template = template_compiler.compile(source)
+    assert template and issubclass(template, Template)
+    template = template(searchList=[{'adjective': utf8}])
+    assert template.respond()
+
+
+@pytest.yield_fixture
+def spanish_template_contents():
+    yield '''
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
@@ -227,14 +208,14 @@ class InlineSpanishTest(unittest.TestCase):
     </center>
   </body>
 </html>
-        '''
+    '''
 
-    def test_failure(self):
-        """ Test a template lacking a proper #encoding tag """
-        self.failUnlessRaises(
-            UnicodeDecodeError,
-            Template,
-            self.template,
+
+def test_failure(spanish_template_contents):
+    """Test a template lacking a proper #encoding tag"""
+    with pytest.raises(UnicodeDecodeError):
+        Template(
+            spanish_template_contents,
             searchList=[{
                 'header': '',
                 'nombre': '',
@@ -243,16 +224,17 @@ class InlineSpanishTest(unittest.TestCase):
             }],
         )
 
-    def test_success(self):
-        """ Test a template with a proper #encoding tag """
-        template = '#encoding utf-8\n%s' % self.template
-        template = Template(
-            template,
-            searchList=[{
-                'header': '',
-                'nombre': '',
-                'numpedidos_bodega': '',
-                'numpedidos_noconf': '',
-            }]
-        )
-        self.assertTrue(unicode(template))
+
+def test_success(spanish_template_contents):
+    """Test a template with a proper #encoding tag"""
+    template = '#encoding utf-8\n{0}'.format(spanish_template_contents)
+    template = Template(
+        template,
+        searchList=[{
+            'header': '',
+            'nombre': '',
+            'numpedidos_bodega': '',
+            'numpedidos_noconf': '',
+        }]
+    )
+    assert unicode(template)
