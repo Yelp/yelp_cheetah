@@ -1008,19 +1008,6 @@ $x$y#slurp
                     "12345")
 
 
-class I18nDirective(OutputTest):
-    def test1(self):
-        r"""simple #call """
-        self.verify("#i18n \n$anInt#end i18n",
-                    "1")
-
-        # single line version
-        self.verify("#i18n: $anInt",
-                    "1")
-        self.verify("#i18n: 10\n$aStr",
-                    "10\nblarg")
-
-
 class CaptureDirective(OutputTest):
     def test1(self):
         r"""simple #capture"""
