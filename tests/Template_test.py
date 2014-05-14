@@ -218,16 +218,6 @@ class Preprocessors(unittest.TestCase):
             klass = Template.compile(src, preprocessors=arg)
             assert str(klass()) == '120'
 
-    def test_i18n(self):
-        src = '''\
-        %i18n: This is a $string that needs translation
-        %i18n id="foo", domain="root": This is a $string that needs translation
-        '''
-        src = '\n'.join([ln.strip() for ln in src.splitlines()])
-        klass = Template.compile(src, preprocessors='@ %', baseclass=dict)
-        t = klass({'string': 'bit of text'})
-        assert str(t) == ('This is a bit of text that needs translation\n' * 2)[:-1]
-
 
 class TryExceptImportTest(unittest.TestCase):
     def test_FailCase(self):

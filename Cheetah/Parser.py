@@ -16,7 +16,6 @@ import inspect
 
 from Cheetah.SourceReader import SourceReader
 from Cheetah.Unspecified import Unspecified
-from Cheetah.Macros.I18n import I18n
 
 
 group = lambda *choices: '(' + '|'.join(choices) + ')'
@@ -1270,7 +1269,6 @@ class Parser(_LowLevelParser):
             self._closeableDirectives.append(directiveName)
 
         macroDirectives = self.setting('macroDirectives', {})
-        macroDirectives['i18n'] = I18n
 
         for macroName, callback in macroDirectives.items():
             if isinstance(callback, type):

@@ -72,10 +72,7 @@ def run_setup(with_binary):
         author_email="buck@yelp.com",
         url="http://github.com/bukzor/yelp_cheetah",
         license='MIT License',
-        packages=[
-            'Cheetah',
-            'Cheetah.Macros',
-        ],
+        packages=['Cheetah'],
         platforms=['linux'],
         entry_points={
             'console_scripts': [
