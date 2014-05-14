@@ -12,6 +12,7 @@ import logging
 import os.path
 import time
 import inspect
+import io
 import StringIO
 import traceback
 import types
@@ -27,18 +28,10 @@ except ImportError:
         def release(self):
             pass
 
-filetype = None
-
 if isinstance(sys.version_info[:], tuple):
-    # Python 2.xx
-    filetype = types.FileType
-
     def createMethod(func, cls):
         return types.MethodType(func, None, cls)
 else:
-    import io
-    filetype = io.IOBase
-
     def createMethod(func, cls):
         return types.MethodType(func, cls)
 
@@ -567,7 +560,7 @@ class Template(object):
         if not isinstance(source, (types.NoneType, basestring)):
             raise TypeError(errmsg % ('source', 'string or None'))
 
-        if not isinstance(file, (types.NoneType, basestring, filetype)):
+        if not isinstance(file, (types.NoneType, basestring, io.IOBase)):
             raise TypeError(errmsg %
                             ('file', 'string, file-like object, or None'))
 
@@ -1130,7 +1123,7 @@ class Template(object):
         if not isinstance(source, (types.NoneType, basestring)):
             raise TypeError(errmsg % ('source', 'string or None'))
 
-        if not isinstance(source, (types.NoneType, basestring, filetype)):
+        if not isinstance(source, (types.NoneType, basestring, io.IOBase)):
             raise TypeError(errmsg %
                             ('file', 'string, file open for reading, or None'))
 

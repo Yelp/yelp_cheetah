@@ -408,23 +408,20 @@ class VFS(VFN):
     _searchListLength = 1
 
     def searchList(self):
-        lng = self._searchListLength
-        if lng == 1:
-            return [self.namespace()]
-        elif lng == 2:
-            return [self.namespace(), {'dummy': 1234}]
-        elif lng == 3:
-            # a tuple for kicks
-            return ({'dummy': 1234}, self.namespace(), {'dummy': 1234})
-        elif lng == 4:
-            # a generator for more kicks
-            return self.searchListGenerator()
+        return {
+            1: [self.namespace()],
+            2: [self.namespace(), {'dummy': 1234}],
+            3: ({'dummy': 1234}, self.namespace(), {'dummy': 1234}),
+            4: self.searchListGenerator(),
+        }[self._searchListLength]
 
     def searchListGenerator(self):
         class Test:
             pass
-        for i in [Test(), {'dummy': 1234}, self.namespace(), {'dummy': 1234}]:
-            yield i
+
+        return iter([
+            Test(), {'dummy': 1234}, self.namespace(), {'dummy': 1234}
+        ])
 
     def get(self, name, autocall=True):
         return self.VFS(self.searchList(), name, autocall)
