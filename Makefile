@@ -10,7 +10,7 @@ venv: .venv.touch
 
 .PHONY: bench
 bench:
-	tox -e bench
+	NOBENCH=false tox -e bench
 
 .PHONY: tests test
 tests: test
@@ -26,6 +26,7 @@ test: .venv.touch
 .PHONY: clean
 clean:
 	find . -iname '*.pyc' -print0 | xargs -r0 rm -f
+	rm -f Cheetah/_namemapper.so
 	rm -rf .tox
 	rm -rf ./venv-*
 	rm -f .venv.touch

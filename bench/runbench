@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+if [ $NOBENCH = 'true' ]; then
+    echo 'Skipping bench'
+    exit 0
+fi
+
 HERE=$(dirname $(readlink -f $0))
 cd $HERE/..
 
