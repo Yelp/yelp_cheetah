@@ -1,3 +1,5 @@
+import os.path
+import subprocess
 import unittest
 
 from Cheetah.NameMapper import NotFound
@@ -5,6 +7,31 @@ from Cheetah.NameMapper import valueFromFrame
 from Cheetah.NameMapper import valueFromFrameOrSearchList
 from Cheetah.NameMapper import valueFromSearchList
 from Cheetah.NameMapper import valueForName
+
+
+def subprocess_output(*args):
+    return subprocess.Popen(args, stdout=subprocess.PIPE).communicate()[0]
+
+
+def test_C_VERSION(tmpdir):
+    from Cheetah.NameMapper import C_VERSION
+    assert C_VERSION
+    in_subprocess = subprocess_output(
+        'python',
+        '-c',
+        'from Cheetah.NameMapper import C_VERSION; print C_VERSION',
+    )
+    assert in_subprocess.strip() == 'True'
+
+    tmpfilename = os.path.join(tmpdir.strpath, 'foo.py')
+    with open(tmpfilename, 'w') as tmpfile:
+        tmpfile.write(
+            'from Cheetah.NameMapper import C_VERSION\n'
+            'print(C_VERSION)\n'
+        )
+
+    tmpfile_output = subprocess_output('python', tmpfilename)
+    assert tmpfile_output.strip() == 'True'
 
 
 class DummyClass(object):

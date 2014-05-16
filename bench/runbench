@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-if [ $NOBENCH = 'true' ]; then
-    echo 'Skipping bench'
+if [ "$BENCH" = 'false' ]; then
+    echo "Skipping bench(BENCH=$BENCH)"
     exit 0
 fi
 

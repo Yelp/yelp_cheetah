@@ -250,7 +250,6 @@ class Template(object):
         'varExists',
         'getFileContents',
         'i18n',
-        'runAsMainProgram',
         'generatedClassCode',
         'generatedModuleCode',
         '_handleCheetahInclude',
@@ -1296,16 +1295,6 @@ class Template(object):
         output = fp.read()
         fp.close()
         return output
-
-    def runAsMainProgram(self):
-        """Allows the Template to function as a standalone command-line program
-        for static page generation.
-
-        Type 'python yourtemplate.py --help to see what it's capabable of.
-        """
-
-        from TemplateCmdLineIface import CmdLineIface
-        CmdLineIface(templateObj=self).run()
 
     ##################################################
     # internal methods -- not to be called by end-users

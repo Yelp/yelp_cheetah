@@ -10,7 +10,7 @@ venv: .venv.touch
 
 .PHONY: bench
 bench:
-	NOBENCH=false tox -e bench
+	BENCH=true tox -e bench
 
 .PHONY: tests test
 tests: test
