@@ -4,6 +4,7 @@ import io
 import os
 import os.path
 import subprocess
+import sys
 
 from Cheetah.CheetahCompile import compile_template
 
@@ -22,8 +23,8 @@ def test_templates_runnable_using_env(tmpdir):
     compile_template(tmpl_filename)
 
     ret = subprocess.Popen(
-        ['python', tmpl_py_filename],
-        env=dict(os.environ, **{'foo': 'herp', 'bar': 'derp'}),
+        [sys.executable, tmpl_py_filename],
+        env={'foo': 'herp', 'bar': 'derp'},
         stdout=subprocess.PIPE,
     ).communicate()[0]
 
