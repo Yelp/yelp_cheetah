@@ -706,8 +706,6 @@ class Template(object):
                                      baseclassName=baseclassName,
                                      mainMethodName=mainMethodName,
                                      settings=(compilerSettings or {}))
-            if commandlineopts:
-                compiler.setShBang(commandlineopts.shbang)
             compiler.compile()
             generatedModuleCode = compiler.getModuleCode()
             outputEncoding = compiler.getModuleEncoding()

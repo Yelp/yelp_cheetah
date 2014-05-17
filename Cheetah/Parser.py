@@ -188,7 +188,6 @@ directiveNamesAndParsers = {
     'compiler-settings': 'eatCompilerSettings',
 
     # misc
-    'shBang': 'eatShbang',
     'encoding': 'eatEncoding',
 
     'end': 'eatEndDirective',
@@ -1617,16 +1616,6 @@ class Parser(_LowLevelParser):
         This is a debugging tool.
         """
         self.setBreakPoint(self.pos())
-
-    def eatShbang(self):
-        # filtered
-        self.getDirectiveStartToken()
-        self.advance(len('shBang'))
-        self.getWhiteSpace()
-        startPos = self.pos()
-        shBang = self.readToEOL()
-        shBang = self._applyExpressionFilters(shBang, 'shbang', startPos=startPos)
-        self._compiler.setShBang(shBang.strip())
 
     def eatEncoding(self):
         # filtered
