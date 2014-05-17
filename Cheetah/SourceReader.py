@@ -17,8 +17,6 @@ class SourceReader(object):
         else:
             self.setBreakPoint(breakPoint)
         self._pos = 0
-        self._bookmarks = {}
-        self._posTobookmarkMap = {}
 
         # collect some meta-information
         self._EOLs = []
@@ -119,24 +117,6 @@ class SourceReader(object):
             raise Exception("New breakpoint (" + str(pos) + ") is invalid: less than 0")
 
         self._breakPoint = pos
-
-    def setBookmark(self, name):
-        self._bookmarks[name] = self._pos
-        self._posTobookmarkMap[self._pos] = name
-
-    def hasBookmark(self, name):
-        return name in self._bookmarks
-
-    def gotoBookmark(self, name):
-        if not self.hasBookmark(name):
-            raise Exception("Invalid bookmark (" + name + ") is invalid: does not exist")
-        pos = self._bookmarks[name]
-        if not self.validPos(pos):
-            raise Exception(
-                'Invalid bookmark ({0!r}, {1}) is invalid: '
-                'pos is out of range'.format(name, pos)
-            )
-        self._pos = pos
 
     def atEnd(self):
         return self._pos >= self._breakPoint
