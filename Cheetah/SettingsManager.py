@@ -56,12 +56,8 @@ def convStringToNum(theString):
     """Convert a string representation of a Python number to the Python version"""
 
     if not stringIsNumber(theString):
-        raise Error(theString + ' cannot be converted to a Python number')
+        raise Exception(theString + ' cannot be converted to a Python number')
     return eval(theString, {}, {})
-
-
-class Error(Exception):
-    pass
 
 
 class NoDefault(object):
