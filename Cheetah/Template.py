@@ -54,11 +54,7 @@ def checkFileMtime(value):
     globals()['__checkFileMtime'] = value
 
 
-class Error(Exception):
-    pass
-
-
-class PreprocessError(Error):
+class PreprocessError(Exception):
     pass
 
 

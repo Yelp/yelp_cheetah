@@ -28,9 +28,6 @@ from Cheetah.Parser import SET_GLOBAL, SET_MODULE
 from Cheetah.Parser import encodingDirectiveRE, escapedNewlineRE
 
 
-class Error(Exception):
-    pass
-
 # Settings format: (key, default, docstring)
 _DEFAULT_COMPILER_SETTINGS = [
     ('useNameMapper', True, 'Enable NameMapper for dotted notation and searchList support'),
@@ -329,7 +326,7 @@ class MethodCompiler(GenUtils):
         if self._indentLev:
             self._indentLev -= 1
         else:
-            raise Error('Attempt to dedent when the indentLev is 0')
+            raise Exception('Attempt to dedent when the indentLev is 0')
 
     # methods for final code wrapping
 
