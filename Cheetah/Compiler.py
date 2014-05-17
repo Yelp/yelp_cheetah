@@ -1473,26 +1473,19 @@ class Compiler(SettingsManager, GenUtils):
             'except ImportError:',
             '    import __builtin__ as builtin',
             "from os.path import getmtime, exists",
-            "import time",
             "import types",
             "from Cheetah.Version import MinCompatibleVersion as RequiredCheetahVersion",
             "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
+            "from Cheetah.Template import NO_CONTENT",
             "from Cheetah.Template import Template",
             "from Cheetah.DummyTransaction import *",
             "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
             "import Cheetah.Filters as Filters",
-            "",
-            "try:",
-            "    #Backward compatibility with 2.4.5",
-            "    from Cheetah.Template import NO_CONTENT",
-            "except ImportError:",
-            "    NO_CONTENT = None",
         ]
 
         self._importedVarNames = ['sys',
                                   'os',
                                   'os.path',
-                                  'time',
                                   'types',
                                   'Template',
                                   'DummyTransaction',
@@ -1504,8 +1497,7 @@ class Compiler(SettingsManager, GenUtils):
             "VFFSL=valueFromFrameOrSearchList",
             "VFSL=valueFromSearchList",
             "VFN=valueForName",
-            "currentTime=time.time",
-            ]
+        ]
 
     def compile(self):
         classCompiler = self._spawnClassCompiler(self._mainClassName)
