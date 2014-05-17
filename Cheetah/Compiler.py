@@ -25,7 +25,7 @@ from Cheetah.SettingsManager import SettingsManager
 from Cheetah import NameMapper
 from Cheetah.Parser import Parser, ParseError, specialVarRE
 from Cheetah.Parser import SET_GLOBAL, SET_MODULE
-from Cheetah.Parser import unicodeDirectiveRE, encodingDirectiveRE, escapedNewlineRE
+from Cheetah.Parser import encodingDirectiveRE, escapedNewlineRE
 
 
 class Error(Exception):
@@ -1412,18 +1412,8 @@ class Compiler(SettingsManager, GenUtils):
         if source == "":
             warnings.warn("You supplied an empty string for the source!", )
         else:
-            unicodeMatch = unicodeDirectiveRE.search(source)
             encodingMatch = encodingDirectiveRE.search(source)
-            if unicodeMatch:
-                if encodingMatch:
-                    raise ParseError(
-                        self, "#encoding and #unicode are mutually exclusive! "
-                        "Use one or the other.")
-                source = unicodeDirectiveRE.sub('', source)
-                if isinstance(source, str):
-                    encoding = unicodeMatch.group(1) or 'ascii'
-                    source = unicode(source, encoding)
-            elif encodingMatch:
+            if encodingMatch:
                 encodings = encodingMatch.groups()
                 if len(encodings):
                     encoding = encodings[0]

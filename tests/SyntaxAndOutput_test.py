@@ -1,5 +1,3 @@
-# -*- coding: latin-1 -*-
-
 '''
 Syntax and Output tests.
 
@@ -591,32 +589,6 @@ class EncodingDirective(OutputTest):
         self.verify("""### Comments on the first line
 #encoding utf-8\n\xe1\x88\xb4""",
                     u'\u1234', outputEncoding='utf8')
-
-
-class UnicodeDirective(OutputTest):
-    def test1(self):
-        """basic #unicode """
-        self.verify("#unicode utf-8\n1234",
-                    u"1234")
-
-        self.verify("#unicode ascii\n1234",
-                    u"1234")
-
-        self.verify("#unicode latin-1\n1234",
-                    u"1234")
-
-        self.verify("#unicode latin-1\n1234ü",
-                    u"1234ü")
-        self.verify("#unicode: latin-1\n1234ü",
-                    u"1234ü")
-        self.verify("#  unicode  : latin-1\n1234ü",
-                    u"1234ü")
-
-        self.verify(u"#unicode latin-1\n1234ü",
-                    u"1234ü")
-
-        self.verify("#encoding latin-1\n1234ü",
-                    u"1234ü")
 
 
 class Placeholders_Esc(OutputTest):
