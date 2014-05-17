@@ -181,7 +181,6 @@ directiveNamesAndParsers = {
     'finally': None,
 
     # intructions to the parser and compiler
-    'breakpoint': 'eatBreakPoint',
     'compiler': 'eatCompiler',
     'compiler-settings': 'eatCompilerSettings',
 
@@ -1606,14 +1605,6 @@ class Parser(_LowLevelParser):
             self.setSetting('useSearchList', self._useSearchList_orig)
 
     # specific directive eat methods
-
-    def eatBreakPoint(self):
-        """Tells the parser to stop parsing at this point and completely ignore
-        everything else.
-
-        This is a debugging tool.
-        """
-        self.setBreakPoint(self.pos())
 
     def eatEncoding(self):
         # filtered

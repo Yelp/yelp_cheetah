@@ -1114,23 +1114,6 @@ class RawDirective(OutputTest):
         )
 
 
-class BreakpointDirective(OutputTest):
-    def test1(self):
-        """#breakpoint part way through source code"""
-        self.verify("$aFunc(2).\n#breakpoint\n$anInt",
-                    "2.\n")
-
-    def test2(self):
-        """#breakpoint at BOF"""
-        self.verify("#breakpoint\n$anInt",
-                    "")
-
-    def test3(self):
-        """#breakpoint at EOF"""
-        self.verify("$anInt\n#breakpoint",
-                    "1\n")
-
-
 class StopDirective(OutputTest):
     def test1(self):
         """#stop part way through source code"""
