@@ -15,10 +15,11 @@ import sys
 import unittest
 import warnings
 
-from Cheetah.NameMapper import NotFound
-from Cheetah.Template import Template
-from Cheetah.Parser import ParseError
+from Cheetah.compile import compile_file
 from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
+from Cheetah.NameMapper import NotFound
+from Cheetah.Parser import ParseError
+from Cheetah.Template import Template
 
 
 class Unspecified(object):
@@ -2247,26 +2248,21 @@ $g $numOne
                     'Hello 1\n')
 
 
-class SuperDirective(OutputTest):
-    def test1(self):
-        tmpl1 = Template.compile('''$foo() $bar(99)
-        #def foo: this is base foo
-        #def bar(arg): super-$arg''')
+def test_super_directive(tmpdir):
+    compile_file(
+        os.path.join(u'testing', u'templates', u'src', u'super_base.tmpl')
+    )
+    compile_file(
+        os.path.join(u'testing', u'templates', u'src', u'super_child.tmpl')
+    )
 
-        tmpl2 = tmpl1.subclass('''
-        #implements dummy
-        #def foo
-          #super
-          This is child foo
-          #super(trans=trans)
-          $bar(1234)
-        #end def
-        #def bar(arg): #super($arg)
-        ''')
-        expected = ('this is base foo          '
-                    'This is child foo\nthis is base foo          '
-                    'super-1234\n super-99')
-        assert str(tmpl2()).strip() == expected
+    from testing.templates.src.super_child import super_child
+    ret = super_child().respond()
+    assert ret.strip() == (
+        'this is base foo    This is child foo\n'
+        'this is base foo    super-1234\n'
+        ' super-99'
+    )
 
 
 class ImportantExampleCases(OutputTest):

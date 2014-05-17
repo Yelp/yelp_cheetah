@@ -198,7 +198,6 @@ class Template(object):
         'generatedClassCode',
         'generatedModuleCode',
     )
-    _CHEETAH_requiredCheetahClassMethods = ('subclass',)
 
     # the following are used by .compile(). Most are documented in its docstring.
     _CHEETAH_cacheModuleFilesForTracebacks = False
@@ -633,21 +632,6 @@ class Template(object):
             return templateClass
 
     @classmethod
-    def subclass(klass, *args, **kws):
-        """Takes the same args as the .compile() classmethod and returns a
-        template that is a subclass of the template this method is called from.
-
-          T1 = Template.compile(' foo - $meth1 - bar\n#def meth1: this is T1.meth1')
-          T2 = T1.subclass('#implements meth1\n this is T2.meth1')
-        """
-        kws['baseclass'] = klass
-        if isinstance(klass, Template):
-            templateAPIClass = klass
-        else:
-            templateAPIClass = Template
-        return templateAPIClass.compile(*args, **kws)
-
-    @classmethod
     def _addCheetahPlumbingCodeToClass(klass, concreteTemplateClass):
         """If concreteTemplateClass is not a subclass of Cheetah.Template, add
         the required cheetah methods and attributes to it.
@@ -662,11 +646,6 @@ class Template(object):
                 method = getattr(Template, methodname)
                 newMethod = createMethod(method.im_func, concreteTemplateClass)
                 setattr(concreteTemplateClass, methodname, newMethod)
-
-        for classMethName in klass._CHEETAH_requiredCheetahClassMethods:
-            if not hasattr(concreteTemplateClass, classMethName):
-                meth = getattr(klass, classMethName)
-                setattr(concreteTemplateClass, classMethName, classmethod(meth.im_func))
 
         if (
             not hasattr(concreteTemplateClass, '__str__') or
