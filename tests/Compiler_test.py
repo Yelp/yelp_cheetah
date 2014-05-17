@@ -6,7 +6,7 @@ import os.path
 import subprocess
 import sys
 
-from Cheetah.CheetahCompile import compile_template
+from Cheetah.cheetah_compile import compile_template
 
 
 def test_templates_runnable_using_env(tmpdir):
@@ -15,7 +15,6 @@ def test_templates_runnable_using_env(tmpdir):
 
     with io.open(tmpl_filename, 'w') as template:
         template.write(
-            '#implements respond\n'
             '$foo\n'
             '$bar\n'
         )
