@@ -20,9 +20,10 @@ import warnings
 import copy
 import codecs
 
+from Cheetah import five
+from Cheetah import NameMapper
 from Cheetah.Version import Version, VersionTuple
 from Cheetah.SettingsManager import SettingsManager
-from Cheetah import NameMapper
 from Cheetah.Parser import Parser, ParseError, specialVarRE
 from Cheetah.Parser import SET_GLOBAL, SET_MODULE
 from Cheetah.Parser import encodingDirectiveRE, escapedNewlineRE
@@ -1283,7 +1284,6 @@ class AutoClassCompiler(ClassCompiler):
 
 
 class Compiler(SettingsManager, GenUtils):
-
     parserClass = Parser
     classCompilerClass = AutoClassCompiler
 
@@ -1361,7 +1361,8 @@ class Compiler(SettingsManager, GenUtils):
                 encodings = encodingMatch.groups()
                 if len(encodings):
                     encoding = encodings[0]
-                    source = source.decode(encoding)
+                    if not isinstance(source, five.text):
+                        source = source.decode(encoding)
             else:
                 source = unicode(source)
 

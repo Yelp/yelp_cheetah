@@ -229,14 +229,6 @@ class Template(object):
     _CHEETAH_generatedModuleCode = None
 
     @classmethod
-    def _getCompilerClass(klass, source=None, file=None):
-        return klass._CHEETAH_compilerClass
-
-    @classmethod
-    def _getCompilerSettings(klass, source=None, file=None):
-        return klass._CHEETAH_compilerSettings
-
-    @classmethod
     def compile(klass, source=None, file=None,
                 returnAClass=True,
 
@@ -435,12 +427,12 @@ class Template(object):
             raise TypeError(errmsg % ('useCache', 'boolean'))
 
         if compilerSettings is Unspecified:
-            compilerSettings = klass._getCompilerSettings(source, file) or {}
+            compilerSettings = klass._CHEETAH_compilerSettings or {}
         if not isinstance(compilerSettings, dict):
             raise TypeError(errmsg % ('compilerSettings', 'dictionary'))
 
         if compilerClass is Unspecified:
-            compilerClass = klass._getCompilerClass(source, file)
+            compilerClass = klass._CHEETAH_compilerClass
 
         if keepRefToGeneratedCode is Unspecified:
             keepRefToGeneratedCode = klass._CHEETAH_keepRefToGeneratedCode
@@ -1034,7 +1026,7 @@ class Template(object):
         instead.
         """
         if compilerSettings is Unspecified:
-            compilerSettings = self._getCompilerSettings(source, file) or {}
+            compilerSettings = self._CHEETAH_compilerSettings or {}
         mainMethodName = mainMethodName or self._CHEETAH_defaultMainMethodName
         self._fileMtime = None
         self._fileDirName = None
