@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 
 import imp
 import io
@@ -42,8 +43,8 @@ def test_JBQ_UTF8_Test1():
     other = otherT()
     t.other = other
 
-    t.v = u'Unicode String'
-    t.other.v = u'Unicode String'
+    t.v = 'Unicode String'
+    t.other.v = 'Unicode String'
 
     assert unicode(t())
 
@@ -57,8 +58,8 @@ def test_JBQ_UTF8_Test2():
     other = otherT()
     t.other = other
 
-    t.v = u'Unicode String with eacute é'
-    t.other.v = u'Unicode String'
+    t.v = 'Unicode String with eacute é'
+    t.other.v = 'Unicode String'
 
     assert unicode(t())
 
@@ -72,8 +73,8 @@ def test_JBQ_UTF8_Test3():
     other = otherT()
     t.other = other
 
-    t.v = u'Unicode String with eacute é'
-    t.other.v = u'Unicode String and an eacute é'
+    t.v = 'Unicode String with eacute é'
+    t.other.v = 'Unicode String and an eacute é'
 
     assert unicode(t())
 
@@ -91,7 +92,7 @@ def test_JBQ_UTF8_Test5():
     t = Template.compile(source="""#encoding utf-8
     Main file with |$v| and eacute in the template é""")
 
-    t.v = u'Unicode String'
+    t.v = 'Unicode String'
     assert unicode(t())
 
 
@@ -101,7 +102,7 @@ def test_JBQ_UTF8_Test6():
     Main file with |$v| and eacute in the template é"""
     t = Template.compile(source=source)
 
-    t.v = u'Unicode String'
+    t.v = 'Unicode String'
 
     assert unicode(t())
 
@@ -112,7 +113,7 @@ def test_JBQ_UTF8_Test7(template_compiler):
     Main file with |$v| and eacute in the template é"""
 
     template = template_compiler.compile(source)
-    template.v = u'Unicode String'
+    template.v = 'Unicode String'
 
     assert unicode(template())
 
@@ -125,7 +126,7 @@ $someUnicodeString"""
     template = template_compiler.compile(source)()
 
     a = unicode(template).encode("utf-8")
-    assert "Bébé" == a
+    assert b"Bébé" == a
 
 
 def test_JBQ_UTF8_Test8_DynamicCompile():
@@ -136,7 +137,7 @@ $someUnicodeString"""
     template = Template(source=source)
 
     a = unicode(template).encode("utf-8")
-    assert "Bébé" == a
+    assert b"Bébé" == a
 
 
 def test_EncodeUnicodeCompatTest():
@@ -154,22 +155,22 @@ def test_EncodeUnicodeCompatTest():
 
 
 def test_Unicode_in_SearchList_BasicASCII(template_compiler):
-    source = u'This is $adjective'
+    source = 'This is $adjective'
 
     template = template_compiler.compile(source)
     assert template and issubclass(template, Template)
-    template = template(searchList=[{'adjective': u'neat'}])
+    template = template(searchList=[{'adjective': 'neat'}])
     assert template.respond()
 
 
 def test_Unicode_in_SearcList_Thai(template_compiler):
     # The string is something in Thai
-    source = u'This is $foo $adjective'
+    source = 'This is $foo $adjective'
     template = template_compiler.compile(source)
     assert template and issubclass(template, Template)
     template = template(searchList=[{
         'foo': 'bar',
-        'adjective': u'\u0e22\u0e34\u0e19\u0e14\u0e35\u0e15\u0e49\u0e2d\u0e19\u0e23\u0e31\u0e1a',
+        'adjective': '\u0e22\u0e34\u0e19\u0e14\u0e35\u0e15\u0e49\u0e2d\u0e19\u0e23\u0e31\u0e1a',
     }])
     assert template.respond()
 
@@ -181,7 +182,7 @@ def test_Unicode_in_SearchList_Thai_utf8(template_compiler):
         '\xb1\xe0\xb8\x9a'
     )
 
-    source = u'This is $adjective'
+    source = 'This is $adjective'
     template = template_compiler.compile(source)
     assert template and issubclass(template, Template)
     template = template(searchList=[{'adjective': utf8}])
@@ -190,7 +191,7 @@ def test_Unicode_in_SearchList_Thai_utf8(template_compiler):
 
 @pytest.yield_fixture
 def spanish_template_contents():
-    yield '''
+    yield b'''
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
@@ -227,7 +228,7 @@ def test_failure(spanish_template_contents):
 
 def test_success(spanish_template_contents):
     """Test a template with a proper #encoding tag"""
-    template = '#encoding utf-8\n{0}'.format(spanish_template_contents)
+    template = b'#encoding utf-8\n{0}'.format(spanish_template_contents)
     template = Template(
         template,
         searchList=[{
