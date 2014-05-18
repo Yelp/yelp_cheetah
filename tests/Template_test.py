@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 from Cheetah.compile import compile_to_class
-from Cheetah.Template import Template
 
 
 def test_TryExceptImportTestFailCase():
@@ -50,7 +49,11 @@ def test_SubclassSearchListTest():
     """Verify that if we subclass Template, we can still use attributes on
     that subclass in the searchList
     """
-    class Sub(Template):
-        greeting = 'Hola'
-    tmpl = Sub('When we meet, I say "${greeting}"')
-    assert unicode(tmpl) == 'When we meet, I say "Hola"'
+    tmpl_cls = compile_to_class(
+        """
+        #extends testing.templates.subclass_searchlist
+        #implements respond
+        When we meet, I say "${greeting}"
+        """
+    )
+    assert tmpl_cls().respond().strip() == 'When we meet, I say "Hola"'

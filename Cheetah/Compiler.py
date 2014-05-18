@@ -1694,10 +1694,6 @@ class Compiler(SettingsManager, GenUtils):
 
             %(classes)s
 
-            if not hasattr(%(mainClassName)s, '_initCheetahAttributes'):
-                templateAPIClass = getattr(%(mainClassName)s, '_CHEETAH_templateClass', Template)
-                templateAPIClass._addCheetahPlumbingCodeToClass(%(mainClassName)s)
-
             %(footer)s
             """
         ).strip() % {

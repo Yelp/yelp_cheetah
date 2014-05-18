@@ -1,7 +1,10 @@
+from __future__ import unicode_literals
+
 import unittest
 
 import Cheetah.Template
 import Cheetah.Filters
+from Cheetah.compile import compile_to_class
 
 
 class BasicMarkdownFilterTest(unittest.TestCase):
@@ -19,8 +22,9 @@ Header
         expected = '''<p>bar</p>
 <h1>Header</h1>'''
         try:
-            template = Cheetah.Template.Template(template, searchList=[{'foo': 'bar'}])
-            template = str(template)
+            template = compile_to_class(template)
+            template = template(searchList=[{'foo': 'bar'}])
+            template = template.respond()
             assert template == expected
         except ImportError, ex:
             print('>>> We probably failed to import markdown, bummer %s' % ex)
@@ -38,8 +42,9 @@ class BasicCodeHighlighterFilterTest(unittest.TestCase):
 def foo(self):
     return '$foo'
         '''
-        template = Cheetah.Template.Template(template, searchList=[{'foo': 'bar'}])
-        template = str(template)
+        template = compile_to_class(template)
+        template = template(searchList=[{'foo': 'bar'}])
+        template = template.respond()
         assert template, (template, 'We should have some content here...')
 
     def test_Html(self):
@@ -49,8 +54,9 @@ def foo(self):
 
 <html><head></head><body>$foo</body></html>
         '''
-        template = Cheetah.Template.Template(template, searchList=[{'foo': 'bar'}])
-        template = str(template)
+        template = compile_to_class(template)
+        template = template(searchList=[{'foo': 'bar'}])
+        template = template.respond()
         assert template, (template, 'We should have some content here...')
 
 
@@ -83,11 +89,13 @@ class SingleTransactionModeTest(unittest.TestCase):
             identity=lambda body: body,
         )
 
-        template = Cheetah.Template.Template(
+        template_cls = compile_to_class(
             template_source,
+            settings=dict(autoAssignDummyTransactionToSelf=True),
+        )
+        template = template_cls(
             filter=UniqueFilter,
             searchList=[scope],
-            compilerSettings=dict(autoAssignDummyTransactionToSelf=True),
         )
 
         return template.respond().strip()
@@ -131,10 +139,11 @@ class NotSingleTransactionModeTest(unittest.TestCase):
             #call $identity##end call#$outer()
         """)
 
-        template = Cheetah.Template.Template(
-            template_source,
+        template_cls = compile_to_class(template_source)
+        template = template_cls(
             searchList=[dict(identity=lambda body: body)],
-            filter=UniqueFilter)
+            filter=UniqueFilter,
+        )
         output = template.respond().strip()
 
         expected = '<1></1><3><2>hello</2></3>'

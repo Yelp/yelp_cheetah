@@ -7,6 +7,7 @@ import os
 import os.path
 import pytest
 
+from Cheetah import five
 from Cheetah.cheetah_compile import compile_template
 from Cheetah.compile import compile_to_class
 
@@ -46,7 +47,7 @@ def test_JBQ_UTF8_Test1():
     t.v = 'Unicode String'
     t.other.v = 'Unicode String'
 
-    assert unicode(t())
+    assert t().respond()
 
 
 def test_JBQ_UTF8_Test2():
@@ -61,7 +62,7 @@ def test_JBQ_UTF8_Test2():
     t.v = 'Unicode String with eacute é'
     t.other.v = 'Unicode String'
 
-    assert unicode(t())
+    assert t().respond()
 
 
 def test_JBQ_UTF8_Test3():
@@ -76,7 +77,7 @@ def test_JBQ_UTF8_Test3():
     t.v = 'Unicode String with eacute é'
     t.other.v = 'Unicode String and an eacute é'
 
-    assert unicode(t())
+    assert t().respond()
 
 
 def test_JBQ_UTF8_Test4():
@@ -85,7 +86,7 @@ def test_JBQ_UTF8_Test4():
 
     t.v = 'Unicode String'
 
-    assert unicode(t())
+    assert t().respond()
 
 
 def test_JBQ_UTF8_Test5():
@@ -93,7 +94,7 @@ def test_JBQ_UTF8_Test5():
     Main file with |$v| and eacute in the template é""")
 
     t.v = 'Unicode String'
-    assert unicode(t())
+    assert t().respond()
 
 
 def test_JBQ_UTF8_Test6():
@@ -104,40 +105,29 @@ def test_JBQ_UTF8_Test6():
 
     t.v = 'Unicode String'
 
-    assert unicode(t())
+    assert t().respond()
 
 
 def test_JBQ_UTF8_Test7(template_compiler):
-    source = u"""#encoding utf-8
+    source = """#encoding utf-8
     #set $someUnicodeString = u"Bébé"
     Main file with |$v| and eacute in the template é"""
 
     template = template_compiler.compile(source)
     template.v = 'Unicode String'
 
-    assert unicode(template())
+    assert template().respond()
 
 
 def test_JBQ_UTF8_Test8_StaticCompile(template_compiler):
-    source = u"""#encoding utf-8
+    source = """#encoding utf-8
 #set $someUnicodeString = u"Bébé"
 $someUnicodeString"""
 
     template = template_compiler.compile(source)()
 
-    a = unicode(template).encode("utf-8")
-    assert b"Bébé" == a
-
-
-def test_JBQ_UTF8_Test8_DynamicCompile():
-    source = """#encoding utf-8
-#set $someUnicodeString = u"Bébé"
-$someUnicodeString"""
-
-    template = compile_to_class(source=source)()
-
-    a = unicode(template).encode("utf-8")
-    assert b"Bébé" == a
+    a = template.respond()
+    assert "Bébé" == a
 
 
 def test_EncodeUnicodeCompatTest():
@@ -145,13 +135,10 @@ def test_EncodeUnicodeCompatTest():
     https://bugzilla.redhat.com/show_bug.cgi?id=529332
     """
     t = compile_to_class("Foo ${var}")(filter='EncodeUnicode')
-    t.var = u"Text with some non-ascii characters: åäö"
+    t.var = "Text with some non-ascii characters: åäö"
 
     rc = t.respond()
-    assert isinstance(rc, unicode)
-
-    rc = str(t)
-    assert isinstance(rc, str)
+    assert isinstance(rc, five.text)
 
 
 def test_Unicode_in_SearchList_BasicASCII(template_compiler):
@@ -229,7 +216,7 @@ def test_success(spanish_template_contents, template_compiler):
     """Test a template with a proper #encoding tag"""
     template = '#encoding utf-8\n{0}'.format(spanish_template_contents)
     cls = template_compiler.compile(template)
-    cls(
+    instance = cls(
         searchList=[{
             'header': '',
             'nombre': '',
@@ -237,4 +224,4 @@ def test_success(spanish_template_contents, template_compiler):
             'numpedidos_noconf': '',
         }]
     )
-    assert unicode(template)
+    assert instance.respond()
