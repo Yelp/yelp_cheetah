@@ -199,17 +199,7 @@ def spanish_template_contents():
 def test_failure(spanish_template_contents, template_compiler):
     """Test a template lacking a proper #encoding tag"""
     with pytest.raises(UnicodeDecodeError):
-        cls = template_compiler.compile(
-            spanish_template_contents, encoding='latin-1'
-        )
-        cls(
-            searchList=[{
-                'header': '',
-                'nombre': '',
-                'numpedidos_bodega': '',
-                'numpedidos_noconf': ''
-            }],
-        )
+        template_compiler.compile(spanish_template_contents, encoding='latin-1')
 
 
 def test_success(spanish_template_contents, template_compiler):

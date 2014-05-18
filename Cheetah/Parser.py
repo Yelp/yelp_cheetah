@@ -117,9 +117,6 @@ EOLre = re.compile(r'(?:\r\n|\r|\n)')
 specialVarRE = re.compile(r'([a-zA-z_]+)@')  # for matching specialVar comments
 # e.g. ##author@ Tavis Rudd
 
-encodingDirectiveRE = re.compile(
-    r'(?:^|\r\n|\r|\n)\s*#\s{0,5}encoding[:\s]*([-\w.]*)\s*(?:\r\n|\r|\n)', re.MULTILINE)
-
 escapedNewlineRE = re.compile(r'(?<!\\)((\\\\)*)\\(n|012)')
 
 directiveNamesAndParsers = {
