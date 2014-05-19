@@ -504,12 +504,6 @@ class MethodCompiler(GenUtils):
         else:
             self.addChunk(expr)
 
-    def addInclude(self, sourceExpr, includeFrom, isRaw):
-        self.addChunk('self._handleCheetahInclude(' + sourceExpr +
-                      ', trans=trans, ' +
-                      'includeFrom="' + includeFrom + '", raw=' +
-                      repr(isRaw) + ')')
-
     def addWhile(self, expr, lineCol=None):
         self.addIndentingDirective(expr, lineCol=lineCol)
 

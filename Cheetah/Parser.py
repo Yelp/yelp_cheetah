@@ -133,7 +133,6 @@ directiveNamesAndParsers = {
     # output, filtering, and caching
     'slurp': 'eatSlurp',
     'raw': 'eatRaw',
-    'include': 'eatInclude',
     'filter': 'eatFilter',
     'echo': None,
     'silent': None,
@@ -1981,34 +1980,6 @@ class Parser(_LowLevelParser):
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             rawBlock = self._eatToThisEndDirective('raw')
         self._compiler.addRawText(rawBlock)
-
-    def eatInclude(self):
-        # filtered
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        self.getDirectiveStartToken()
-        self.advance(len('include'))
-
-        self.getWhiteSpace()
-        includeFrom = 'file'
-        isRaw = False
-        if self.startswith('raw'):
-            self.advance(3)
-            isRaw = True
-
-        self.getWhiteSpace()
-        if self.startswith('source'):
-            self.advance(len('source'))
-            includeFrom = 'str'
-            self.getWhiteSpace()
-            if not self.peek() == '=':
-                raise ParseError(self)
-            self.advance()
-        startPos = self.pos()
-        sourceExpr = self.getExpression()
-        sourceExpr = self._applyExpressionFilters(sourceExpr, 'include', startPos=startPos)
-        self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-        self._compiler.addInclude(sourceExpr, includeFrom, isRaw)
 
     def eatMacroCall(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
