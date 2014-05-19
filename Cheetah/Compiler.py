@@ -570,9 +570,6 @@ class MethodCompiler(GenUtils):
     def addElif(self, expr, dedent=True, lineCol=None):
         self.addElse(expr, dedent=dedent, lineCol=lineCol)
 
-    def addUnless(self, expr, lineCol=None):
-        self.addIf('if not (' + expr + ')')
-
     def addClosure(self, functionName, argsList, parserComment):
         argStringChunks = []
         for arg in argsList:

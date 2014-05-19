@@ -1987,48 +1987,6 @@ class IfDirective(OutputTest):
                     "blarg\n")
 
 
-class UnlessDirective(OutputTest):
-    def test1(self):
-        """#unless 1"""
-        self.verify("#unless 1\n 1234 \n#end unless",
-                    "")
-
-        self.verify("#unless 1:\n 1234 \n#end unless",
-                    "")
-
-        self.verify("#unless 1: ##comment\n 1234 \n#end unless",
-                    "")
-
-        self.verify("#unless 1 ##comment\n 1234 \n#end unless",
-                    "")
-
-    def test2(self):
-        """#unless 0"""
-        self.verify("#unless 0\n 1234 \n#end unless",
-                    " 1234 \n")
-
-    def test3(self):
-        """#unless $none"""
-        self.verify("#unless $none\n 1234 \n#end unless",
-                    " 1234 \n")
-
-    def test4(self):
-        """#unless $numTwo"""
-        self.verify("#unless $numTwo\n 1234 \n#end unless",
-                    "")
-
-    def test5(self):
-        """#unless $numTwo with WS"""
-        self.verify("   #unless $numTwo   \n 1234 \n    #end unless   ",
-                    "")
-
-    def test6(self):
-        """single-line #unless"""
-        self.verify("#unless 1: 1234", "")
-        self.verify("#unless 0: 1234", "1234")
-        self.verify("#unless 0: 1234\n"*2, "1234\n"*2)
-
-
 class PSP(OutputTest):
     def searchList(self):
         return None
