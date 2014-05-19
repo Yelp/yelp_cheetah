@@ -245,7 +245,6 @@ class Template(object):
         'getVar',
         'varExists',
         'getFileContents',
-        'i18n',
         'generatedClassCode',
         'generatedModuleCode',
     )
@@ -1238,37 +1237,6 @@ class Template(object):
             return False
 
     hasVar = varExists
-
-    def i18n(self, message,
-             plural=None,
-             n=None,
-
-             id=None,
-             domain=None,
-             source=None,
-             target=None,
-             comment=None
-             ):
-        """This is just a stub at this time.
-
-       plural = the plural form of the message
-       n = a sized argument to distinguish between single and plural forms
-
-       id = msgid in the translation catalog
-       domain = translation domain
-       source = source lang
-       target = a specific target lang
-       comment = a comment to the translation team
-
-        See the following for some ideas
-        http://www.zope.org/DevHome/Wikis/DevSite/Projects/ComponentArchitecture/ZPTInternationalizationSupport
-
-        Other notes:
-        - There is no need to replicate the i18n:name attribute from plone / PTL,
-          as cheetah placeholders serve the same purpose
-       """
-
-        return message
 
     def getFileContents(self, path):
         """A hook for getting the contents of a file.  The default
