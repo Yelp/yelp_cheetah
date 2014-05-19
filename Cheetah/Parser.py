@@ -147,7 +147,6 @@ directiveNamesAndParsers = {
     'def': 'eatDef',
     'block': 'eatBlock',
     '@': 'eatDecorator',
-    'defmacro': 'eatDefMacro',
 
     'closure': 'eatClosure',
 
@@ -1215,7 +1214,7 @@ class Parser(_LowLevelParser):
                 continue
             self._endDirectiveNamesAndHandlers[name] = normalizeHandlerVal(val)
 
-        self._closeableDirectives = ['def', 'block', 'closure', 'defmacro',
+        self._closeableDirectives = ['def', 'block', 'closure',
                                      'call',
                                      'filter',
                                      'if',
@@ -2010,81 +2009,6 @@ class Parser(_LowLevelParser):
         sourceExpr = self._applyExpressionFilters(sourceExpr, 'include', startPos=startPos)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         self._compiler.addInclude(sourceExpr, includeFrom, isRaw)
-
-    def eatDefMacro(self):
-        # @@TR: not filtered yet
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        self.getDirectiveStartToken()
-        self.advance(len('defmacro'))
-
-        self.getWhiteSpace()
-        if self.matchCheetahVarStart():
-            self.getCheetahVarStartToken()
-        macroName = self.getIdentifier()
-        self.getWhiteSpace()
-        if self.peek() == '(':
-            argsList = self.getDefArgList(useNameMapper=False)
-            self.advance()              # past the closing ')'
-            if argsList and argsList[0][0] == 'self':
-                del argsList[0]
-        else:
-            argsList = []
-
-        assert macroName not in self._directiveNamesAndParsers
-        argsList.insert(0, ('src', None))
-        argsList.append(('parser', 'None'))
-        argsList.append(('macros', 'None'))
-        argsList.append(('compilerSettings', 'None'))
-        argsList.append(('isShortForm', 'None'))
-        argsList.append(('EOLCharsInShortForm', 'None'))
-        argsList.append(('startPos', 'None'))
-        argsList.append(('endPos', 'None'))
-
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self.getWhiteSpace(max=1)
-            macroSrc = self.readToEOL(gobble=False)
-            self.readToEOL(gobble=True)
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            macroSrc = self._eatToThisEndDirective('defmacro')
-
-        normalizedMacroSrc = ''.join(
-            ['%def callMacro(' + ','.join([defv and '%s=%s' % (n, defv) or n
-                                           for n, defv in argsList])
-             + ')\n',
-             macroSrc,
-             '%end def'])
-
-        from Cheetah.Template import Template
-        templateAPIClass = self.setting('templateAPIClassForDefMacro', default=Template)
-        compilerSettings = self.setting('compilerSettingsForDefMacro', default={})
-        searchListForMacros = self.setting('searchListForDefMacro', default=[])
-        searchListForMacros = list(searchListForMacros)  # copy to avoid mutation bugs
-        searchListForMacros.append({'macros': self._macros,
-                                    'parser': self,
-                                    'compilerSettings': self.settings(),
-                                    })
-
-        templateAPIClass._updateSettingsWithPreprocessTokens(
-            compilerSettings, placeholderToken='@', directiveToken='%')
-        macroTemplateClass = templateAPIClass.compile(source=normalizedMacroSrc,
-                                                      compilerSettings=compilerSettings)
-
-        class MacroDetails:
-            pass
-        macroDetails = MacroDetails()
-        macroDetails.macroSrc = macroSrc
-        macroDetails.argsList = argsList
-        macroDetails.template = macroTemplateClass(searchList=searchListForMacros)
-
-        self._macroDetails[macroName] = macroDetails
-        self._macros[macroName] = macroDetails.template.callMacro
-        self._directiveNamesAndParsers[macroName] = self.eatMacroCall
 
     def eatMacroCall(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
