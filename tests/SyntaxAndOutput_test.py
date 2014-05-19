@@ -220,11 +220,6 @@ class Backslashes(OutputTest):
         self.verify(r'#LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n',
                     r'#LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n')
 
-    def test6(self):
-        """ test backslash handling in an included file"""
-        self.verify(r'#include "backslashes.txt"',
-                    r'\ #LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n')
-
     def test7(self):
         """ a single \\ without using rawstrings plus many NEWLINES"""
         self.verify("\ \ " + "\n\n\n\n\n\n\n\n\n",
@@ -1584,75 +1579,6 @@ inner
             "foo\ntest foo\n-")
 
 
-class IncludeDirective(OutputTest):
-    def setUp(self):
-        with open('parseTest.txt', 'w') as parse_text:
-            parse_text.write("$numOne $numTwo")
-
-    def tearDown(self):
-        os.remove('parseTest.txt')
-
-    def test1(self):
-        """#include raw of source $emptyString"""
-        self.verify("#include raw source=$emptyString",
-                    "")
-
-    def test2(self):
-        """#include raw of source $blockToBeParsed"""
-        self.verify("#include raw source=$blockToBeParsed",
-                    "$numOne $numTwo")
-
-    def test3(self):
-        """#include raw of 'parseTest.txt'"""
-        self.verify("#include raw 'parseTest.txt'",
-                    "$numOne $numTwo")
-
-    def test4(self):
-        """#include raw of $includeFileName"""
-        self.verify("#include raw $includeFileName",
-                    "$numOne $numTwo")
-
-    def test5(self):
-        """#include raw of $includeFileName, with WS"""
-        self.verify("       #include raw $includeFileName      ",
-                    "$numOne $numTwo")
-
-    def test6(self):
-        """#include raw of source= , with WS"""
-        self.verify("       #include raw source='This is my $Source '*2      ",
-                    "This is my $Source This is my $Source ")
-
-    def test7(self):
-        """#include of $blockToBeParsed"""
-        self.verify("#include source=$blockToBeParsed",
-                    "1 2")
-
-    def test8(self):
-        """#include of $blockToBeParsed, with WS"""
-        self.verify("   #include source=$blockToBeParsed   ",
-                    "1 2")
-
-    def test9(self):
-        """#include of 'parseTest.txt', with WS"""
-        self.verify("   #include source=$blockToBeParsed   ",
-                    "1 2")
-
-    def test10(self):
-        """#include of "parseTest.txt", with WS"""
-        self.verify("   #include source=$blockToBeParsed   ",
-                    "1 2")
-
-    def test11(self):
-        """#include of 'parseTest.txt', with WS and surrounding text"""
-        self.verify("aoeu\n  #include source=$blockToBeParsed  \naoeu",
-                    "aoeu\n1 2aoeu")
-
-    def test12(self):
-        """#include of 'parseTest.txt', with WS and explicit closure"""
-        self.verify("  #include source=$blockToBeParsed#  ",
-                    "  1 2  ")
-
-
 class SilentDirective(OutputTest):
     def test1(self):
         """simple #silent"""
@@ -1700,11 +1626,6 @@ class SetDirective(OutputTest):
         """#set + use of var"""
         self.verify("#set $testVar = 'blarg'\n$testVar",
                     "blarg")
-
-    def test4(self):
-        """#set + use in an #include"""
-        self.verify("#set global $aSetVar = 1234\n#include source=$includeBlock2",
-                    "1 2 1234")
 
     def test5(self):
         """#set with a dictionary"""

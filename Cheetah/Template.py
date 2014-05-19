@@ -248,8 +248,6 @@ class Template(object):
         'i18n',
         'generatedClassCode',
         'generatedModuleCode',
-        '_handleCheetahInclude',
-        '_getTemplateAPIClassForIncludeDirectiveCompilation',
     )
     _CHEETAH_requiredCheetahClassMethods = ('subclass',)
 
@@ -1013,8 +1011,6 @@ class Template(object):
                  filtersLib=Filters,
 
                  compilerSettings=Unspecified,  # control the behaviour of the compiler
-                 _globalSetVars=None,  # used internally for #include'd templates
-                 _preBuiltSearchList=None,  # used internally for #include'd templates
                  ):
         """a) compiles a new template OR b) instantiates an existing template.
 
@@ -1107,8 +1103,6 @@ class Template(object):
 
                A module containing subclasses of Cheetah.Filters.Filter. See the
                Users' Guide for more details.
-
-          Do NOT mess with the args _globalSetVars or _preBuiltSearchList!
         """
         errmsg = "arg '%s' must be %s"
         errmsgextra = errmsg + "\n%s"
@@ -1189,9 +1183,7 @@ class Template(object):
         self._initCheetahInstance(
             searchList=searchList, namespaces=namespaces,
             filter=filter, filtersLib=filtersLib,
-            _globalSetVars=_globalSetVars,
-            compilerSettings=compilerSettings,
-            _preBuiltSearchList=_preBuiltSearchList)
+            compilerSettings=compilerSettings)
 
         ##################################################
         # Now, compile if we're meant to
@@ -1298,9 +1290,7 @@ class Template(object):
                              namespaces=None,
                              filter='RawOrEncodedUnicode',  # which filter from Cheetah.Filters
                              filtersLib=Filters,
-                             _globalSetVars=None,
-                             compilerSettings=None,
-                             _preBuiltSearchList=None):
+                             compilerSettings=None):
         """Sets up the instance attributes that cheetah templates use at
         run-time.
 
@@ -1322,22 +1312,14 @@ class Template(object):
             searchList = [searchList]
 
         self._CHEETAH__globalSetVars = {}
-        if _globalSetVars is not None:
-            # this is intended to be used internally by Nested Templates in #include's
-            self._CHEETAH__globalSetVars = _globalSetVars
 
-        if _preBuiltSearchList is not None:
-            # happens with nested Template obj creation from #include's
-            self._CHEETAH__searchList = list(_preBuiltSearchList)
-            self._CHEETAH__searchList.append(self)
-        else:
-            # create our own searchList
-            self._CHEETAH__searchList = [self._CHEETAH__globalSetVars, self]
-            if searchList is not None:
-                if isinstance(compilerSettings, dict) and compilerSettings.get('prioritizeSearchListOverSelf'):
-                    self._CHEETAH__searchList = searchList + self._CHEETAH__searchList
-                else:
-                    self._CHEETAH__searchList.extend(list(searchList))
+        # create our own searchList
+        self._CHEETAH__searchList = [self._CHEETAH__globalSetVars, self]
+        if searchList is not None:
+            if isinstance(compilerSettings, dict) and compilerSettings.get('prioritizeSearchListOverSelf'):
+                self._CHEETAH__searchList = searchList + self._CHEETAH__searchList
+            else:
+                self._CHEETAH__searchList.extend(list(searchList))
         self._CHEETAH__cheetahIncludes = {}
 
         # @@TR: consider allowing simple callables as the filter argument
@@ -1401,58 +1383,6 @@ class Template(object):
         templateClass.__init__(self)
         if not hasattr(self, 'transaction'):
             self.transaction = None
-
-    def _handleCheetahInclude(self, srcArg, trans=None, includeFrom='file', raw=False):
-        """Called at runtime to handle #include directives.
-        """
-        _includeID = srcArg
-        if _includeID not in self._CHEETAH__cheetahIncludes:
-            if not raw:
-                if includeFrom == 'file':
-                    source = None
-                    if isinstance(srcArg, basestring):
-                        file = os.path.normpath(srcArg)
-                    else:
-                        file = srcArg  # a file-like object
-                else:
-                    source = srcArg
-                    file = None
-                # @@TR: might want to provide some syntax for specifying the
-                # Template class to be used for compilation so compilerSettings
-                # can be changed.
-                compiler = self._getTemplateAPIClassForIncludeDirectiveCompilation(source, file)
-                nestedTemplateClass = compiler.compile(source=source, file=file)
-                nestedTemplate = nestedTemplateClass(_preBuiltSearchList=self.searchList(),
-                                                     _globalSetVars=self._CHEETAH__globalSetVars)
-                # Set the inner template filters to the initial filter of the
-                # outer template:
-                # this is the only really safe way to use
-                # filter='WebSafe'.
-                nestedTemplate._CHEETAH__initialFilter = self._CHEETAH__initialFilter
-                nestedTemplate._CHEETAH__currentFilter = self._CHEETAH__initialFilter
-                self._CHEETAH__cheetahIncludes[_includeID] = nestedTemplate
-            else:
-                if includeFrom == 'file':
-                    self._CHEETAH__cheetahIncludes[_includeID] = self.getFileContents(srcArg)
-                else:
-                    self._CHEETAH__cheetahIncludes[_includeID] = srcArg
-
-        if not raw:
-            self._CHEETAH__cheetahIncludes[_includeID].respond(trans)
-        else:
-            trans.response().write(self._CHEETAH__cheetahIncludes[_includeID])
-
-    def _getTemplateAPIClassForIncludeDirectiveCompilation(self, source, file):
-        """Returns the subclass of Template which should be used to compile
-        #include directives.
-
-        This abstraction allows different compiler settings to be used in the
-        included template than were used in the parent.
-        """
-        if issubclass(self.__class__, Template):
-            return self.__class__
-        else:
-            return Template
 
 T = Template   # Short and sweet for debugging at the >>> prompt.
 Template.Reserved_SearchList = set(dir(Template))
