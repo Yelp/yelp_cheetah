@@ -1321,52 +1321,6 @@ class ForDirective(OutputTest):
                     "0\n1\n2\n3\n4\n")
 
 
-class RepeatDirective(OutputTest):
-    def test1(self):
-        """basic #repeat"""
-        self.verify("#repeat 3\n1\n#end repeat",
-                    "1\n1\n1\n")
-        self.verify("#repeat 3: \n1\n#end repeat",
-                    "1\n1\n1\n")
-
-        self.verify("#repeat 3 ##comment\n1\n#end repeat",
-                    "1\n1\n1\n")
-
-        self.verify("#repeat 3: ##comment\n1\n#end repeat",
-                    "1\n1\n1\n")
-
-    def test2(self):
-        """#repeat with numeric expression"""
-        self.verify("#repeat 3*3/3\n1\n#end repeat",
-                    "1\n1\n1\n")
-
-    def test3(self):
-        """#repeat with placeholder"""
-        self.verify("#repeat $numTwo\n1\n#end repeat",
-                    "1\n1\n")
-
-    def test4(self):
-        """#repeat with placeholder * num"""
-        self.verify("#repeat $numTwo*1\n1\n#end repeat",
-                    "1\n1\n")
-
-    def test5(self):
-        """#repeat with placeholder and WS"""
-        self.verify("   #repeat $numTwo   \n1\n   #end repeat   ",
-                    "1\n1\n")
-
-    def test6(self):
-        """single-line #repeat"""
-        self.verify("#repeat $numTwo: 1",
-                    "11")
-        self.verify("#repeat $numTwo: 1\n"*2,
-                    "1\n1\n"*2)
-
-        # false single-line
-        self.verify("#repeat 3:  \n1\n#end repeat",
-                    "1\n1\n1\n")
-
-
 class AttrDirective(OutputTest):
 
     def test1(self):

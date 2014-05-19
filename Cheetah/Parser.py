@@ -169,9 +169,6 @@ directiveNamesAndParsers = {
     'return': None,
     'yield': None,
 
-    # little wrappers
-    'repeat': None,
-
     # error handling
     'assert': None,
     'raise': None,
@@ -200,7 +197,6 @@ endDirectiveNamesAndHandlers = {
     'for': None,                # has short-form
     'if': None,                 # has short-form
     'try': None,                # has short-form
-    'repeat': None,             # has short-form
     }
 
 ##################################################
@@ -1227,7 +1223,7 @@ class Parser(_LowLevelParser):
                                      'capture',
                                      'filter',
                                      'if',
-                                     'for', 'while', 'repeat',
+                                     'for', 'while',
                                      'try',
                                      ]
         for directiveName in self.setting('closeableDirectives', []):
@@ -1407,7 +1403,7 @@ class Parser(_LowLevelParser):
 
     # generic directive eat methods
     _simpleIndentingDirectives = '''
-    else elif for while repeat try except finally'''.split()
+    else elif for while try except finally'''.split()
     _simpleExprDirectives = '''
     pass continue stop return yield break
     del assert raise
@@ -1593,7 +1589,7 @@ class Parser(_LowLevelParser):
                 self._compiler.endCallRegion()
             elif key == 'filter':
                 self._compiler.closeFilterBlock()
-        elif directiveName in 'while for if try repeat'.split():
+        elif directiveName in 'while for if try'.split():
             self._compiler.commitStrConst()
             self._compiler.dedent()
         elif directiveName == 'closure':

@@ -517,11 +517,6 @@ class MethodCompiler(GenUtils):
     def addFor(self, expr, lineCol=None):
         self.addIndentingDirective(expr, lineCol=lineCol)
 
-    def addRepeat(self, expr, lineCol=None):
-        # the _repeatCount stuff here allows nesting of #repeat directives
-        self._repeatCount = getattr(self, "_repeatCount", -1) + 1
-        self.addFor('for __i%s in range(%s)' % (self._repeatCount, expr), lineCol=lineCol)
-
     def addIndentingDirective(self, expr, lineCol=None):
         if expr and not expr[-1] == ':':
             expr = expr + ':'
