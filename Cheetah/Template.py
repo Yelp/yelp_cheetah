@@ -244,7 +244,6 @@ class Template(object):
         'searchList',
         'getVar',
         'varExists',
-        'getFileContents',
         'generatedClassCode',
         'generatedModuleCode',
     )
@@ -1237,18 +1236,6 @@ class Template(object):
             return False
 
     hasVar = varExists
-
-    def getFileContents(self, path):
-        """A hook for getting the contents of a file.  The default
-        implementation just uses the Python open() function to load local files.
-        This method could be reimplemented to allow reading of remote files via
-        various protocols, as PHP allows with its 'URL fopen wrapper'
-        """
-
-        fp = open(path, 'r')
-        output = fp.read()
-        fp.close()
-        return output
 
     ##################################################
     # internal methods -- not to be called by end-users
