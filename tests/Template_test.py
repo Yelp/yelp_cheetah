@@ -167,58 +167,6 @@ class ClassMethods_subclass(unittest.TestCase):
         assert str(t) == '1234'
 
 
-class Preprocessors(unittest.TestCase):
-    def test_basicUsage1(self):
-        src = '''\
-        %set foo = @a
-        $(@foo*10)
-        @a'''
-        src = '\n'.join([ln.strip() for ln in src.splitlines()])
-        preprocessors = {'tokens': '@ %',
-                         'namespaces': {'a': 99}
-                         }
-        klass = Template.compile(src, preprocessors=preprocessors)
-        assert str(klass()) == '990\n99'
-
-    def test_normalizePreprocessorArgVariants(self):
-        src = '%set foo = 12\n%%comment\n$(@foo*10)'
-
-        class Settings1:
-            tokens = '@ %'
-
-        Settings1 = Settings1()
-
-        from Cheetah.Template import TemplatePreprocessor
-        settings = Template._normalizePreprocessorSettings(Settings1)
-        preprocObj = TemplatePreprocessor(settings)
-
-        def preprocFunc(source, file):
-            return '$(12*10)', None
-
-        class TemplateSubclass(Template):
-            pass
-
-        compilerSettings = {'cheetahVarStartToken': '@',
-                            'directiveStartToken': '%',
-                            'commentStartToken': '%%',
-                            }
-
-        for arg in ['@ %',
-                    {'tokens': '@ %'},
-                    {'compilerSettings': compilerSettings},
-                    {'compilerSettings': compilerSettings,
-                     'templateInitArgs': {}},
-                    {'tokens': '@ %',
-                     'templateAPIClass': TemplateSubclass},
-                    Settings1,
-                    preprocObj,
-                    preprocFunc,
-                    ]:
-
-            klass = Template.compile(src, preprocessors=arg)
-            assert str(klass()) == '120'
-
-
 class TryExceptImportTest(unittest.TestCase):
     def test_FailCase(self):
         ''' Test situation where an inline #import statement will get relocated '''

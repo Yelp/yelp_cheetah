@@ -11,7 +11,6 @@ import re                         # used to define the internal delims regex
 import logging
 import os.path
 import time
-import inspect
 import io
 import StringIO
 import traceback
@@ -52,10 +51,6 @@ __checkFileMtime = True
 
 def checkFileMtime(value):
     globals()['__checkFileMtime'] = value
-
-
-class PreprocessError(Exception):
-    pass
 
 
 def hashList(l):
@@ -112,50 +107,6 @@ def updateLinecache(filename, src):
 
 class CompileCacheItem(object):
     pass
-
-
-class TemplatePreprocessor(object):
-    '''
-    This is used with the preprocessors argument to Template.compile().
-
-    See the docstring for Template.compile
-
-    ** Preprocessors are an advanced topic **
-    '''
-
-    def __init__(self, settings):
-        self._settings = settings
-
-    def preprocess(self, source, file):
-        """Create an intermediate template and return the source code
-        it outputs
-        """
-        settings = self._settings
-        if not source:  # @@TR: this needs improving
-            if isinstance(file, (str, unicode)):  # it's a filename.
-                f = open(file)
-                source = f.read()
-                f.close()
-            elif hasattr(file, 'read'):
-                source = file.read()
-            file = None
-
-        templateAPIClass = settings.templateAPIClass
-        possibleKwArgs = [
-            arg for arg in
-            inspect.getargs(templateAPIClass.compile.im_func.func_code)[0]
-            if arg not in ('klass', 'source', 'file',)]
-
-        compileKwArgs = {}
-        for arg in possibleKwArgs:
-            if hasattr(settings, arg):
-                compileKwArgs[arg] = getattr(settings, arg)
-
-        tmplClass = templateAPIClass.compile(source=source, file=file, **compileKwArgs)
-        tmplInstance = tmplClass(**settings.templateInitArgs)
-        outputSource = settings.outputTransformer(tmplInstance)
-        outputFile = None
-        return outputSource, outputFile
 
 
 class Template(object):
@@ -274,8 +225,6 @@ class Template(object):
     _CHEETAH_defaultMainMethodNameForTemplates = None
     _CHEETAH_defaultModuleNameForTemplates = 'DynamicallyCompiledCheetahTemplate'
     _CHEETAH_defaultModuleGlobalsForTemplates = None
-    _CHEETAH_preprocessors = None
-    _CHEETAH_defaultPreprocessorClass = TemplatePreprocessor
 
     # The following attributes are used by instance methods:
     _CHEETAH_generatedModuleCode = None
@@ -301,7 +250,6 @@ class Template(object):
                 moduleGlobals=Unspecified,
                 cacheCompilationResults=Unspecified,
                 useCache=Unspecified,
-                preprocessors=Unspecified,
                 cacheModuleFilesForTracebacks=Unspecified,
                 cacheDirForModuleFiles=Unspecified,
                 commandlineopts=None,
@@ -329,9 +277,6 @@ class Template(object):
         the source file changes. Rather, if you call Template.compile(src) or
         Template.compile(file=path) repeatedly it will attempt to return a
         cached class definition instead of recompiling.
-
-        Hooks are provided template source preprocessing.  See the notes on the
-        'preprocessors' arg.
 
         If you are an advanced user and need to customize the way Cheetah parses
         source code or outputs Python code, you should check out the
@@ -460,92 +405,6 @@ class Template(object):
               Default: Template._CHEETAH_cacheDirForModuleFiles=None
 
               See notes on cacheModuleFilesForTracebacks.
-
-            - preprocessors
-              Default: Template._CHEETAH_preprocessors=None
-
-              ** THIS IS A VERY ADVANCED TOPIC **
-
-              These are used to transform the source code prior to compilation.
-              They provide a way to use Cheetah as a code generator for Cheetah
-              code. In other words, you use one Cheetah template to output the
-              source code for another Cheetah template.
-
-              The major expected use cases are:
-
-                a) 'compile-time caching' aka 'partial template binding',
-                   wherein an intermediate Cheetah template is used to output
-                   the source for the final Cheetah template. The intermediate
-                   template is a mix of a modified Cheetah syntax (the
-                   'preprocess syntax') and standard Cheetah syntax.  The
-                   preprocessor syntax is executed at compile time and outputs
-                   Cheetah code which is then compiled in turn. This approach
-                   allows one to completely soft-code all the elements in the
-                   template which are subject to change yet have it compile to
-                   extremely efficient Python code with everything but the
-                   elements that must be variable at runtime (per browser
-                   request, etc.) compiled as static strings.  Examples of this
-                   usage pattern will be added to the Cheetah Users' Guide.
-
-                   The'preprocess syntax' is just Cheetah's standard one with
-                   alternatives for the $ and # tokens:
-
-                    e.g. '@' and '%' for code like this
-                     @aPreprocessVar $aRuntimeVar
-                     %if aCompileTimeCondition then yyy else zzz
-                     %% preprocessor comment
-
-                     #if aRunTimeCondition then aaa else bbb
-                     ## normal comment
-                     $aRuntimeVar
-
-                b) adding #import and #extends directives dynamically based on
-                   the source
-
-              If preprocessors are provided, Cheetah pipes the source code
-              through each one in the order provided.  Each preprocessor should
-              accept the args (source, file) and should return a tuple (source,
-              file).
-
-              The argument value should be a list, but a single non-list value
-              is acceptable and will automatically be converted into a list.
-              Each item in the list will be passed through
-              Template._normalizePreprocessor().  The items should either match
-              one of the following forms:
-
-                - an object with a .preprocess(source, file) method
-                - a callable with the following signature:
-                    source, file = f(source, file)
-
-                or one of the forms below:
-
-                - a single string denoting the 2 'tokens' for the preprocess
-                  syntax.  The tokens should be in the order (placeholderToken,
-                  directiveToken) and should separated with a space:
-                     e.g. '@ %'
-                     klass = Template.compile(src, preprocessors='@ %')
-                     # or
-                     klass = Template.compile(src, preprocessors=['@ %'])
-
-                - a dict with the following keys or an object with the
-                  following attributes (all are optional, but nothing will
-                  happen if you don't provide at least one):
-                   - tokens: same as the single string described above. You can
-                     also provide a tuple of 2 strings.
-                   - searchList: the searchList used for preprocess $placeholders
-                   - compilerSettings: used in the compilation of the intermediate
-                     template
-                   - templateAPIClass: an optional subclass of `Template`
-                   - outputTransformer: a simple hook for passing in a callable
-                     which can do further transformations of the preprocessor
-                     output, or do something else like debug logging. The
-                     default is str().
-                   + any keyword arguments to Template.compile which you want to
-                     provide for the compilation of the intermediate template.
-
-                   klass = Template.compile(src,
-                          preprocessors=[ dict(tokens='@ %', searchList=[...]) ] )
-
         """
         errmsg = "arg '%s' must be %s"
 
@@ -583,8 +442,6 @@ class Template(object):
 
         if compilerClass is Unspecified:
             compilerClass = klass._getCompilerClass(source, file)
-        if preprocessors is Unspecified:
-            preprocessors = klass._CHEETAH_preprocessors
 
         if keepRefToGeneratedCode is Unspecified:
             keepRefToGeneratedCode = klass._CHEETAH_keepRefToGeneratedCode
@@ -631,11 +488,6 @@ class Template(object):
         if not isinstance(cacheDirForModuleFiles, (types.NoneType, basestring)):
             raise TypeError(errmsg %
                             ('cacheDirForModuleFiles', 'string or None'))
-
-        ##################################################
-        # handle any preprocessors
-        if preprocessors:
-            source, file = klass._preprocessSource(source, file, preprocessors)
 
         ##################################################
         # compilation, using cache if requested/possible
@@ -803,131 +655,6 @@ class Template(object):
         else:
             templateAPIClass = Template
         return templateAPIClass.compile(*args, **kws)
-
-    @classmethod
-    def _preprocessSource(klass, source, file, preprocessors):
-        """Iterates through the .compile() classmethod's preprocessors argument
-        and pipes the source code through each each preprocessor.
-
-        It returns the tuple (source, file) which is then used by
-        Template.compile to finish the compilation.
-        """
-        if not isinstance(preprocessors, (list, tuple)):
-            preprocessors = [preprocessors]
-        for preprocessor in preprocessors:
-            preprocessor = klass._normalizePreprocessorArg(preprocessor)
-            source, file = preprocessor.preprocess(source, file)
-        return source, file
-
-    @classmethod
-    def _normalizePreprocessorArg(klass, arg):
-        """Used to convert the items in the .compile() classmethod's
-        preprocessors argument into real source preprocessors.  This permits the
-        use of several shortcut forms for defining preprocessors.
-        """
-
-        if hasattr(arg, 'preprocess'):
-            return arg
-        elif hasattr(arg, '__call__'):
-            class WrapperPreprocessor:
-                def preprocess(self, source, file):
-                    return arg(source, file)
-            return WrapperPreprocessor()
-        else:
-            class Settings(object):
-                placeholderToken = None
-                directiveToken = None
-            settings = Settings()
-            if isinstance(arg, str) or isinstance(arg, (list, tuple)):
-                settings.tokens = arg
-            elif isinstance(arg, dict):
-                for k, v in arg.items():
-                    setattr(settings, k, v)
-            else:
-                settings = arg
-
-            settings = klass._normalizePreprocessorSettings(settings)
-            return klass._CHEETAH_defaultPreprocessorClass(settings)
-
-    @classmethod
-    def _normalizePreprocessorSettings(klass, settings):
-        settings.keepRefToGeneratedCode = True
-
-        def normalizeSearchList(searchList):
-            if not isinstance(searchList, (list, tuple)):
-                searchList = [searchList]
-            return searchList
-
-        def normalizeTokens(tokens):
-            if isinstance(tokens, str):
-                return tokens.split()  # space delimited string e.g.'@ %'
-            elif isinstance(tokens, (list, tuple)):
-                return tokens
-            else:
-                raise PreprocessError('invalid tokens argument: %r' % tokens)
-
-        if hasattr(settings, 'tokens'):
-            (settings.placeholderToken,
-             settings.directiveToken) = normalizeTokens(settings.tokens)
-
-        if (
-            not getattr(settings, 'compilerSettings', None) and
-            not getattr(settings, 'placeholderToken', None)
-        ):
-            raise TypeError(
-                'Preprocessor requires either a "tokens" or a "compilerSettings" arg.'
-                ' Neither was provided.')
-
-        if not hasattr(settings, 'templateInitArgs'):
-            settings.templateInitArgs = {}
-        if 'searchList' not in settings.templateInitArgs:
-            if not hasattr(settings, 'searchList') and hasattr(settings, 'namespaces'):
-                settings.searchList = settings.namespaces
-            elif not hasattr(settings, 'searchList'):
-                settings.searchList = []
-            settings.templateInitArgs['searchList'] = settings.searchList
-        settings.templateInitArgs['searchList'] = (
-            normalizeSearchList(settings.templateInitArgs['searchList']))
-
-        if not hasattr(settings, 'outputTransformer'):
-            settings.outputTransformer = unicode
-
-        if not hasattr(settings, 'templateAPIClass'):
-            class PreprocessTemplateAPIClass(klass):
-                pass
-            settings.templateAPIClass = PreprocessTemplateAPIClass
-
-        if not hasattr(settings, 'compilerSettings'):
-            settings.compilerSettings = {}
-
-        klass._updateSettingsWithPreprocessTokens(
-            compilerSettings=settings.compilerSettings,
-            placeholderToken=settings.placeholderToken,
-            directiveToken=settings.directiveToken
-            )
-        return settings
-
-    @classmethod
-    def _updateSettingsWithPreprocessTokens(
-        klass, compilerSettings, placeholderToken, directiveToken
-    ):
-        if (placeholderToken and 'cheetahVarStartToken' not in compilerSettings):
-            compilerSettings['cheetahVarStartToken'] = placeholderToken
-        if directiveToken:
-            if 'directiveStartToken' not in compilerSettings:
-                compilerSettings['directiveStartToken'] = directiveToken
-            if 'directiveEndToken' not in compilerSettings:
-                compilerSettings['directiveEndToken'] = directiveToken
-            if 'commentStartToken' not in compilerSettings:
-                compilerSettings['commentStartToken'] = directiveToken*2
-            if 'multiLineCommentStartToken' not in compilerSettings:
-                compilerSettings['multiLineCommentStartToken'] = (
-                    directiveToken+'*')
-            if 'multiLineCommentEndToken' not in compilerSettings:
-                compilerSettings['multiLineCommentEndToken'] = (
-                    '*'+directiveToken)
-            if 'EOLSlurpToken' not in compilerSettings:
-                compilerSettings['EOLSlurpToken'] = directiveToken
 
     @classmethod
     def _addCheetahPlumbingCodeToClass(klass, concreteTemplateClass):
