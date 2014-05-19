@@ -6,7 +6,7 @@ import os
 import os.path
 import pytest
 
-from Cheetah.CheetahCompile import compile_template
+from Cheetah.cheetah_compile import compile_template
 from Cheetah.Template import Template
 
 
