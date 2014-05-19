@@ -1321,52 +1321,6 @@ class ForDirective(OutputTest):
                     "0\n1\n2\n3\n4\n")
 
 
-class RepeatDirective(OutputTest):
-    def test1(self):
-        """basic #repeat"""
-        self.verify("#repeat 3\n1\n#end repeat",
-                    "1\n1\n1\n")
-        self.verify("#repeat 3: \n1\n#end repeat",
-                    "1\n1\n1\n")
-
-        self.verify("#repeat 3 ##comment\n1\n#end repeat",
-                    "1\n1\n1\n")
-
-        self.verify("#repeat 3: ##comment\n1\n#end repeat",
-                    "1\n1\n1\n")
-
-    def test2(self):
-        """#repeat with numeric expression"""
-        self.verify("#repeat 3*3/3\n1\n#end repeat",
-                    "1\n1\n1\n")
-
-    def test3(self):
-        """#repeat with placeholder"""
-        self.verify("#repeat $numTwo\n1\n#end repeat",
-                    "1\n1\n")
-
-    def test4(self):
-        """#repeat with placeholder * num"""
-        self.verify("#repeat $numTwo*1\n1\n#end repeat",
-                    "1\n1\n")
-
-    def test5(self):
-        """#repeat with placeholder and WS"""
-        self.verify("   #repeat $numTwo   \n1\n   #end repeat   ",
-                    "1\n1\n")
-
-    def test6(self):
-        """single-line #repeat"""
-        self.verify("#repeat $numTwo: 1",
-                    "11")
-        self.verify("#repeat $numTwo: 1\n"*2,
-                    "1\n1\n"*2)
-
-        # false single-line
-        self.verify("#repeat 3:  \n1\n#end repeat",
-                    "1\n1\n1\n")
-
-
 class AttrDirective(OutputTest):
 
     def test1(self):
@@ -1985,48 +1939,6 @@ class IfDirective(OutputTest):
 
         self.verify("#if 0: foo\n#elif 0: bar\n#else: blarg\n",
                     "blarg\n")
-
-
-class UnlessDirective(OutputTest):
-    def test1(self):
-        """#unless 1"""
-        self.verify("#unless 1\n 1234 \n#end unless",
-                    "")
-
-        self.verify("#unless 1:\n 1234 \n#end unless",
-                    "")
-
-        self.verify("#unless 1: ##comment\n 1234 \n#end unless",
-                    "")
-
-        self.verify("#unless 1 ##comment\n 1234 \n#end unless",
-                    "")
-
-    def test2(self):
-        """#unless 0"""
-        self.verify("#unless 0\n 1234 \n#end unless",
-                    " 1234 \n")
-
-    def test3(self):
-        """#unless $none"""
-        self.verify("#unless $none\n 1234 \n#end unless",
-                    " 1234 \n")
-
-    def test4(self):
-        """#unless $numTwo"""
-        self.verify("#unless $numTwo\n 1234 \n#end unless",
-                    "")
-
-    def test5(self):
-        """#unless $numTwo with WS"""
-        self.verify("   #unless $numTwo   \n 1234 \n    #end unless   ",
-                    "")
-
-    def test6(self):
-        """single-line #unless"""
-        self.verify("#unless 1: 1234", "")
-        self.verify("#unless 0: 1234", "1234")
-        self.verify("#unless 0: 1234\n"*2, "1234\n"*2)
 
 
 class PSP(OutputTest):
