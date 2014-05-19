@@ -979,31 +979,6 @@ $x$y#slurp
                     "12345")
 
 
-class CaptureDirective(OutputTest):
-    def test1(self):
-        r"""simple #capture"""
-        self.verify('''\
-#capture cap1
-$(1234+1) foo#slurp
-#end capture
-$cap1#slurp
-''',
-                    "1235 foo")
-
-    def test2(self):
-        r"""slightly more complex #capture"""
-        self.verify('''\
-#def meth(arg)
-$arg.upper()#slurp
-#end def
-#capture cap1
-$(1234+1) $anInt $meth("foo")#slurp
-#end capture
-$cap1#slurp
-''',
-                    "1235 1 FOO")
-
-
 class SlurpDirective(OutputTest):
     def test1(self):
         r"""#slurp with 1 \n """

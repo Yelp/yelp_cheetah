@@ -142,8 +142,6 @@ directiveNamesAndParsers = {
     'call': 'eatCall',
     'arg': 'eatCallArg',
 
-    'capture': 'eatCapture',
-
     # declaration, assignment, and deletion
     'attr': 'eatAttr',
     'def': 'eatDef',
@@ -195,7 +193,6 @@ endDirectiveNamesAndHandlers = {
     'block': None,              # has short-form
     'closure': None,            # has short-form
     'call': None,               # has short-form
-    'capture': None,            # has short-form
     'filter': None,
     'while': None,              # has short-form
     'for': None,                # has short-form
@@ -1226,7 +1223,6 @@ class Parser(_LowLevelParser):
 
         self._closeableDirectives = ['def', 'block', 'closure', 'defmacro',
                                      'call',
-                                     'capture',
                                      'filter',
                                      'if', 'unless',
                                      'for', 'while', 'repeat',
@@ -1586,11 +1582,9 @@ class Parser(_LowLevelParser):
         if self._endDirectiveNamesAndHandlers.get(directiveName):
             handler = self._endDirectiveNamesAndHandlers[directiveName]
             handler()
-        elif directiveName in 'block capture call filter'.split():
+        elif directiveName in 'block call filter'.split():
             if key == 'block':
                 self._compiler.closeBlock()
-            elif key == 'capture':
-                self._compiler.endCaptureRegion()
             elif key == 'call':
                 self._compiler.endCallRegion()
             elif key == 'filter':
@@ -2290,34 +2284,6 @@ class Parser(_LowLevelParser):
         self.getWhiteSpace()
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         self._compiler.setTransform(transformer, isKlass)
-
-    def eatCapture(self):
-        # @@TR:  this could be refactored to use the code in eatSimpleIndentingDirective
-        # filtered
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        lineCol = self.getRowCol()
-
-        self.getDirectiveStartToken()
-        self.advance(len('capture'))
-        startPos = self.pos()
-        self.getWhiteSpace()
-
-        expr = self.getExpression(pyTokensToBreakAt=[':'])
-        expr = self._applyExpressionFilters(expr, 'capture', startPos=startPos)
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self._compiler.startCaptureRegion(assignTo=expr, lineCol=lineCol)
-            self.getWhiteSpace(max=1)
-            self.parse(breakPoint=self.findEOL(gobble=False))
-            self._compiler.endCaptureRegion()
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            self.pushToOpenDirectivesStack("capture")
-            self._compiler.startCaptureRegion(assignTo=expr, lineCol=lineCol)
 
     def eatIf(self):
         # filtered

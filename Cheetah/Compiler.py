@@ -297,7 +297,6 @@ class MethodCompiler(GenUtils):
         self._methodBodyChunks = []
 
         self._callRegionsStack = []
-        self._captureRegionsStack = []
         self._filterRegionsStack = []
 
         self._hasReturnStatement = False
@@ -746,44 +745,6 @@ class MethodCompiler(GenUtils):
                       + ' at line %s, col %s' % lineCol + ' in the source.')
         self.addChunk('')
         self._callRegionsStack.pop()  # attrib of current methodCompiler
-
-    def nextCaptureRegionID(self):
-        return self.nextCacheID()
-
-    def startCaptureRegion(self, assignTo, lineCol):
-        class CaptureDetails:
-            pass
-
-        captureDetails = CaptureDetails()
-        captureDetails.ID = ID = self.nextCaptureRegionID()
-        captureDetails.assignTo = assignTo
-        captureDetails.lineCol = lineCol
-
-        self._captureRegionsStack.append((ID, captureDetails))  # attrib of current methodCompiler
-        self.addChunk('## START CAPTURE REGION: ' + ID
-                      + ' ' + assignTo
-                      + ' at line %s, col %s' % lineCol + ' in the source.')
-        self.addChunk('_orig_trans%(ID)s = trans' % locals())
-        self.addChunk('_wasBuffering%(ID)s = self._CHEETAH__isBuffering' % locals())
-        self.addChunk('trans = _captureCollector%(ID)s = DummyTransaction()' % locals())
-        if self.setting('autoAssignDummyTransactionToSelf'):
-            self.addChunk('self.transaction = trans')
-        else:
-            self.addChunk('self._CHEETAH__isBuffering = True')
-        self.addChunk('write = _captureCollector%(ID)s.response().write' % locals())
-
-    def endCaptureRegion(self):
-        ID, captureDetails = self._captureRegionsStack.pop()
-        assignTo, lineCol = (captureDetails.assignTo, captureDetails.lineCol)
-        self.addChunk('trans = _orig_trans%(ID)s' % locals())
-        if self.setting('autoAssignDummyTransactionToSelf'):
-            self.addChunk('self.transaction = trans')
-        self.addChunk('write = trans.response().write')
-        self.addChunk('self._CHEETAH__isBuffering = _wasBuffering%(ID)s ' % locals())
-        self.addChunk('%(assignTo)s = _captureCollector%(ID)s.response().getvalue()' % locals())
-        self.addChunk('del _orig_trans%(ID)s' % locals())
-        self.addChunk('del _captureCollector%(ID)s' % locals())
-        self.addChunk('del _wasBuffering%(ID)s' % locals())
 
     def nextFilterRegionID(self):
         return self.nextCacheID()
