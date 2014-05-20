@@ -125,13 +125,13 @@ class SourceReader(object):
         return self._pos == 0
 
     def peek(self, offset=0):
-        self.checkPos(self._pos+offset)
+        self.checkPos(self._pos + offset)
         pos = self._pos + offset
         return self._src[pos]
 
     def getc(self):
         pos = self._pos
-        if self.validPos(pos+1):
+        if self.validPos(pos + 1):
             self._pos += 1
         return self._src[pos]
 
@@ -192,7 +192,7 @@ class SourceReader(object):
         if pos is None:
             pos = self._pos
         src = self.src()
-        return max(src.rfind('\n', 0, pos)+1, src.rfind('\r', 0, pos)+1, 0)
+        return max(src.rfind('\n', 0, pos)+1, src.rfind('\r', 0, pos) + 1, 0)
 
     def findEOL(self, pos=None, gobble=False):
         if pos is None:
@@ -227,7 +227,7 @@ class SourceReader(object):
         start = self.pos()
         breakPoint = self.breakPoint()
         if max is not None:
-            breakPoint = min(breakPoint, self.pos()+max)
+            breakPoint = min(breakPoint, self.pos() + max)
         while self.pos() < breakPoint:
             self.advance()
             if not self.matchWhiteSpace(WSchars):

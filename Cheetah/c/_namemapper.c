@@ -171,10 +171,10 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
     PyObject *nextVal = NULL;
 
     currentVal = obj;
-    for (i=0; i < numChunks;i++) {
+    for (i = 0; i < numChunks; i++) {
         currentKey = nameChunks[i];
         if (PyErr_CheckSignals()) {	/* not sure if I really need to do this here, but what the hell */
-            if (i>0) {
+            if (i > 0) {
                 Py_DECREF(currentVal);
             }
             return NULL;
@@ -307,7 +307,7 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
 
     iterator = PyObject_GetIter(searchList);
     if (iterator == NULL) {
-        PyErr_SetString(PyExc_TypeError,"This searchList is not iterable!");
+        PyErr_SetString(PyExc_TypeError, "This searchList is not iterable!");
         goto done;
     }
 
@@ -368,7 +368,7 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
 
     iterator = PyObject_GetIter(searchList);
     if (iterator == NULL) {
-        PyErr_SetString(PyExc_TypeError,"This searchList is not iterable!");
+        PyErr_SetString(PyExc_TypeError, "This searchList is not iterable!");
         goto done;
     }
     while ( (nameSpace = PyIter_Next(iterator)) ) {
@@ -489,8 +489,8 @@ DL_EXPORT(void) init_namemapper(void)
 
     /* add symbolic constants to the module */
     d = PyModule_GetDict(m);
-    NotFound = PyErr_NewException("NameMapper.NotFound",PyExc_LookupError,NULL);
-    TooManyPeriods = PyErr_NewException("NameMapper.TooManyPeriodsInName",NULL,NULL);
+    NotFound = PyErr_NewException("NameMapper.NotFound", PyExc_LookupError, NULL);
+    TooManyPeriods = PyErr_NewException("NameMapper.TooManyPeriodsInName", NULL, NULL);
     PyDict_SetItemString(d, "NotFound", NotFound);
     PyDict_SetItemString(d, "TooManyPeriodsInName", TooManyPeriods);
 

@@ -669,18 +669,18 @@ class Placeholders_Calls(OutputTest):
                     "\naoeu\n", convertEOLs=False)
 
     def test13(self):
-        """func placeholder - with (string*int)"""
-        self.verify("$aFunc('aoeu'*2)",
+        """func placeholder - with (string * int)"""
+        self.verify("$aFunc('aoeu' * 2)",
                     "aoeuaoeu")
 
     def test14(self):
-        """func placeholder - with (int*int)"""
-        self.verify("$aFunc(2*2)",
+        """func placeholder - with (int * int)"""
+        self.verify("$aFunc(2 * 2)",
                     "4")
 
     def test15(self):
-        """func placeholder - with (int*float)"""
-        self.verify("$aFunc(2*2.0)",
+        """func placeholder - with (int * float)"""
+        self.verify("$aFunc(2 * 2.0)",
                     "4.0")
 
     def test16(self):
@@ -878,7 +878,7 @@ class CallDirective(OutputTest):
 $arg.upper()#slurp
 #end def
 #call $meth
-$(1234+1) foo#slurp
+$(1234 + 1) foo#slurp
 #end call''',
                     "1235 FOO")
 
@@ -890,7 +890,7 @@ $arg1.upper() - $arg2.lower()#slurp
 #end def
 #call self.meth
 #arg arg1
-$(1234+1) foo#slurp
+$(1234 + 1) foo#slurp
 #arg arg2
 UPPER#slurp
 #end call''',
@@ -903,7 +903,7 @@ UPPER#slurp
 $arg1.upper() - $arg2.lower()#slurp
 #end def
 #call self.meth
-#arg arg1:$(1234+1) foo#slurp
+#arg arg1:$(1234 + 1) foo#slurp
 #arg arg2:UPPER#slurp
 #end call''',
                     "1235 FOO - upper")
@@ -917,7 +917,7 @@ $arg1.upper() - $arg2.lower()#slurp
 $arg1.upper() - $arg2.lower()#slurp
 #end def
 #call self.meth arg2="UPPER"
-$(1234+1) foo#slurp
+$(1234 + 1) foo#slurp
 #end call''',
                     "1235 FOO - upper")
 
@@ -928,7 +928,7 @@ $(1234+1) foo#slurp
 $arg1.upper() - $arg2.lower() - $arg3#slurp
 #end def
 #call self.meth arg2="UPPER", arg3=999
-#arg arg1:$(1234+1) foo#slurp
+#arg arg1:$(1234 + 1) foo#slurp
 #end call''',
                     "1235 FOO - upper - 999")
 
@@ -940,7 +940,7 @@ $arg1.upper() - $arg2.lower() - $arg3#slurp
 $arg1.upper() - $arg2.lower() - $arg3#slurp
 #end def
 #call getattr(self, "meth") arg2="UPPER", arg3=999
-#arg arg1:$(1234+1) foo#slurp
+#arg arg1:$(1234 + 1) foo#slurp
 #end call''',
                     "1235 FOO - upper - 999")
 
@@ -1279,8 +1279,8 @@ class ForDirective(OutputTest):
 
     def test15(self):
         """2 times single line #for"""
-        self.verify("#for $i in range($aFunc(5)): $i#slurp\n"*2,
-                    "01234"*2)
+        self.verify("#for $i in range($aFunc(5)): $i#slurp\n" * 2,
+                    "01234" * 2)
 
     def test16(self):
         """false single line #for """
@@ -1856,7 +1856,7 @@ class PSP(OutputTest):
 
     def test5(self):
         """simple <%= [EXPR] %> + $anInt"""
-        self.verify("<%= ('blarg'*2).upper() %>$anInt", "BLARGBLARG1")
+        self.verify("<%= ('blarg' * 2).upper() %>$anInt", "BLARGBLARG1")
 
     def test6(self):
         """for loop in <%%>"""

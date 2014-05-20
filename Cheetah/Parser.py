@@ -389,7 +389,7 @@ class _LowLevelParser(SourceReader):
             self.EOLSlurpRE = re.compile(
                 re.escape(self.setting('EOLSlurpToken'))
                 + r'[ \t\f]*'
-                + r'(?:'+EOL+')'
+                + r'(?:' + EOL + ')'
                 )
         else:
             self.EOLSlurpRE = None
@@ -607,7 +607,7 @@ class _LowLevelParser(SourceReader):
         self.setPos(startPos)
         return directiveName
 
-    def matchDirectiveName(self, directiveNameChars=identchars+'0123456789-@'):
+    def matchDirectiveName(self, directiveNameChars=identchars + '0123456789-@'):
         startPos = self.pos()
         possibleMatches = self._directiveNamesAndParsers.keys()
         name = ''
@@ -773,7 +773,7 @@ class _LowLevelParser(SourceReader):
                 break
             elif self.peek() == '.':
 
-                if self.pos()+1 < len(self) and self.peek(1) in identchars:
+                if self.pos() + 1 < len(self) and self.peek(1) in identchars:
                     self.advance()  # discard the period as it isn't needed with NameMapper
                 else:
                     break
@@ -788,7 +788,7 @@ class _LowLevelParser(SourceReader):
                 period = max(dottedName.rfind('.'), 0)
                 if period:
                     chunks.append((dottedName[:period], autoCall, ''))
-                    dottedName = dottedName[period+1:]
+                    dottedName = dottedName[period + 1:]
                 if rest and rest[0] == '(':
                     autoCall = False
             chunks.append((dottedName, autoCall, rest))
@@ -1023,8 +1023,8 @@ class _LowLevelParser(SourceReader):
                 exprBits.append(self.getWhiteSpace())
             elif self.matchDirectiveEndToken() and not enclosures:
                 break
-            elif c == "\\" and self.pos()+1 < srcLen:
-                eolMatch = EOLre.match(self.src(), self.pos()+1)
+            elif c == "\\" and self.pos() + 1 < srcLen:
+                eolMatch = EOLre.match(self.src(), self.pos() + 1)
                 if not eolMatch:
                     self.advance()
                     raise ParseError(self, msg='Line ending expected')
