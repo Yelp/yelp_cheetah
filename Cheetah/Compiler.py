@@ -73,7 +73,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('monitorSrcFile', False, ''),
     ('outputMethodsBeforeAttributes', True, ''),
     ('addTimestampsToCompilerOutput', True, ''),
-    ('addSrcModifiedToCompilerOutput', True, ''),
 
     # Customizing the #extends directive
     ('autoImportForExtendsDirective', True, ''),
@@ -1014,8 +1013,6 @@ class ClassCompiler(GenUtils):
             self._generatedAttribs.append('_CHEETAH_genTimestamp = __CHEETAH_genTimestamp__')
 
         self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
-        if self.setting('addSrcModifiedToCompilerOutput'):
-            self._generatedAttribs.append('_CHEETAH_srcLastModified = __CHEETAH_srcLastModified__')
 
         if self.setting('templateMetaclass'):
             self._generatedAttribs.append('__metaclass__ = ' + self.setting('templateMetaclass'))
@@ -1322,7 +1319,6 @@ class Compiler(SettingsManager, GenUtils):
         self._baseclassName = baseclassName
 
         self._filePath = None
-        self._fileMtime = None
 
         if self._filePath:
             self._fileDirName, self._fileBaseName = os.path.split(self._filePath)
@@ -1634,14 +1630,9 @@ class Compiler(SettingsManager, GenUtils):
             self.addModuleGlobal('__CHEETAH_genTime__ = %r' % time.time())
             self.addModuleGlobal('__CHEETAH_genTimestamp__ = %r' % self.timestamp())
         if self._filePath:
-            timestamp = self.timestamp(self._fileMtime)
             self.addModuleGlobal('__CHEETAH_src__ = %r' % self._filePath)
-            if self.setting('addSrcModifiedToCompilerOutput'):
-                self.addModuleGlobal('__CHEETAH_srcLastModified__ = %r' % timestamp)
         else:
             self.addModuleGlobal('__CHEETAH_src__ = None')
-            if self.setting('addSrcModifiedToCompilerOutput'):
-                self.addModuleGlobal('__CHEETAH_srcLastModified__ = None')
 
         moduleDef = textwrap.dedent(
             """
@@ -1677,10 +1668,8 @@ class Compiler(SettingsManager, GenUtils):
         self._moduleDef = moduleDef
         return moduleDef
 
-    def timestamp(self, theTime=None):
-        if not theTime:
-            theTime = time.time()
-        return time.asctime(time.localtime(theTime))
+    def timestamp(self):
+        return time.asctime(time.localtime(time.time()))
 
     def moduleHeader(self):
         header = self._moduleEncodingStr + '\n'
