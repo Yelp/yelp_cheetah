@@ -2433,19 +2433,6 @@ class MiscComplexSyntax(OutputTest):
                     "0")
 
 
-class WhitespaceAfterDirectiveTokens(OutputTest):
-    def _getCompilerSettings(self):
-        return {'allowWhitespaceAfterDirectiveStartToken': True}
-
-    def test1(self):
-        self.verify("# for i in range(10): $i",
-                    "0123456789")
-        self.verify("# for i in range(10)\n$i# end for",
-                    "0123456789")
-        self.verify("# for i in range(10)#$i#end for",
-                    "0123456789")
-
-
 # TODO: there's probably a pytest way to do this
 def __add_eol_tests():
     """Add tests for different end-of-line formats."""

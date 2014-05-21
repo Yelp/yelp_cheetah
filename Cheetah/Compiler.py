@@ -11,7 +11,6 @@
 import sys
 import os
 import os.path
-from os.path import getmtime
 import re
 import textwrap
 import time
@@ -70,34 +69,12 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
     ('initialMethIndentLevel', 2, ''),
-    ('monitorSrcFile', False, ''),
     ('outputMethodsBeforeAttributes', True, ''),
     ('addTimestampsToCompilerOutput', True, ''),
-    ('addSrcModifiedToCompilerOutput', True, ''),
 
     # Customizing the #extends directive
     ('autoImportForExtendsDirective', True, ''),
     ('handlerForExtendsDirective', None, ''),
-
-    ('disabledDirectives', [], 'List of directive keys to disable (without starting "#")'),
-    ('enabledDirectives', [], 'List of directive keys to enable (without starting "#")'),
-    ('disabledDirectiveHooks', [], 'callable(parser, directiveKey)'),
-    ('preparseDirectiveHooks', [], 'callable(parser, directiveKey)'),
-    ('postparseDirectiveHooks', [], 'callable(parser, directiveKey)'),
-    ('preparsePlaceholderHooks', [], 'callable(parser)'),
-    ('postparsePlaceholderHooks', [], 'callable(parser)'),
-    (
-        'expressionFilterHooks',
-        [],
-        (
-            'callable(parser, expr, exprType, rawExpr=None, startPos=None), '
-            'exprType is the name of the directive, "psp" or "placeholder" '
-            'The filters *must* return the expr or raise an expression, '
-            'they can modify the expr if needed'
-        ),
-    ),
-    ('templateMetaclass', None, 'Strictly optional, only will work with new-style basecalsses as well'),
-    ('i18NFunctionName', 'self.i18n', ''),
 
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
@@ -106,13 +83,11 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('gobbleWhitespaceAroundMultiLineComments', True, ''),
     ('directiveStartToken', '#', ''),
     ('directiveEndToken', '#', ''),
-    ('allowWhitespaceAfterDirectiveStartToken', False, ''),
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
     ('EOLSlurpToken', '#', ''),
     ('gettextTokens', ["_", "N_", "ngettext"], ''),
     ('allowExpressionsInExtendsDirective', False, ''),
-    ('allowEmptySingleLineMethods', False, ''),
     ('allowNestedDefScopes', True, ''),
     ('allowPlaceholderFilterArgs', True, ''),
     ('encoding', None, 'The encoding to read input files as (or None for ASCII)'),
@@ -971,8 +946,6 @@ class ClassCompiler(GenUtils):
             initialMethodComment='## CHEETAH: main method generated for this template')
 
         self._setActiveMethodCompiler(methodCompiler)
-        if fileName and self.setting('monitorSrcFile'):
-            self._addSourceFileMonitoring(fileName)
 
     def setting(self, key):
         return self._settingsManager.setting(key)
@@ -1014,11 +987,7 @@ class ClassCompiler(GenUtils):
             self._generatedAttribs.append('_CHEETAH_genTimestamp = __CHEETAH_genTimestamp__')
 
         self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
-        if self.setting('addSrcModifiedToCompilerOutput'):
-            self._generatedAttribs.append('_CHEETAH_srcLastModified = __CHEETAH_srcLastModified__')
 
-        if self.setting('templateMetaclass'):
-            self._generatedAttribs.append('__metaclass__ = ' + self.setting('templateMetaclass'))
         self._initMethChunks = []
         self._blockMetaData = {}
 
@@ -1044,23 +1013,6 @@ class ClassCompiler(GenUtils):
             __init__.addChunk(chunk)
         __init__.cleanupState()
         self._swallowMethodCompiler(__init__, pos=0)
-
-    def _addSourceFileMonitoring(self, fileName):
-        # @@TR: this stuff needs auditing for Cheetah 2.0
-        # the first bit is added to init
-        self.addChunkToInit('self._filePath = ' + repr(fileName))
-        self.addChunkToInit('self._fileMtime = ' + str(getmtime(fileName)))
-
-        # the rest is added to the main output method of the class ('mainMethod')
-        self.addChunk('if exists(self._filePath) and ' +
-                      'getmtime(self._filePath) > self._fileMtime:')
-        self.indent()
-        self.addChunk('self._compile(file=self._filePath, moduleName=' + self._className + ')')
-        self.addChunk(
-            'write(getattr(self, self._mainCheetahMethod_for_' + self._className +
-            ')(trans=trans))')
-        self.addStop()
-        self.dedent()
 
     def setClassName(self, name):
         self._className = name
@@ -1322,7 +1274,6 @@ class Compiler(SettingsManager, GenUtils):
         self._baseclassName = baseclassName
 
         self._filePath = None
-        self._fileMtime = None
 
         if self._filePath:
             self._fileDirName, self._fileBaseName = os.path.split(self._filePath)
@@ -1634,14 +1585,9 @@ class Compiler(SettingsManager, GenUtils):
             self.addModuleGlobal('__CHEETAH_genTime__ = %r' % time.time())
             self.addModuleGlobal('__CHEETAH_genTimestamp__ = %r' % self.timestamp())
         if self._filePath:
-            timestamp = self.timestamp(self._fileMtime)
             self.addModuleGlobal('__CHEETAH_src__ = %r' % self._filePath)
-            if self.setting('addSrcModifiedToCompilerOutput'):
-                self.addModuleGlobal('__CHEETAH_srcLastModified__ = %r' % timestamp)
         else:
             self.addModuleGlobal('__CHEETAH_src__ = None')
-            if self.setting('addSrcModifiedToCompilerOutput'):
-                self.addModuleGlobal('__CHEETAH_srcLastModified__ = None')
 
         moduleDef = textwrap.dedent(
             """
@@ -1677,10 +1623,8 @@ class Compiler(SettingsManager, GenUtils):
         self._moduleDef = moduleDef
         return moduleDef
 
-    def timestamp(self, theTime=None):
-        if not theTime:
-            theTime = time.time()
-        return time.asctime(time.localtime(theTime))
+    def timestamp(self):
+        return time.asctime(time.localtime(time.time()))
 
     def moduleHeader(self):
         header = self._moduleEncodingStr + '\n'
