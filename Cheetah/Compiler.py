@@ -11,7 +11,6 @@
 import sys
 import os
 import os.path
-from os.path import getmtime
 import re
 import textwrap
 import time
@@ -70,7 +69,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
     ('initialMethIndentLevel', 2, ''),
-    ('monitorSrcFile', False, ''),
     ('outputMethodsBeforeAttributes', True, ''),
     ('addTimestampsToCompilerOutput', True, ''),
 
@@ -952,8 +950,6 @@ class ClassCompiler(GenUtils):
             initialMethodComment='## CHEETAH: main method generated for this template')
 
         self._setActiveMethodCompiler(methodCompiler)
-        if fileName and self.setting('monitorSrcFile'):
-            self._addSourceFileMonitoring(fileName)
 
     def setting(self, key):
         return self._settingsManager.setting(key)
@@ -1023,23 +1019,6 @@ class ClassCompiler(GenUtils):
             __init__.addChunk(chunk)
         __init__.cleanupState()
         self._swallowMethodCompiler(__init__, pos=0)
-
-    def _addSourceFileMonitoring(self, fileName):
-        # @@TR: this stuff needs auditing for Cheetah 2.0
-        # the first bit is added to init
-        self.addChunkToInit('self._filePath = ' + repr(fileName))
-        self.addChunkToInit('self._fileMtime = ' + str(getmtime(fileName)))
-
-        # the rest is added to the main output method of the class ('mainMethod')
-        self.addChunk('if exists(self._filePath) and ' +
-                      'getmtime(self._filePath) > self._fileMtime:')
-        self.indent()
-        self.addChunk('self._compile(file=self._filePath, moduleName=' + self._className + ')')
-        self.addChunk(
-            'write(getattr(self, self._mainCheetahMethod_for_' + self._className +
-            ')(trans=trans))')
-        self.addStop()
-        self.dedent()
 
     def setClassName(self, name):
         self._className = name
