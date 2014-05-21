@@ -79,7 +79,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('handlerForExtendsDirective', None, ''),
 
     ('templateMetaclass', None, 'Strictly optional, only will work with new-style basecalsses as well'),
-    ('i18NFunctionName', 'self.i18n', ''),
 
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
