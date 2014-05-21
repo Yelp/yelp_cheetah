@@ -10,6 +10,7 @@ import pytest
 from Cheetah import five
 from Cheetah.cheetah_compile import compile_template
 from Cheetah.compile import compile_to_class
+from Cheetah.Template import Template
 
 
 @pytest.yield_fixture
@@ -169,6 +170,7 @@ def test_Unicode_in_SearchList_Thai_utf8(template_compiler):
 
     source = 'This is $adjective'
     template = template_compiler.compile(source)
+    assert template and issubclass(template, Template)
     template = template(searchList=[{'adjective': utf8}])
     assert template.respond()
 

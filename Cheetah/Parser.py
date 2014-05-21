@@ -119,6 +119,7 @@ specialVarRE = re.compile(r'([a-zA-z_]+)@')  # for matching specialVar comments
 
 escapedNewlineRE = re.compile(r'(?<!\\)((\\\\)*)\\(n|012)')
 
+# TODO(buck): audit all directives. delete with prejudice.
 directiveNamesAndParsers = {
     # importing and inheritance
     'import': None,
