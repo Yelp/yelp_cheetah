@@ -1329,7 +1329,7 @@ class Compiler(SettingsManager, GenUtils):
             self._fileDirName, self._fileBaseName = os.path.split(self._filePath)
             self._fileBaseNameRoot, self._fileBaseNameExt = os.path.splitext(self._fileBaseName)
 
-        assert isinstance(source, five.text)
+        assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == "":
             warnings.warn("You supplied an empty string for the source!", )

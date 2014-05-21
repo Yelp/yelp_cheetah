@@ -9,7 +9,6 @@ omit =
     */tmp*
     setup.py
     # Some dynamically created templates
-    testing/templates/src/*
 
 [report]
 exclude_lines =

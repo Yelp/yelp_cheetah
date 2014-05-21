@@ -9,10 +9,10 @@ from Cheetah.Compiler import Compiler
 
 
 def compile_source(
-    source,
-    cls_name='DynamicallyCompiledTemplate',
-    settings=None,
-    compiler_cls=Compiler,
+        source,
+        cls_name='DynamicallyCompiledTemplate',
+        settings=None,
+        compiler_cls=Compiler,
 ):
     """The general case for compiling from source.
 
@@ -34,9 +34,6 @@ def compile_source(
             '`cls_name` must be `text` but got {0!r}'.format(type(cls_name))
         )
 
-    if settings is None:
-        settings = {}
-
     compiler = compiler_cls(
         source,
         moduleName=cls_name,
@@ -45,37 +42,6 @@ def compile_source(
     )
     compiler.compile()
     return compiler.getModuleCode()
-
-
-def detect_encoding(filename):
-    """Detects the #encoding directive and returns the encoding.  If none is
-    found, the default is utf-8
-
-    The #encoding directive must appear on the first line of the file and
-    specify a valid encoding.
-
-    :param text filename: Filename to open
-    :return: The detected encoding of the file or utf-8.
-    :rtype: text
-    :raises TypeError: If the first line of the file is not valid utf-8.
-    """
-    # Read the file as binary.  We assume the first line is utf-8
-    with io.open(filename, 'rb') as file_obj:
-        first_line = file_obj.readline()
-
-    # Attempt to look at the first line as utf-8
-    try:
-        first_line = first_line.decode('utf-8')
-    except UnicodeDecodeError:
-        raise TypeError(
-            'File does not start with an #encoding directive '
-            'but has non utf-8 bytes.'
-        )
-
-    if first_line.startswith('#encoding'):
-        return first_line.split()[1].lower()
-
-    return 'utf-8'
 
 
 def compile_file(filename, target=None, **kwargs):
@@ -92,7 +58,7 @@ def compile_file(filename, target=None, **kwargs):
     if 'cls_name' in kwargs:
         raise ValueError('`cls_name` when compiling a file is invalid')
 
-    contents = io.open(filename, encoding=detect_encoding(filename)).read()
+    contents = io.open(filename, encoding='UTF-8').read()
 
     cls_name = os.path.basename(filename).split('.', 1)[0]
     compiled_source = compile_source(contents, cls_name=cls_name, **kwargs)
@@ -102,22 +68,23 @@ def compile_file(filename, target=None, **kwargs):
         dirname = os.path.dirname(filename)
         target = os.path.join(dirname, '{0}.py'.format(cls_name))
 
-    with io.open(target, 'w', encoding='utf-8') as target_file:
-        target_file.write('# -*- coding: utf-8 -*-\n\n')
+    with io.open(target, 'w', encoding='UTF-8') as target_file:
+        target_file.write('# -*- coding: UTF-8 -*-\n\n')
         target_file.write(compiled_source)
 
     return target
 
 
-def create_module_from_source(source):
+def create_module_from_source(source, filename='<generated cheetah module>'):
     """Creates a module from the given source.
 
     :param text source: Sourcecode to put into new module.
     :return: A Module object.
     """
     module = imp.new_module('created_module')
-    code = compile(source, '<generated cheetah module>', 'exec', dont_inherit=True)
-    exec(code, module.__dict__)
+    module.__file__ = filename
+    code = compile(source, filename, 'exec', dont_inherit=True)
+    exec(code, module.__dict__)  # pylint:disable=exec-used
     return module
 
 
