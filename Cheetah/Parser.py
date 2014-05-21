@@ -1266,15 +1266,6 @@ class Parser(_LowLevelParser):
                             rawExpr=rawExpr, startPos=startPos)
         return expr
 
-    def _filterDisabledDirectives(self, directiveName):
-        directiveName = directiveName.lower()
-        if (directiveName in self.setting('disabledDirectives')
-            or (self.setting('enabledDirectives')
-                and directiveName not in self.setting('enabledDirectives'))):
-            for callback in self.setting('disabledDirectiveHooks'):
-                callback(parser=self, directiveName=directiveName)
-            raise ForbiddenDirective(self, msg='This %r directive is disabled' % directiveName)
-
     # main parse loop
 
     def parse(self, breakPoint=None, assertEmptyStack=True):
@@ -1378,7 +1369,6 @@ class Parser(_LowLevelParser):
 
     def eatPSP(self):
         # filtered
-        self._filterDisabledDirectives(directiveName='psp')
         self.getPSPStartToken()
         endToken = self.setting('PSPEndToken')
         startPos = self.pos()
@@ -1405,7 +1395,6 @@ class Parser(_LowLevelParser):
 
     def eatDirective(self):
         directiveName = self.matchDirective()
-        self._filterDisabledDirectives(directiveName)
 
         for callback in self.setting('preparseDirectiveHooks'):
             callback(parser=self, directiveName=directiveName)
