@@ -78,16 +78,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('autoImportForExtendsDirective', True, ''),
     ('handlerForExtendsDirective', None, ''),
 
-    (
-        'expressionFilterHooks',
-        [],
-        (
-            'callable(parser, expr, exprType, rawExpr=None, startPos=None), '
-            'exprType is the name of the directive, "psp" or "placeholder" '
-            'The filters *must* return the expr or raise an expression, '
-            'they can modify the expr if needed'
-        ),
-    ),
     ('templateMetaclass', None, 'Strictly optional, only will work with new-style basecalsses as well'),
     ('i18NFunctionName', 'self.i18n', ''),
 

@@ -1093,7 +1093,6 @@ class _LowLevelParser(SourceReader):
                 msg='This form of $placeholder syntax is not valid here.')
 
     def getPlaceholder(self, plain=False, returnEverything=False):
-        # filtered
         startPos = self.pos()
         lineCol = self.getRowCol(startPos)
         self.getCheetahVarStartToken()
@@ -1130,9 +1129,6 @@ class _LowLevelParser(SourceReader):
             if expr[-1] == closurePairsRev[enclosureOpenChar]:
                 expr = expr[:-1]
             rawPlaceholder = self[startPos: self.pos()]
-
-        expr = self._applyExpressionFilters(expr, 'placeholder',
-                                            rawExpr=rawPlaceholder, startPos=startPos)
 
         if returnEverything:
             return (expr, rawPlaceholder, lineCol, filterArgs)
@@ -1223,43 +1219,6 @@ class Parser(_LowLevelParser):
             assert callback
             self._macros[macroName] = callback
             self._directiveNamesAndParsers[macroName] = self.eatMacroCall
-
-    def _applyExpressionFilters(self, expr, exprType, rawExpr=None, startPos=None):
-        """Pipes cheetah expressions through a set of optional filter hooks.
-
-        The filters are functions which may modify the expressions or raise
-        a ForbiddenExpression exception if the expression is not allowed.  They
-        are defined in the compiler setting 'expressionFilterHooks'.
-
-        Some intended use cases:
-
-         - to implement 'restricted execution' safeguards in cases where you
-           can't trust the author of the template.
-
-         - to enforce style guidelines
-
-        filter call signature:  (parser, expr, exprType, rawExpr=None, startPos=None)
-         - parser is the Cheetah parser
-         - expr is the expression to filter.  In some cases the parser will have
-           already modified it from the original source code form.  For example,
-           placeholders will have been translated into namemapper calls.  If you
-           need to work with the original source, see rawExpr.
-         - exprType is the name of the directive, 'psp', or 'placeholder'. All
-           lowercase.  @@TR: These will eventually be replaced with a set of
-           constants.
-         - rawExpr is the original source string that Cheetah parsed.  This
-           might be None in some cases.
-         - startPos is the character position in the source string/file
-           where the parser started parsing the current expression.
-
-        @@TR: I realize this use of the term 'expression' is a bit wonky as many
-         of the 'expressions' are actually statements, but I haven't thought of
-         a better name yet.  Suggestions?
-        """
-        for callback in self.setting('expressionFilterHooks'):
-            expr = callback(parser=self, expr=expr,  exprType=exprType,
-                            rawExpr=rawExpr, startPos=startPos)
-        return expr
 
     # main parse loop
 
@@ -1363,7 +1322,6 @@ class Parser(_LowLevelParser):
         return
 
     def eatPSP(self):
-        # filtered
         self.getPSPStartToken()
         endToken = self.setting('PSPEndToken')
         startPos = self.pos()
@@ -1373,7 +1331,6 @@ class Parser(_LowLevelParser):
                     break
             self.advance()
         pspString = self.readTo(self.pos(), start=startPos).strip()
-        pspString = self._applyExpressionFilters(pspString, 'psp', startPos=startPos)
         self._compiler.addPSP(pspString)
         self.getPSPEndToken()
 
@@ -1474,16 +1431,13 @@ class Parser(_LowLevelParser):
         return textEaten
 
     def eatSimpleExprDirective(self, directiveName, includeDirectiveNameInExpr=True):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         self.getDirectiveStartToken()
         if not includeDirectiveNameInExpr:
             self.advance(len(directiveName))
-        startPos = self.pos()
         expr = self.getExpression().strip()
         directiveName = expr.split()[0]
-        expr = self._applyExpressionFilters(expr, directiveName, startPos=startPos)
         if directiveName in self._closeableDirectives:
             self.pushToOpenDirectivesStack(directiveName)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
@@ -1491,19 +1445,16 @@ class Parser(_LowLevelParser):
 
     def eatSimpleIndentingDirective(self, directiveName, callback,
                                     includeDirectiveNameInExpr=False):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
         lineCol = self.getRowCol()
         self.getDirectiveStartToken()
         if directiveName not in 'else elif for while try except finally'.split():
             self.advance(len(directiveName))
-        startPos = self.pos()
 
         self.getWhiteSpace()
 
         expr = self.getExpression(pyTokensToBreakAt=[':'])
-        expr = self._applyExpressionFilters(expr, directiveName, startPos=startPos)
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
             if directiveName in 'else elif except finally'.split():
@@ -1568,17 +1519,13 @@ class Parser(_LowLevelParser):
     # specific directive eat methods
 
     def eatEncoding(self):
-        # filtered
         self.getDirectiveStartToken()
         self.advance(len('encoding'))
         self.getWhiteSpace()
-        startPos = self.pos()
         encoding = self.readToEOL()
-        encoding = self._applyExpressionFilters(encoding, 'encoding', startPos=startPos)
         self._compiler.setModuleEncoding(encoding.strip())
 
     def eatCompiler(self):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         startPos = self.pos()
@@ -1604,12 +1551,6 @@ class Parser(_LowLevelParser):
         valueExpr = self.getExpression()
         endPos = self.pos()
 
-        # @@TR: it's unlikely that anyone apply filters would have left this
-        # directive enabled:
-        # @@TR: fix up filtering, regardless
-        self._applyExpressionFilters('%s=%r' % (settingName, valueExpr),
-                                     'compiler', startPos=startPos)
-
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         try:
             self._compiler.setCompilerSetting(settingName, valueExpr)
@@ -1622,7 +1563,6 @@ class Parser(_LowLevelParser):
             raise
 
     def eatCompilerSettings(self):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         self.getDirectiveStartToken()
@@ -1640,10 +1580,7 @@ class Parser(_LowLevelParser):
             # thus we should parse forward for an end directive.
             # Subject to change in the future
             return
-        startPos = self.pos()
         settingsStr = self._eatToThisEndDirective('compiler-settings')
-        settingsStr = self._applyExpressionFilters(settingsStr, 'compilerSettings',
-                                                   startPos=startPos)
         try:
             self._compiler.setCompilerSettings(keywords=keywords, settingsStr=settingsStr)
         except:
@@ -1655,33 +1592,26 @@ class Parser(_LowLevelParser):
             raise
 
     def eatAttr(self):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
-        startPos = self.pos()
         self.getDirectiveStartToken()
         self.advance(len('attr'))
         self.getWhiteSpace()
-        startPos = self.pos()
         if self.matchCheetahVarStart():
             self.getCheetahVarStartToken()
         attribName = self.getIdentifier()
         self.getWhiteSpace()
         self.getAssignmentOperator()
         expr = self.getExpression()
-        expr = self._applyExpressionFilters(expr, 'attr', startPos=startPos)
         self._compiler.addAttribute(attribName, expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 
     def eatDecorator(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
-        startPos = self.pos()
         self.getDirectiveStartToken()
         # self.advance()  # eat @
-        startPos = self.pos()
         decoratorExpr = self.getExpression()
-        decoratorExpr = self._applyExpressionFilters(decoratorExpr, 'decorator', startPos=startPos)
         self._compiler.addDecorator(decoratorExpr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         self.getWhiteSpace()
@@ -1693,11 +1623,9 @@ class Parser(_LowLevelParser):
         self.eatDirective()
 
     def eatDef(self):
-        # filtered
         self._eatDefOrBlock('def')
 
     def eatBlock(self):
-        # filtered
         startPos = self.pos()
         methodName, rawSignature = self._eatDefOrBlock('block')
         self._compiler._blockMetaData[methodName] = {
@@ -1706,11 +1634,9 @@ class Parser(_LowLevelParser):
             }
 
     def eatClosure(self):
-        # filtered
         self._eatDefOrBlock('closure')
 
     def _eatDefOrBlock(self, directiveName):
-        # filtered
         assert directiveName in ('def', 'block', 'closure')
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
@@ -1734,9 +1660,6 @@ class Parser(_LowLevelParser):
             if self.setting('includeBlockMarkers'):
                 startMarker = self.setting('blockMarkerStart')
                 self._compiler.addStrConst(startMarker[0] + methodName + startMarker[1])
-
-        # @@TR: fix up filtering
-        self._applyExpressionFilters(self[startPos:self.pos()], 'def', startPos=startPos)
 
         if self.matchColonForSingleLineShortFormDirective():
             isNestedDef = (self.setting('allowNestedDefScopes')
@@ -1775,7 +1698,6 @@ class Parser(_LowLevelParser):
 
     def _eatMultiLineDef(self, directiveName, methodName, argsList, startPos,
                          isLineClearToStartToken=False):
-        # filtered in calling method
         self.getExpression()            # slurp up any garbage left at the end
         signature = self[startPos:self.pos()]
         endOfFirstLinePos = self.findEOL()
@@ -1797,7 +1719,6 @@ class Parser(_LowLevelParser):
         return methodName
 
     def _eatSingleLineDef(self, directiveName, methodName, argsList, startPos, endPos):
-        # filtered in calling method
         fullSignature = self[startPos:endPos]
         parserComment = ('## Generated from ' + fullSignature +
                          ' at line %s, col %s' % self.getRowCol(startPos)
@@ -1818,31 +1739,26 @@ class Parser(_LowLevelParser):
             self.setSetting('useSearchList', useSearchList_orig)
 
     def eatExtends(self):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         self.getDirectiveStartToken()
         self.advance(len('extends'))
         self.getWhiteSpace()
-        startPos = self.pos()
         if self.setting('allowExpressionsInExtendsDirective'):
             baseName = self.getExpression()
         else:
             baseName = self.getCommaSeparatedSymbols()
             baseName = ', '.join(baseName)
 
-        baseName = self._applyExpressionFilters(baseName, 'extends', startPos=startPos)
         self._compiler.setBaseClass(baseName)  # in compiler
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
     def eatImplements(self):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         self.getDirectiveStartToken()
         self.advance(len('implements'))
         self.getWhiteSpace()
-        startPos = self.pos()
         methodName = self.getIdentifier()
         if not self.atEnd() and self.peek() == '(':
             argsList = self.getDefArgList()
@@ -1852,10 +1768,6 @@ class Parser(_LowLevelParser):
         else:
             argsList = []
 
-        # @@TR: need to split up filtering of the methodname and the args
-        # methodName = self._applyExpressionFilters(methodName, 'implements', startPos=startPos)
-        self._applyExpressionFilters(self[startPos:self.pos()], 'implements', startPos=startPos)
-
         self._compiler.setMainMethodName(methodName)
         self._compiler.setMainMethodArgs(argsList)
 
@@ -1863,13 +1775,11 @@ class Parser(_LowLevelParser):
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
     def eatSuper(self):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         self.getDirectiveStartToken()
         self.advance(len('super'))
         self.getWhiteSpace()
-        startPos = self.pos()
         if not self.atEnd() and self.peek() == '(':
             argsList = self.getDefArgList()
             self.advance()              # past the closing ')'
@@ -1877,8 +1787,6 @@ class Parser(_LowLevelParser):
                 del argsList[0]
         else:
             argsList = []
-
-        self._applyExpressionFilters(self[startPos:self.pos()], 'super', startPos=startPos)
 
         # parserComment = ('## CHEETAH: generated from ' + signature +
         #                 ' at line %s, col %s' % self.getRowCol(startPos)
@@ -1889,7 +1797,6 @@ class Parser(_LowLevelParser):
         self._compiler.addSuper(argsList)
 
     def eatSet(self):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         self.getDirectiveStartToken()
@@ -1908,13 +1815,11 @@ class Parser(_LowLevelParser):
             self.getWhiteSpace()
             style = SET_MODULE
 
-        startPos = self.pos()
         LVALUE = self.getExpression(pyTokensToBreakAt=assignmentOps, useNameMapper=False).strip()
         OP = self.getAssignmentOperator()
         RVALUE = self.getExpression()
         expr = LVALUE + ' ' + OP + ' ' + RVALUE.strip()
 
-        expr = self._applyExpressionFilters(expr, 'set', startPos=startPos)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
         # used for 'set global'
@@ -2048,7 +1953,6 @@ class Parser(_LowLevelParser):
         lineCol = self.getRowCol()
         self.getDirectiveStartToken()
         self.advance(len('call'))
-        startPos = self.pos()
 
         useAutocallingOrig = self.setting('useAutocalling')
         self.setSetting('useAutocalling', False)
@@ -2058,8 +1962,6 @@ class Parser(_LowLevelParser):
         else:
             functionName = self.getCheetahVar(plain=True, skipStartToken=True)
         self.setSetting('useAutocalling', useAutocallingOrig)
-        # @@TR: fix up filtering
-        self._applyExpressionFilters(self[startPos:self.pos()], 'call', startPos=startPos)
 
         self.getWhiteSpace()
         args = self.getExpression(pyTokensToBreakAt=[':']).strip()
@@ -2084,11 +1986,9 @@ class Parser(_LowLevelParser):
         self.getDirectiveStartToken()
 
         self.advance(len('arg'))
-        startPos = self.pos()
         self.getWhiteSpace()
         argName = self.getIdentifier()
         self.getWhiteSpace()
-        argName = self._applyExpressionFilters(argName, 'arg', startPos=startPos)
         self._compiler.setCallArg(argName, lineCol)
         if self.peek() == ':':
             self.getc()
@@ -2102,7 +2002,6 @@ class Parser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len('filter'))
         self.getWhiteSpace()
-        startPos = self.pos()
         if self.matchCheetahVarStart():
             isKlass = True
             theFilter = self.getExpression(pyTokensToBreakAt=[':'])
@@ -2110,7 +2009,6 @@ class Parser(_LowLevelParser):
             isKlass = False
             theFilter = self.getIdentifier()
             self.getWhiteSpace()
-        theFilter = self._applyExpressionFilters(theFilter, 'filter', startPos=startPos)
 
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
@@ -2133,7 +2031,6 @@ class Parser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len('transform'))
         self.getWhiteSpace()
-        startPos = self.pos()
         if self.matchCheetahVarStart():
             isKlass = True
             transformer = self.getExpression(pyTokensToBreakAt=[':'])
@@ -2141,7 +2038,6 @@ class Parser(_LowLevelParser):
             isKlass = False
             transformer = self.getIdentifier()
             self.getWhiteSpace()
-        transformer = self._applyExpressionFilters(transformer, 'transform', startPos=startPos)
 
         if self.peek() == ':':
             self.advance()
@@ -2150,16 +2046,13 @@ class Parser(_LowLevelParser):
         self._compiler.setTransform(transformer, isKlass)
 
     def eatIf(self):
-        # filtered
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         lineCol = self.getRowCol()
         self.getDirectiveStartToken()
-        startPos = self.pos()
 
         expressionParts = self.getExpressionParts(pyTokensToBreakAt=[':'])
         expr = ''.join(expressionParts).strip()
-        expr = self._applyExpressionFilters(expr, 'if', startPos=startPos)
 
         isTernaryExpr = ('then' in expressionParts and 'else' in expressionParts)
         if isTernaryExpr:
