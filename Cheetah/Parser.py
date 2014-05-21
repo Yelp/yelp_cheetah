@@ -1094,9 +1094,6 @@ class _LowLevelParser(SourceReader):
 
     def getPlaceholder(self, plain=False, returnEverything=False):
         # filtered
-        for callback in self.setting('preparsePlaceholderHooks'):
-            callback(parser=self)
-
         startPos = self.pos()
         lineCol = self.getRowCol(startPos)
         self.getCheetahVarStartToken()
@@ -1136,8 +1133,6 @@ class _LowLevelParser(SourceReader):
 
         expr = self._applyExpressionFilters(expr, 'placeholder',
                                             rawExpr=rawPlaceholder, startPos=startPos)
-        for callback in self.setting('postparsePlaceholderHooks'):
-            callback(parser=self)
 
         if returnEverything:
             return (expr, rawPlaceholder, lineCol, filterArgs)
