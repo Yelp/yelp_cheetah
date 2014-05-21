@@ -78,7 +78,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('autoImportForExtendsDirective', True, ''),
     ('handlerForExtendsDirective', None, ''),
 
-    ('preparseDirectiveHooks', [], 'callable(parser, directiveKey)'),
     ('postparseDirectiveHooks', [], 'callable(parser, directiveKey)'),
     ('preparsePlaceholderHooks', [], 'callable(parser)'),
     ('postparsePlaceholderHooks', [], 'callable(parser)'),

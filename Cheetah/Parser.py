@@ -1396,9 +1396,6 @@ class Parser(_LowLevelParser):
     def eatDirective(self):
         directiveName = self.matchDirective()
 
-        for callback in self.setting('preparseDirectiveHooks'):
-            callback(parser=self, directiveName=directiveName)
-
         # subclasses can override the default behaviours here by providing an
         # eater method in self._directiveNamesAndParsers[directiveName]
         directiveParser = self._directiveNamesAndParsers.get(directiveName)
