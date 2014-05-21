@@ -91,7 +91,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('EOLSlurpToken', '#', ''),
     ('gettextTokens', ["_", "N_", "ngettext"], ''),
     ('allowExpressionsInExtendsDirective', False, ''),
-    ('allowEmptySingleLineMethods', False, ''),
     ('allowNestedDefScopes', True, ''),
     ('allowPlaceholderFilterArgs', True, ''),
     ('encoding', None, 'The encoding to read input files as (or None for ASCII)'),
