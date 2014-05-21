@@ -1421,9 +1421,6 @@ class Parser(_LowLevelParser):
                 includeDirectiveNameInExpr=includeDirectiveNameInExpr)
             handler(expr)
 
-        for callback in self.setting('postparseDirectiveHooks'):
-            callback(parser=self, directiveName=directiveName)
-
     def _eatRestOfDirectiveTag(self, isLineClearToStartToken, endOfFirstLinePos):
         foundComment = False
         if self.matchCommentStartToken():
