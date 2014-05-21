@@ -216,7 +216,7 @@ class GenUtils(object):
 
         Note, if the compiler setting useStackFrames=False (default is true)
         then
-          A` = VFSL([locals()]+SL+[globals(), __builtin__], name=A[0], executeCallables=(useAC and A[1]))A[2]
+          A` = VFSL([locals()] + SL + [globals(), __builtin__], name=A[0], executeCallables=(useAC and A[1]))A[2]
         This option allows Cheetah to be used with Psyco, which doesn't support
         stack frame introspection.
         """
@@ -230,7 +230,7 @@ class GenUtils(object):
         if not useSearchList:
             firstDotIdx = name.find('.')
             if firstDotIdx != -1 and firstDotIdx < len(name):
-                beforeFirstDot, afterDot = name[:firstDotIdx], name[firstDotIdx+1:]
+                beforeFirstDot, afterDot = name[:firstDotIdx], name[firstDotIdx + 1:]
                 pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (
                     beforeFirstDot,
                     afterDot,
@@ -248,8 +248,7 @@ class GenUtils(object):
                 remainder,
             )
         else:
-            pythonCode = 'VFSL(%s, "%s", %s, %s)%s' % (
-                '[locals()]+SL+[globals(), builtin]',
+            pythonCode = 'VFSL([locals()] + SL + [globals(), builtin], "%s", %s, %s)%s' % (
                 name,
                 defaultUseAC and useAC,
                 useDottedNotation,
@@ -448,7 +447,7 @@ class MethodCompiler(GenUtils):
         """
         if self._pendingStrConstChunks:
             src = self._pendingStrConstChunks[-1]
-            BOL = max(src.rfind('\n')+1, src.rfind('\r')+1, 0)
+            BOL = max(src.rfind('\n') + 1, src.rfind('\r') + 1, 0)
             if BOL < len(src):
                 self._pendingStrConstChunks[-1] = src[:BOL]
 
@@ -461,7 +460,7 @@ class MethodCompiler(GenUtils):
 
     def addMethComment(self, comm):
         offSet = self.setting('commentOffset')
-        self.addChunk('#' + ' '*offSet + comm)
+        self.addChunk('#' + ' ' * offSet + comm)
 
     def addPlaceholder(self, expr, filterArgs, rawPlaceholder, lineCol):
         self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
@@ -567,7 +566,7 @@ class MethodCompiler(GenUtils):
             argStringChunks.append(chunk)
         signature = "def " + functionName + "(" + ','.join(argStringChunks) + "):"
         self.addIndentingDirective(signature)
-        self.addChunk('#'+parserComment)
+        self.addChunk('#' + parserComment)
 
     def addTry(self, expr, lineCol=None):
         self.addIndentingDirective(expr, lineCol=lineCol)
@@ -644,7 +643,7 @@ class MethodCompiler(GenUtils):
             self.indent()
 
     def nextCacheID(self):
-        return ('_'+str(random.randrange(100, 999))
+        return ('_' + str(random.randrange(100, 999))
                 + str(random.randrange(10000, 99999)))
 
     def nextCallRegionID(self):
@@ -949,7 +948,7 @@ if not self._CHEETAH__instanceInitialized:
     for k,v in KWs.items():
         if k in allowedKWs: cheetahKWArgs[k] = v
     self._initCheetahInstance(**cheetahKWArgs)
-""".replace('\n', '\n'+' '*8)
+""".replace('\n', '\n' + ' ' * 8)
 
 
 class ClassCompiler(GenUtils):
@@ -1019,7 +1018,7 @@ class ClassCompiler(GenUtils):
             self._generatedAttribs.append('_CHEETAH_srcLastModified = __CHEETAH_srcLastModified__')
 
         if self.setting('templateMetaclass'):
-            self._generatedAttribs.append('__metaclass__ = '+self.setting('templateMetaclass'))
+            self._generatedAttribs.append('__metaclass__ = ' + self.setting('templateMetaclass'))
         self._initMethChunks = []
         self._blockMetaData = {}
 
@@ -1056,7 +1055,7 @@ class ClassCompiler(GenUtils):
         self.addChunk('if exists(self._filePath) and ' +
                       'getmtime(self._filePath) > self._fileMtime:')
         self.indent()
-        self.addChunk('self._compile(file=self._filePath, moduleName='+self._className + ')')
+        self.addChunk('self._compile(file=self._filePath, moduleName=' + self._className + ')')
         self.addChunk(
             'write(getattr(self, self._mainCheetahMethod_for_' + self._className +
             ')(trans=trans))')
@@ -1501,11 +1500,11 @@ class Compiler(SettingsManager, GenUtils):
                     for chunk in chunks[1:-1]:
                         if modName in self.importedVarNames():
                             needToAddImport = False
-                            finalBaseClassName = klass.replace(modName+'.', '')
+                            finalBaseClassName = klass.replace(modName + '.', '')
                             self._getActiveClassCompiler().setBaseClass(finalBaseClassName)
                             break
                         else:
-                            modName += '.'+chunk
+                            modName += '.' + chunk
                     if needToAddImport:
                         modName, finalClassName = '.'.join(chunks[:-1]), chunks[-1]
                         # if finalClassName != chunks[:-1][-1]:
@@ -1565,7 +1564,7 @@ class Compiler(SettingsManager, GenUtils):
     def addSpecialVar(self, basename, contents, includeUnderscores=True):
         """Adds module __specialConstant__ to the module globals.
         """
-        name = includeUnderscores and '__'+basename+'__' or basename
+        name = includeUnderscores and '__' + basename + '__' or basename
         self._specialVars[name] = contents.strip()
 
     def addImportStatement(self, impStatement):
