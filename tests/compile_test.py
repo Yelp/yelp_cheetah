@@ -12,7 +12,7 @@ from Cheetah import five
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
-from Cheetah.compile import create_module_from_source
+from Cheetah.compile import _create_module_from_source
 from Cheetah.NameMapper import NotFound
 from Cheetah.Template import Template
 
@@ -115,7 +115,7 @@ def test_compile_file_destination(tmpfile, tmpdir):
 def test_compile_file_as_script(tmpfile):
     subprocess.check_call(['cheetah-compile', tmpfile])
     pyfile = tmpfile.replace('.tmpl', '.py')
-    module = create_module_from_source(
+    module = _create_module_from_source(
         '\n'.join(io.open(pyfile).read().splitlines()[1:])
     )
     result = module.temp().respond()
@@ -151,7 +151,7 @@ def test_create_module_from_source():
         '''
     )
 
-    module = create_module_from_source(my_module_source)
+    module = _create_module_from_source(my_module_source)
     assert module.MODULE_CONSTANT == 9001
     assert module.snowman_pls() == '☃'
     assert module.multiple_snowmans(3) == '☃☃☃'

@@ -75,12 +75,14 @@ def compile_file(filename, target=None, **kwargs):
     return target
 
 
-def create_module_from_source(source, filename='<generated cheetah module>'):
+def _create_module_from_source(source, filename='<generated cheetah module>'):
     """Creates a module from the given source.
 
     :param text source: Sourcecode to put into new module.
     :return: A Module object.
     """
+    assert type(source) is five.text
+
     module = imp.new_module('created_module')
     module.__file__ = filename
     code = compile(source, filename, 'exec', dont_inherit=True)
@@ -98,7 +100,7 @@ def compile_to_class(source, cls_name='DynamicallyCompiledTemplate', **kwargs):
     :rtype: type
     """
     compiled_source = compile_source(source, cls_name=cls_name, **kwargs)
-    module = create_module_from_source(compiled_source)
+    module = _create_module_from_source(compiled_source)
     cls = getattr(module, cls_name)
     # To prevent our module from getting gc'd
     cls.__module_obj__ = module
