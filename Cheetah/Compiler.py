@@ -85,7 +85,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('gobbleWhitespaceAroundMultiLineComments', True, ''),
     ('directiveStartToken', '#', ''),
     ('directiveEndToken', '#', ''),
-    ('allowWhitespaceAfterDirectiveStartToken', False, ''),
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
     ('EOLSlurpToken', '#', ''),

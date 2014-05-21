@@ -417,8 +417,6 @@ class _LowLevelParser(SourceReader):
         endTokenEsc = re.escape(endToken)
         validSecondCharsLookAhead = r'(?=[A-Za-z_@])'
         reParts = [escCharLookBehind, startTokenEsc]
-        if self.setting('allowWhitespaceAfterDirectiveStartToken'):
-            reParts.append('[ \t]*')
         reParts.append(validSecondCharsLookAhead)
         self.directiveStartTokenRE = re.compile(''.join(reParts))
         self.directiveEndTokenRE = re.compile(escCharLookBehind + endTokenEsc)
