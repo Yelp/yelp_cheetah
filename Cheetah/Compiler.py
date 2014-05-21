@@ -18,14 +18,14 @@ import time
 import random
 import warnings
 import copy
-import codecs
 
+from Cheetah import five
+from Cheetah import NameMapper
 from Cheetah.Version import Version, VersionTuple
 from Cheetah.SettingsManager import SettingsManager
-from Cheetah import NameMapper
 from Cheetah.Parser import Parser, ParseError, specialVarRE
 from Cheetah.Parser import SET_GLOBAL, SET_MODULE
-from Cheetah.Parser import encodingDirectiveRE, escapedNewlineRE
+from Cheetah.Parser import escapedNewlineRE
 
 
 # Settings format: (key, default, docstring)
@@ -1283,11 +1283,11 @@ class AutoClassCompiler(ClassCompiler):
 
 
 class Compiler(SettingsManager, GenUtils):
-
     parserClass = Parser
     classCompilerClass = AutoClassCompiler
 
-    def __init__(self, source=None, file=None,
+    def __init__(self,
+                 source=None,
                  moduleName='DynamicallyCompiledCheetahTemplate',
                  mainClassName=None,  # string
                  mainMethodName=None,  # string
@@ -1325,45 +1325,14 @@ class Compiler(SettingsManager, GenUtils):
         self._filePath = None
         self._fileMtime = None
 
-        if source and file:
-            raise TypeError("Cannot compile from a source string AND file.")
-        elif isinstance(file, basestring):  # it's a filename.
-            encoding = settings.get('encoding')
-            if encoding:
-                f = codecs.open(file, 'r', encoding=encoding)
-            else:
-                # if no encoding is specified, use the builtin open function
-                # which will effectively read data as a bytestream
-                f = open(file, 'r')
-            source = f.read()
-            f.close()
-            self._filePath = file
-            self._fileMtime = os.path.getmtime(file)
-        elif hasattr(file, 'read'):
-            source = file.read()  # Can't set filename or mtime--they're not accessible.
-        elif file:
-            raise TypeError("'file' argument must be a filename string or file-like object")
-
         if self._filePath:
             self._fileDirName, self._fileBaseName = os.path.split(self._filePath)
             self._fileBaseNameRoot, self._fileBaseNameExt = os.path.splitext(self._fileBaseName)
 
-        if not isinstance(source, basestring):
-            source = unicode(source)
-            # by converting to string here we allow objects such as other Templates
-            # to be passed in
+        assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == "":
             warnings.warn("You supplied an empty string for the source!", )
-        else:
-            encodingMatch = encodingDirectiveRE.search(source)
-            if encodingMatch:
-                encodings = encodingMatch.groups()
-                if len(encodings):
-                    encoding = encodings[0]
-                    source = source.decode(encoding)
-            else:
-                source = unicode(source)
 
         self._parser = self.parserClass(source, filename=self._filePath, compiler=self)
         self._setupCompilerState()
@@ -1692,10 +1661,6 @@ class Compiler(SettingsManager, GenUtils):
                      __CHEETAH_version__, RequiredCheetahVersion))
 
             %(classes)s
-
-            if not hasattr(%(mainClassName)s, '_initCheetahAttributes'):
-                templateAPIClass = getattr(%(mainClassName)s, '_CHEETAH_templateClass', Template)
-                templateAPIClass._addCheetahPlumbingCodeToClass(%(mainClassName)s)
 
             %(footer)s
             """

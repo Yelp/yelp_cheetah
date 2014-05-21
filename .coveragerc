@@ -9,11 +9,6 @@ omit =
     */tmp*
     setup.py
     # Some dynamically created templates
-    *DynamicallyCompiledCheetahTemplate*
-    *backslashes_txt*
-    *foo1.py
-    *foo99.py
-    *fooXXX.py
 
 [report]
 exclude_lines =

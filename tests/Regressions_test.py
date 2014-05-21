@@ -1,8 +1,9 @@
+from __future__ import unicode_literals
+
 import pytest
 import unittest
 
-import Cheetah.NameMapper
-import Cheetah.Template
+from Cheetah.compile import compile_to_class
 
 
 class GetAttrException(Exception):
@@ -15,10 +16,9 @@ class CustomGetAttrClass(object):
 
 
 class GetAttrTest(unittest.TestCase):
-    '''
-        Test for an issue occurring when __getatttr__() raises an exception
-        causing NameMapper to raise a NotFound exception
-    '''
+    """Test for an issue occurring when __getatttr__() raises an exception
+    causing NameMapper to raise a NotFound exception
+    """
     def test_ValidException(self):
         o = CustomGetAttrClass()
         with pytest.raises(GetAttrException):
@@ -30,7 +30,7 @@ class GetAttrTest(unittest.TestCase):
                 $obj.attr
             #end def'''
 
-        template = Cheetah.Template.Template.compile(template, compilerSettings={}, keepRefToGeneratedCode=True)
+        template = compile_to_class(template)
         template = template(searchList=[{'obj': CustomGetAttrClass()}])
         assert template, 'We should have a valid template object by now'
 
@@ -39,12 +39,11 @@ class GetAttrTest(unittest.TestCase):
 
 class InlineImportTest(unittest.TestCase):
     def test_FromFooImportThing(self):
-        '''
-            Verify that a bug introduced in v2.1.0 where an inline:
-                #from module import class
-            would result in the following code being generated:
-                import class
-        '''
+        """Verify that a bug introduced in v2.1.0 where an inline:
+            #from module import class
+        would result in the following code being generated:
+            import class
+        """
         template = '''
             #def myfunction()
                 #if True
@@ -54,10 +53,9 @@ class InlineImportTest(unittest.TestCase):
                 #end if
             #end def
         '''
-        template = Cheetah.Template.Template.compile(
+        template = compile_to_class(
             template,
-            compilerSettings={'useLegacyImportMode': False},
-            keepRefToGeneratedCode=True,
+            settings={'useLegacyImportMode': False},
         )
         template = template(searchList=[{}])
 
@@ -76,10 +74,9 @@ class InlineImportTest(unittest.TestCase):
 
             $invalidmodule.FOO
         '''
-        template = Cheetah.Template.Template.compile(
+        template = compile_to_class(
             template,
-            compilerSettings={'useLegacyImportMode': False},
-            keepRefToGeneratedCode=True,
+            settings={'useLegacyImportMode': False},
         )
         template = template(searchList=[{}])
 
@@ -92,13 +89,8 @@ class InlineImportTest(unittest.TestCase):
 
             This should totally $fail
         '''
-        self.failUnlessRaises(
-            ImportError,
-            Cheetah.Template.Template.compile,
-            template,
-            compilerSettings={'useLegacyImportMode': False},
-            keepRefToGeneratedCode=True,
-        )
+        with pytest.raises(ImportError):
+            compile_to_class(template, settings={'useLegacyImportMode': False})
 
     def test_AutoImporting(self):
         template = '''
@@ -106,7 +98,8 @@ class InlineImportTest(unittest.TestCase):
 
             Boo!
         '''
-        self.failUnlessRaises(ImportError, Cheetah.Template.Template.compile, template)
+        with pytest.raises(ImportError):
+            compile_to_class(template)
 
     def test_StuffBeforeImport_Legacy(self):
         template = '''
@@ -116,13 +109,8 @@ class InlineImportTest(unittest.TestCase):
 #extends Foo
 Bar
 '''
-        self.failUnlessRaises(
-            ImportError,
-            Cheetah.Template.Template.compile,
-            template,
-            compilerSettings={'useLegacyImportMode': True},
-            keepRefToGeneratedCode=True,
-        )
+        with pytest.raises(ImportError):
+            compile_to_class(template, settings={'useLegacyImportMode': True})
 
 
 class Mantis_Issue_11_Regression_Test(unittest.TestCase):
@@ -142,8 +130,8 @@ class Mantis_Issue_11_Regression_Test(unittest.TestCase):
         # This used to break because Cheetah.Servlet.request used to be a class property that
         # was None and came up earlier in VFSSL than the things in the search list.
         # Currently, request is available when being passed through the search list.
-        template = Cheetah.Template.Template(
-            "$escape($request)",
+        template = compile_to_class("$escape($request)")
+        template = template(
             searchList=[{'escape': cgi.escape, 'request': 'foobar'}],
         )
         assert template
@@ -151,10 +139,12 @@ class Mantis_Issue_11_Regression_Test(unittest.TestCase):
 
     def test_FailingBehaviorWithSetting(self):
         import cgi
-        template = Cheetah.Template.Template(
+        template = compile_to_class(
             "$escape($request)",
+            settings={'prioritizeSearchListOverSelf': True},
+        )
+        template = template(
             searchList=[{'escape': cgi.escape, 'request': 'foobar'}],
-            compilerSettings={'prioritizeSearchListOverSelf': True},
         )
         assert template
         assert template.respond()
@@ -177,7 +167,7 @@ class Mantis_Issue_21_Regression_Test(unittest.TestCase):
                 This is my $output
             #end def
         '''
-        template = Cheetah.Template.Template.compile(template)
+        template = compile_to_class(template)
         assert template
         assert template.testMethod(output='bug')  # raises a NameError: global name '_filter' is not defined
 
@@ -201,7 +191,7 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
                 #end filter
             #end def
         '''
-        template = Cheetah.Template.Template.compile(template)
+        template = compile_to_class(template)
         assert template
         assert template.testMethod(output='bug')
 
@@ -231,21 +221,21 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
             ## START - generated method body
 
             _orig_filter_18517345 = _filter
-            filterName = u'Filter'
+            filterName = 'Filter'
             if self._CHEETAH__filters.has_key("Filter"):
                 _filter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName]
             else:
                 _filter = self._CHEETAH__currentFilter = \
                             self._CHEETAH__filters[filterName] = getattr(self._CHEETAH__filtersLib, filterName)(self).filter
-            write(u'                    This is my ')
-            _v = VFFSL(SL,"output",True) # u'$output' on line 5, col 32
-            if _v is not None: write(_filter(_v, rawExpr=u'$output')) # from line 5, col 32.
+            write('                    This is my ')
+            _v = VFFSL(SL,"output",True) # '$output' on line 5, col 32
+            if _v is not None: write(_filter(_v, rawExpr='$output')) # from line 5, col 32.
 
             ########################################
             ## END - generated method body
 
             return _dummyTrans and trans.response().getvalue() or ""
         '''
-        template = Cheetah.Template.Template.compile(template)
+        template = compile_to_class(template)
         assert template
         assert template.testMethod(output='bug')

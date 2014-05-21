@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import collections
-import os.path
 import sys
 
+import Cheetah.compile
 import Cheetah.Template
-import Cheetah.Compiler
+from Cheetah import five
 
 
 class Parser(Cheetah.Parser.Parser):
@@ -39,32 +39,6 @@ class Compiler(Cheetah.Compiler.Compiler):
     parserClass = Parser
 
 
-CHEETAH_OPTS = dict(
-    allowNestedDefScopes=False,
-    # This strange fellow makes template functions write to the current buffer,
-    # rather than returning a flattened string (and losing the Markup blessing)
-    autoAssignDummyTransactionToSelf=True,
-    # These are the cretins responsible for magically resolving $foo.bar as
-    # foo['bar'] and $self.foo as self.foo().
-    useAutocalling=False,
-    useDottedNotation=False,
-)
-
-
-def generate_template(srcfile, returnAClass=False):
-    # e.g.: '/tmp/foo.tmpl' -> 'foo'
-    module_name = os.path.basename(srcfile).split('.', 1)[0]
-
-    return Cheetah.Template.Template.compile(
-        file=srcfile,
-        returnAClass=returnAClass,  # really, cheetah.  really.
-        moduleName=module_name,
-        className=module_name,
-        compilerSettings=CHEETAH_OPTS,
-        compilerClass=Compiler,
-    )
-
-
 class AnyString(unicode):
     """Represents "any string"."""
     def startswith(self, other):
@@ -88,14 +62,27 @@ class AutoDict(collections.defaultdict):
         return True
 
 
-def compile_template(srcfile, target=None):
-    if target is None:
-        dir, base = os.path.split(srcfile)
-        target = os.path.join(dir, base.split('.', 1)[0]) + '.py'
-    generated_template_code = generate_template(srcfile)
+CHEETAH_OPTS = dict(
+    allowNestedDefScopes=False,
+    # This strange fellow makes template functions write to the current buffer,
+    # rather than returning a flattened string (and losing the Markup blessing)
+    autoAssignDummyTransactionToSelf=True,
+    # These are the cretins responsible for magically resolving $foo.bar as
+    # foo['bar'] and $self.foo as self.foo().
+    useAutocalling=False,
+    useDottedNotation=False,
+)
 
-    with open(target, 'w') as f:
-        f.write(generated_template_code)
+
+def compile_template(filename):
+    if not isinstance(filename, five.text):
+        filename = filename.decode('utf-8')
+
+    Cheetah.compile.compile_file(
+        filename,
+        settings=CHEETAH_OPTS,
+        compiler_cls=Compiler,
+    )
 
 
 def compile_all(filenames):

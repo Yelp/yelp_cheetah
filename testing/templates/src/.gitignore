@@ -1,0 +1,4 @@
+# don't check in compiled files
+*.py
+# ... but allow __init__.py
+!__init__.py

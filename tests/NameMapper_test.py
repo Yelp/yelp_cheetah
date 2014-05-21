@@ -1,7 +1,10 @@
+from __future__ import unicode_literals
+
 import os.path
 import subprocess
 import unittest
 
+from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
 from Cheetah.NameMapper import valueFromFrame
 from Cheetah.NameMapper import valueFromFrameOrSearchList
@@ -532,11 +535,13 @@ class VFFSL_4(VFFSL):
     _searchListLength = 4
 
 
-class MapBuiltins(unittest.TestCase):
-    def test_int(self):
-        from Cheetah.Template import Template
-        t = Template('''
-            #def intify(val)
-                #return $int(val)
-            #end def''', compilerSettings={'useStackFrames': False})
-        self.assertEquals(5, t.intify('5'))
+def test_map_builtins_int():
+    template_cls = compile_to_class(
+        '''
+        #def intify(val)
+            #return $int(val)
+        #end def
+        ''',
+        settings={'useStackFrames': False}
+    )
+    assert 5 == template_cls().intify('5')

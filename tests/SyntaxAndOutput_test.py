@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 '''
 Syntax and Output tests.
 
@@ -15,10 +17,11 @@ import sys
 import unittest
 import warnings
 
-from Cheetah.NameMapper import NotFound
-from Cheetah.Template import Template
-from Cheetah.Parser import ParseError
+from Cheetah.compile import compile_file
+from Cheetah.compile import compile_to_class
 from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
+from Cheetah.NameMapper import NotFound
+from Cheetah.Parser import ParseError
 
 
 class Unspecified(object):
@@ -53,7 +56,7 @@ defaultTestNameSpace = {
     'aStr': 'blarg',
     'anInt': 1,
     'aFloat': 1.5,
-    'aList': ['item0', 'item1', 'item2'],
+    'aList': [b'item0', b'item1', b'item2'],
     'aDict': {'one': 'item1',
               'two': 'item2',
               'nestedDict': {1: 'nestedItem1',
@@ -110,8 +113,6 @@ Template output mismatch:
 
     _searchList = [defaultTestNameSpace]
 
-    _extraCompileKwArgs = None
-
     def searchList(self):
         return self._searchList
 
@@ -128,12 +129,8 @@ Template output mismatch:
 
         self._input = input
 
-        extraKwArgs = self._extraCompileKwArgs or {}
-        templateClass = Template.compile(
-            source=input,
-            compilerSettings=self._getCompilerSettings(),
-            keepRefToGeneratedCode=True,
-            **extraKwArgs
+        templateClass = compile_to_class(
+            input, settings=self._getCompilerSettings(),
         )
         searchList = self.searchList() or self._searchList
         self.template = templateObj = templateClass(searchList=searchList)
@@ -145,7 +142,7 @@ Template output mismatch:
         return {}
 
     def _outputMismatchReport(self, output, expectedOutput):
-        EOLrepl = self._EOLreplacement
+        EOLrepl = self._EOLreplacement or '\n'
         marker = '*EOL*'
         return self.report % {'template': self._input.replace(EOLrepl, marker),
                               'expected': expectedOutput.replace(EOLrepl, marker),
@@ -566,7 +563,7 @@ class EncodingDirective(OutputTest):
 
     def test3(self):
         """basic #encoding """
-        self.verify("#encoding utf-8\n\xe1\x88\xb4",
+        self.verify(b"#encoding utf-8\n\xe1\x88\xb4".decode('utf-8'),
                     u'\u1234', outputEncoding='utf8')
 
     def test4(self):
@@ -581,8 +578,8 @@ class EncodingDirective(OutputTest):
 
     def test6(self):
         '''Using #encoding on the second line'''
-        self.verify("""### Comments on the first line
-#encoding utf-8\n\xe1\x88\xb4""",
+        self.verify(b"""### Comments on the first line
+#encoding utf-8\n\xe1\x88\xb4""".decode('utf-8'),
                     u'\u1234', outputEncoding='utf8')
 
 
@@ -1186,7 +1183,7 @@ class YieldDirective(OutputTest):
                 )
 
         for src in (src1, src2, src3):
-            klass = Template.compile(src, keepRefToGeneratedCode=True)
+            klass = compile_to_class(src)
             iter = klass().respond()
             output = [str(i) for i in iter]
             assert ''.join(output) == '0123456789'
@@ -2247,26 +2244,21 @@ $g $numOne
                     'Hello 1\n')
 
 
-class SuperDirective(OutputTest):
-    def test1(self):
-        tmpl1 = Template.compile('''$foo() $bar(99)
-        #def foo: this is base foo
-        #def bar(arg): super-$arg''')
+def test_super_directive(tmpdir):
+    compile_file(
+        os.path.join(u'testing', u'templates', u'src', u'super_base.tmpl')
+    )
+    compile_file(
+        os.path.join(u'testing', u'templates', u'src', u'super_child.tmpl')
+    )
 
-        tmpl2 = tmpl1.subclass('''
-        #implements dummy
-        #def foo
-          #super
-          This is child foo
-          #super(trans=trans)
-          $bar(1234)
-        #end def
-        #def bar(arg): #super($arg)
-        ''')
-        expected = ('this is base foo          '
-                    'This is child foo\nthis is base foo          '
-                    'super-1234\n super-99')
-        assert str(tmpl2()).strip() == expected
+    from testing.templates.src.super_child import super_child
+    ret = super_child().respond()
+    assert ret.strip() == (
+        'this is base foo    This is child foo\n'
+        'this is base foo    super-1234\n'
+        ' super-99'
+    )
 
 
 class ImportantExampleCases(OutputTest):
@@ -2464,10 +2456,10 @@ def __add_eol_tests():
             continue
 
         for eolname, eol in (
-            ('Win32EOL', '\r\n'),
-            ('MacEOL', '\r'),
+            (b'Win32EOL', '\r\n'),
+            (b'MacEOL', '\r'),
         ):
-            new_clsname = '{0}_{1}'.format(clsname, eolname)
+            new_clsname = b'{0}_{1}'.format(clsname, eolname)
             new_cls = type(new_clsname, (cls,), {'_EOLreplacement': eol})
             setattr(module, new_clsname, new_cls)
 

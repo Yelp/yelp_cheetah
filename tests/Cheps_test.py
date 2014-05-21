@@ -1,8 +1,6 @@
 import pytest
 
-import Cheetah
-import Cheetah.Parser
-import Cheetah.Template
+from Cheetah.compile import compile_to_class
 
 
 @pytest.mark.xfail
@@ -18,7 +16,7 @@ def test_Chep_2_Conditionalized_Import_Behavior_InlineImport():
             #return urllib.quote($s)
         #end def
     '''
-    template = Cheetah.Template.Template.compile(template)
+    template = compile_to_class(template)
     template = template()
     rc = template.funky('abc def')
     assert rc == 'abc+def'

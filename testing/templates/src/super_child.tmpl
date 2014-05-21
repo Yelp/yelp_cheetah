@@ -1,0 +1,9 @@
+#extends testing.templates.src.super_base
+#implements dummy
+#def foo
+    #super
+    This is child foo
+    #super(trans=trans)
+    $bar(1234)
+#end def
+#def bar(arg): #super($arg)
