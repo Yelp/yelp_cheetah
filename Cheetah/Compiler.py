@@ -76,8 +76,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('autoImportForExtendsDirective', True, ''),
     ('handlerForExtendsDirective', None, ''),
 
-    ('templateMetaclass', None, 'Strictly optional, only will work with new-style basecalsses as well'),
-
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
     ('multiLineCommentStartToken', '#*', ''),
@@ -990,8 +988,6 @@ class ClassCompiler(GenUtils):
 
         self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
 
-        if self.setting('templateMetaclass'):
-            self._generatedAttribs.append('__metaclass__ = ' + self.setting('templateMetaclass'))
         self._initMethChunks = []
         self._blockMetaData = {}
 
