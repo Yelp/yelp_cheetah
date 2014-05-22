@@ -7,11 +7,7 @@ import Cheetah.Filters
 from Cheetah.compile import compile_to_class
 
 
-class UniqueError(ValueError):
-    pass
-
-
-class UniqueFilter(Cheetah.Filters.Filter):
+class UniqueFilter(Cheetah.Filters.BaseFilter):
     """A dummy filter that tries to notice when it's been called twice on the
     same string.
     """

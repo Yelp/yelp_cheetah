@@ -221,8 +221,8 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
             ## START - generated method body
 
             _orig_filter_18517345 = _filter
-            filterName = 'Filter'
-            if self._CHEETAH__filters.has_key("Filter"):
+            filterName = 'BaseFilter'
+            if self._CHEETAH__filters.has_key("BaseFilter"):
                 _filter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName]
             else:
                 _filter = self._CHEETAH__currentFilter = \

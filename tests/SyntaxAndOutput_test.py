@@ -2280,18 +2280,18 @@ class FilterDirective(OutputTest):
         return {'useFilterArgsInPlaceholders': True}
 
     def test1(self):
-        """#filter Filter
+        """#filter BaseFilter
         """
-        self.verify("#filter Filter\n$none#end filter",
+        self.verify("#filter BaseFilter\n$none#end filter",
                     "")
 
-        self.verify("#filter Filter: $none",
+        self.verify("#filter BaseFilter: $none",
                     "")
 
     def test2(self):
         """#filter ReplaceNone with WS
         """
-        self.verify("#filter Filter  \n$none#end filter",
+        self.verify("#filter BaseFilter  \n$none#end filter",
                     "")
 
 

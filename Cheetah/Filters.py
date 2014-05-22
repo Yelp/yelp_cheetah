@@ -5,13 +5,13 @@
 '''
 
 
-class Filter(object):
+class BaseFilter(object):
     """A baseclass for the Cheetah Filters."""
 
     def __init__(self, template=None):
         """Setup a reference to the template that is using the filter instance.
         This reference isn't used by any of the standard filters, but is
-        available to Filter subclasses, should they need it.
+        available to BaseFilter subclasses, should they need it.
 
         Subclasses should call this method.
         """
@@ -33,7 +33,3 @@ class Filter(object):
                 # we could put more fallbacks here, but we'll just pass the str
                 # on and let DummyTransaction worry about it
                 return str(val)
-
-RawOrEncodedUnicode = Filter
-
-EncodeUnicode = Filter
