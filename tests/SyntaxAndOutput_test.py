@@ -2294,60 +2294,6 @@ class FilterDirective(OutputTest):
         self.verify("#filter Filter  \n$none#end filter",
                     "")
 
-    def test3(self):
-        """#filter MaxLen -- maxlen of 5"""
-
-        self.verify("#filter MaxLen  \n${tenDigits, $maxlen=5}#end filter",
-                    "12345")
-
-    def test4(self):
-        """#filter MaxLen -- no maxlen
-        """
-        self.verify("#filter MaxLen  \n${tenDigits}#end filter",
-                    "1234567890")
-
-    def test5(self):
-        """#filter WebSafe -- basic usage
-        """
-        self.verify("#filter WebSafe  \n$webSafeTest#end filter",
-                    "abc &lt;=&gt; &amp;")
-
-    def test6(self):
-        """#filter WebSafe -- also space
-        """
-        self.verify("#filter WebSafe  \n${webSafeTest, $also=' '}#end filter",
-                    "abc&nbsp;&lt;=&gt;&nbsp;&amp;")
-
-    def test7(self):
-        """#filter WebSafe -- also space, without $ on the args
-        """
-        self.verify("#filter WebSafe  \n${webSafeTest, also=' '}#end filter",
-                    "abc&nbsp;&lt;=&gt;&nbsp;&amp;")
-
-    def test8(self):
-        """#filter Strip -- trailing newline
-        """
-        self.verify("#filter Strip\n$strip1#end filter",
-                    "strippable whitespace\n")
-
-    def test9(self):
-        """#filter Strip -- no trailing newine
-        """
-        self.verify("#filter Strip\n$strip2#end filter",
-                    "strippable whitespace")
-
-    def test10(self):
-        """#filter Strip -- multi-line
-        """
-        self.verify("#filter Strip\n$strip3#end filter",
-                    "strippable whitespace\n1 2  3\n")
-
-    def test11(self):
-        """#filter StripSqueeze -- canonicalize all whitespace to ' '
-        """
-        self.verify("#filter StripSqueeze\n$strip3#end filter",
-                    "strippable whitespace 1 2 3")
-
 
 class EchoDirective(OutputTest):
     def test1(self):
