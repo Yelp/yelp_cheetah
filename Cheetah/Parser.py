@@ -1110,16 +1110,13 @@ class _LowLevelParser(SourceReader):
             if enclosures:
                 WS = self.getWhiteSpace()
                 expr += WS
-                if self.setting('allowPlaceholderFilterArgs') and self.peek() == ',':
-                    filterArgs = self.getCallArgString(enclosures=enclosures)[1:-1]
+                if self.peek() == closurePairsRev[enclosureOpenChar]:
+                    self.getc()
                 else:
-                    if self.peek() == closurePairsRev[enclosureOpenChar]:
-                        self.getc()
-                    else:
-                        restOfExpr = self.getExpression(enclosed=True, enclosures=enclosures)
-                        if restOfExpr[-1] == closurePairsRev[enclosureOpenChar]:
-                            restOfExpr = restOfExpr[:-1]
-                        expr += restOfExpr
+                    restOfExpr = self.getExpression(enclosed=True, enclosures=enclosures)
+                    if restOfExpr[-1] == closurePairsRev[enclosureOpenChar]:
+                        restOfExpr = restOfExpr[:-1]
+                    expr += restOfExpr
             rawPlaceholder = self[startPos: self.pos()]
         else:
             expr = self.getExpression(enclosed=True, enclosures=enclosures)
