@@ -44,7 +44,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useDottedNotation', True, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useStackFrames', True, 'Used for NameMapper.valueFromFrameOrSearchList rather than NameMapper.valueFromSearchList'),
     ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
-    ('useFilters', True, 'If False, pass output through str()'),
     ('includeRawExprInFilterArgs', True, ''),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     (
@@ -371,15 +370,9 @@ class MethodCompiler(GenUtils):
             else:
                 self.addChunk("_v = %s" % chunk)
 
-            if self.setting('useFilters'):
-                self.addChunk("if _v is not NO_CONTENT: write(_filter(_v%s))" % filterArgs)
-            else:
-                self.addChunk("if _v is not NO_CONTENT: write(str(_v))")
+            self.addChunk("if _v is not NO_CONTENT: write(_filter(_v%s))" % filterArgs)
         else:
-            if self.setting('useFilters'):
-                self.addChunk("write(_filter(%s%s))" % (chunk, filterArgs))
-            else:
-                self.addChunk("write(str(%s))" % chunk)
+            self.addChunk("write(_filter(%s%s))" % (chunk, filterArgs))
 
     def _appendToPrevStrConst(self, strConst):
         if self._pendingStrConstChunks:
@@ -842,11 +835,10 @@ class AutoMethodCompiler(MethodCompiler):
                 self.addChunk('SL = self._CHEETAH__searchList')
             else:
                 self.addChunk('SL = [KWS]')
-        if self.setting('useFilters'):
-            if self.isClassMethod() or self.isStaticMethod():
-                self.addChunk('_filter = lambda x, **kwargs: unicode(x)')
-            else:
-                self.addChunk('_filter = self._CHEETAH__currentFilter')
+        if self.isClassMethod() or self.isStaticMethod():
+            self.addChunk('_filter = lambda x, **kwargs: unicode(x)')
+        else:
+            self.addChunk('_filter = self._CHEETAH__currentFilter')
         self.addChunk('')
         self.addChunk("#" * 40)
         self.addChunk('## START - generated method body')
