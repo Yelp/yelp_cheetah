@@ -88,7 +88,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('gettextTokens', ["_", "N_", "ngettext"], ''),
     ('allowExpressionsInExtendsDirective', False, ''),
     ('allowNestedDefScopes', True, ''),
-    ('encoding', None, 'The encoding to read input files as (or None for ASCII)'),
 ]
 
 DEFAULT_COMPILER_SETTINGS = dict([(v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS])
