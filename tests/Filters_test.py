@@ -7,64 +7,7 @@ import Cheetah.Filters
 from Cheetah.compile import compile_to_class
 
 
-class BasicMarkdownFilterTest(unittest.TestCase):
-    """Test that our markdown filter works"""
-
-    def test_BasicHeader(self):
-        template = '''
-#from Cheetah.Filters import Markdown
-#transform Markdown
-$foo
-
-Header
-======
-        '''
-        expected = '''<p>bar</p>
-<h1>Header</h1>'''
-        try:
-            template = compile_to_class(template)
-            template = template(searchList=[{'foo': 'bar'}])
-            template = template.respond()
-            assert template == expected
-        except ImportError, ex:
-            print('>>> We probably failed to import markdown, bummer %s' % ex)
-            return
-
-
-class BasicCodeHighlighterFilterTest(unittest.TestCase):
-    """Test that our code highlighter filter works"""
-
-    def test_Python(self):
-        template = '''
-#from Cheetah.Filters import CodeHighlighter
-#transform CodeHighlighter
-
-def foo(self):
-    return '$foo'
-        '''
-        template = compile_to_class(template)
-        template = template(searchList=[{'foo': 'bar'}])
-        template = template.respond()
-        assert template, (template, 'We should have some content here...')
-
-    def test_Html(self):
-        template = '''
-#from Cheetah.Filters import CodeHighlighter
-#transform CodeHighlighter
-
-<html><head></head><body>$foo</body></html>
-        '''
-        template = compile_to_class(template)
-        template = template(searchList=[{'foo': 'bar'}])
-        template = template.respond()
-        assert template, (template, 'We should have some content here...')
-
-
-class UniqueError(ValueError):
-    pass
-
-
-class UniqueFilter(Cheetah.Filters.Filter):
+class UniqueFilter(Cheetah.Filters.BaseFilter):
     """A dummy filter that tries to notice when it's been called twice on the
     same string.
     """

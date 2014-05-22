@@ -46,7 +46,7 @@ class Template(object):
                  searchList=None,
                  # use either or.  They are aliases for the same thing.
 
-                 filter='RawOrEncodedUnicode',  # which filter from Cheetah.Filters
+                 filter='BaseFilter',  # which filter from Cheetah.Filters
                  filtersLib=Filters,
                  ):
         """Instantiates an existing template.
@@ -61,7 +61,7 @@ class Template(object):
 
                 or
 
-                t = tclass(namespaces=namespaces, filter='RawOrEncodedUnicode')
+                t = tclass(namespaces=namespaces, filter='BaseFilter')
 
         Optional args:
             - namespaces (aka 'searchList')
@@ -80,31 +80,31 @@ class Template(object):
               useNameMapper=False.
 
              - filter
-               Default: 'EncodeUnicode'
+               Default: 'BaseFilter'
 
                Which filter should be used for output filtering. This should
                either be a string which is the name of a filter in the
-               'filtersLib' or a subclass of Cheetah.Filters.Filter. . See the
+               'filtersLib' or a subclass of Cheetah.Filters.BaseFilter. . See the
                Users' Guide for more details.
 
              - filtersLib
                Default: Cheetah.Filters
 
-               A module containing subclasses of Cheetah.Filters.Filter. See the
+               A module containing subclasses of Cheetah.Filters.BaseFilter. See the
                Users' Guide for more details.
         """
         errmsg = "arg '%s' must be %s"
         errmsgextra = errmsg + "\n%s"
 
         if not isinstance(filter, (basestring, types.TypeType)) and not \
-                (isinstance(filter, type) and issubclass(filter, Filters.Filter)):
+                (isinstance(filter, type) and issubclass(filter, Filters.BaseFilter)):
             raise TypeError(errmsgextra %
                             ('filter', 'string or class',
-                             '(if class, must be subclass of Cheetah.Filters.Filter)'))
+                             '(if class, must be subclass of Cheetah.Filters.BaseFilter)'))
         if not isinstance(filtersLib, (basestring, types.ModuleType)):
             raise TypeError(errmsgextra %
                             ('filtersLib', 'string or module',
-                             '(if module, must contain subclasses of Cheetah.Filters.Filter)'))
+                             '(if module, must contain subclasses of Cheetah.Filters.BaseFilter)'))
 
         super(Template, self).__init__()
 
@@ -175,7 +175,7 @@ class Template(object):
     def _initCheetahInstance(self,
                              searchList=None,
                              namespaces=None,
-                             filter='RawOrEncodedUnicode',  # which filter from Cheetah.Filters
+                             filter='BaseFilter',  # which filter from Cheetah.Filters
                              filtersLib=Filters):
         """Sets up the instance attributes that cheetah templates use at
         run-time.

@@ -135,7 +135,7 @@ def test_EncodeUnicodeCompatTest():
     """Taken initially from Red Hat's bugzilla #529332
     https://bugzilla.redhat.com/show_bug.cgi?id=529332
     """
-    t = compile_to_class("Foo ${var}")(filter='EncodeUnicode')
+    t = compile_to_class("Foo ${var}")(filter='BaseFilter')
     t.var = "Text with some non-ascii characters: åäö"
 
     rc = t.respond()

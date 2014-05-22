@@ -709,14 +709,6 @@ class MethodCompiler(GenUtils):
     def nextFilterRegionID(self):
         return self.nextCacheID()
 
-    def setTransform(self, transformer, isKlass):
-        self.addChunk('trans = TransformerTransaction()')
-        if self.setting('autoAssignDummyTransactionToSelf'):
-            self.addChunk('self.transaction = trans')
-        self.addChunk('trans._response = trans.response()')
-        self.addChunk('trans._response._filter = %s' % transformer)
-        self.addChunk('write = trans._response.write')
-
     def setFilter(self, theFilter, isKlass):
         class FilterDetails:
             pass
