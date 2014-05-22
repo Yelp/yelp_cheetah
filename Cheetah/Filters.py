@@ -1,8 +1,7 @@
 '''
-    Filters for the #filter directive as well as #transform
+    Filters for the #filter directive
 
     #filter results in output filters Cheetah's $placeholders .
-    #transform results in a filter on the entirety of the output
 '''
 
 # Additional entities WebSafe knows how to transform.  No need to include
@@ -56,10 +55,6 @@ class Markdown(EncodeUnicode):
             <h1>My Header</h1>
 
         and so on.
-
-        Markdown is meant to be used with the #transform
-        tag, as it's usefulness with #filter is marginal at
-        best
     '''
     def filter(self,  value, **kwargs):
         # This is a bit of a hack to allow outright embedding of the markdown module

@@ -74,28 +74,3 @@ class DummyTransaction(object):
         if self._response is None:
             self._response = resp or DummyResponse()
         return self._response
-
-
-class TransformerResponse(DummyResponse):
-    def __init__(self, *args, **kwargs):
-        super(TransformerResponse, self).__init__(*args, **kwargs)
-        self._filter = None
-
-    def getvalue(self, **kwargs):
-        output = super(TransformerResponse, self).getvalue(**kwargs)
-        if self._filter:
-            _filter = self._filter
-            if isinstance(_filter, type):
-                _filter = _filter()
-            return _filter.filter(output)
-        return output
-
-
-class TransformerTransaction(object):
-    def __init__(self, *args, **kwargs):
-        self._response = None
-
-    def response(self):
-        if self._response:
-            return self._response
-        return TransformerResponse()

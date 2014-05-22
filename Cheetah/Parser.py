@@ -134,7 +134,6 @@ directiveNamesAndParsers = {
     'filter': 'eatFilter',
     'echo': None,
     'silent': None,
-    'transform': 'eatTransform',
 
     'call': 'eatCall',
     'arg': 'eatCallArg',
@@ -2022,27 +2021,6 @@ class Parser(_LowLevelParser):
             self.pushToOpenDirectivesStack("filter")
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             self._compiler.setFilter(theFilter, isKlass)
-
-    def eatTransform(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-
-        self.getDirectiveStartToken()
-        self.advance(len('transform'))
-        self.getWhiteSpace()
-        if self.matchCheetahVarStart():
-            isKlass = True
-            transformer = self.getExpression(pyTokensToBreakAt=[':'])
-        else:
-            isKlass = False
-            transformer = self.getIdentifier()
-            self.getWhiteSpace()
-
-        if self.peek() == ':':
-            self.advance()
-        self.getWhiteSpace()
-        self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-        self._compiler.setTransform(transformer, isKlass)
 
     def eatIf(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
