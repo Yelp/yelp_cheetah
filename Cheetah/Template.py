@@ -41,8 +41,6 @@ class Template(object):
     """
 
     def __init__(self,
-                 # TODO(asottile): remove `namespaces`
-                 namespaces=None,
                  searchList=None,
                  # use either or.  They are aliases for the same thing.
 
@@ -57,14 +55,14 @@ class Template(object):
                 from templates.tclass import tclass
 
             ii) then you create an instance
-                t = tclass(namespaces=namespaces)
+                t = tclass(searchList=namespaces)
 
                 or
 
-                t = tclass(namespaces=namespaces, filter='BaseFilter')
+                t = tclass(searchList=namespaces, filter='BaseFilter')
 
         Optional args:
-            - namespaces (aka 'searchList')
+            - searchList
               Default: None
 
               an optional list of namespaces (dictionaries, objects, modules,
@@ -132,7 +130,6 @@ class Template(object):
 
         self._initCheetahInstance(
             searchList=searchList,
-            namespaces=namespaces,
             filter=filter,
             filtersLib=filtersLib,
         )
@@ -174,7 +171,6 @@ class Template(object):
 
     def _initCheetahInstance(self,
                              searchList=None,
-                             namespaces=None,
                              filter='BaseFilter',  # which filter from Cheetah.Filters
                              filtersLib=Filters):
         """Sets up the instance attributes that cheetah templates use at
@@ -187,10 +183,6 @@ class Template(object):
         with '_CHEETAH__' (2 underscores), where class attributes are prefixed
         with '_CHEETAH_' (1 underscore).
         """
-        if namespaces is not None:
-            assert searchList is None, (
-                'Provide "namespaces" or "searchList", not both!')
-            searchList = namespaces
         if searchList is not None and not isinstance(searchList, (list, tuple)):
             searchList = [searchList]
 
