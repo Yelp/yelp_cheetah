@@ -84,7 +84,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('directiveEndToken', '#', ''),
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
-    ('EOLSlurpToken', '#', ''),
     ('gettextTokens', ["_", "N_", "ngettext"], ''),
     ('allowExpressionsInExtendsDirective', False, ''),
     ('allowNestedDefScopes', True, ''),

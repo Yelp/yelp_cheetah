@@ -350,8 +350,7 @@ class _LowLevelParser(SourceReader):
             self.matchExpressionPlaceholderStart,
             self.matchDirective,
             self.matchPSPStartToken,
-            self.matchEOLSlurpToken,
-            ]
+        ]
 
     # regex setup
 
@@ -383,15 +382,6 @@ class _LowLevelParser(SourceReader):
             r'(?:\{|\(|\[)[ \t\f]*'
             + r'(?=[^\)\}\]])'
             )
-
-        if self.setting('EOLSlurpToken'):
-            self.EOLSlurpRE = re.compile(
-                re.escape(self.setting('EOLSlurpToken'))
-                + r'[ \t\f]*'
-                + r'(?:' + EOL + ')'
-                )
-        else:
-            self.EOLSlurpRE = None
 
     def _makeCommentREs(self):
         """Construct the regex bits that are used in comment parsing."""
@@ -454,7 +444,6 @@ class _LowLevelParser(SourceReader):
             self.matchExpressionPlaceholderStart
             self.matchDirective
             self.matchPSPStartToken
-            self.matchEOLSlurpToken
 
         Returns None if no match.
         """
@@ -482,10 +471,6 @@ class _LowLevelParser(SourceReader):
         elif match.group() in tripleQuotedStringStarts:
             raise ParseError(self, msg='Malformed triple-quoted string')
         return self.readTo(match.end())
-
-    def matchEOLSlurpToken(self):
-        if self.EOLSlurpRE:
-            return self.EOLSlurpRE.match(self.src(), self.pos())
 
     def matchCommentStartToken(self):
         return self.commentStartTokenRE.match(self.src(), self.pos())
@@ -1235,8 +1220,6 @@ class Parser(_LowLevelParser):
                 self.eatDirective()
             elif self.matchPSPStartToken():
                 self.eatPSP()
-            elif self.matchEOLSlurpToken():
-                self.eatEOLSlurpToken()
             else:
                 self.eatPlainText()
         if assertEmptyStack:
@@ -1826,12 +1809,6 @@ class Parser(_LowLevelParser):
         self._compiler.addSet(expr, exprComponents, style)
 
     def eatSlurp(self):
-        if self.isLineClearToStartToken():
-            self._compiler.handleWSBeforeDirective()
-        self._compiler.commitStrConst()
-        self.readToEOL(gobble=True)
-
-    def eatEOLSlurpToken(self):
         if self.isLineClearToStartToken():
             self._compiler.handleWSBeforeDirective()
         self._compiler.commitStrConst()

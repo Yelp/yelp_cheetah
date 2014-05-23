@@ -19,7 +19,6 @@ import warnings
 
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
-from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
 from Cheetah.NameMapper import NotFound
 from Cheetah.Parser import ParseError
 
@@ -256,16 +255,10 @@ class NonTokens(OutputTest):
         self.verify("$",
                     "$")
 
-    @pytest.mark.xfail
-    def test6_was_disabled(self):
+    def test6(self):
         """1 dollar sign followed by hash"""
         self.verify("\n$#\n",
                     "\n$#\n")
-
-    def test6(self):
-        """1 dollar sign followed by EOL Slurp Token"""
-        self.verify("\n$%s\n" % DEFAULT_COMPILER_SETTINGS['EOLSlurpToken'],
-                    "\n$")
 
 
 class Comments_SingleLine(OutputTest):
@@ -1000,39 +993,6 @@ class SlurpDirective(OutputTest):
         Should eat the garbage"""
         self.verify(" 1234 #slurp garbage   \n",
                     " 1234 ")
-
-
-class EOLSlurpToken(OutputTest):
-    _EOLSlurpToken = DEFAULT_COMPILER_SETTINGS['EOLSlurpToken']
-
-    def test1(self):
-        r"""#slurp with 1 \n """
-        self.verify("%s\n" % self._EOLSlurpToken,
-                    "")
-
-    def test2(self):
-        r"""#slurp with 1 \n, leading whitespace
-        Should gobble"""
-        self.verify("       %s\n" % self._EOLSlurpToken,
-                    "")
-
-    def test3(self):
-        r"""#slurp with 1 \n, leading content
-        Shouldn't gobble"""
-        self.verify(" 1234 %s\n" % self._EOLSlurpToken,
-                    " 1234 ")
-
-    def test4(self):
-        r"""#slurp with WS then \n, leading content
-        Shouldn't gobble"""
-        self.verify(" 1234 %s    \n" % self._EOLSlurpToken,
-                    " 1234 ")
-
-    def test5(self):
-        r"""#slurp with garbage chars then \n, leading content
-        Should NOT eat the garbage"""
-        self.verify(" 1234 %s garbage   \n" % self._EOLSlurpToken,
-                    " 1234 %s garbage   \n" % self._EOLSlurpToken)
 
 
 class RawDirective(OutputTest):
