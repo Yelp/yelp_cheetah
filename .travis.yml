@@ -2,5 +2,7 @@ language: python
 env: # These should match the tox env list
     - TOXENV=py26
     - TOXENV=py27
-install: pip install tox --use-mirrors
+install: pip install coveralls tox --use-mirrors
 script: tox
+after_success:
+    - coveralls
