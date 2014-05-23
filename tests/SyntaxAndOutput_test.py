@@ -995,52 +995,6 @@ class SlurpDirective(OutputTest):
                     " 1234 ")
 
 
-class RawDirective(OutputTest):
-    def test1(self):
-        """#raw till EOF"""
-        self.verify("#raw\n$aFunc().\n\n",
-                    "$aFunc().\n\n")
-
-    def test2(self):
-        """#raw till #end raw"""
-        self.verify("#raw\n$aFunc().\n#end raw\n$anInt",
-                    "$aFunc().\n1")
-
-    def test3(self):
-        """#raw till #end raw gobble WS"""
-        self.verify("  #raw  \n$aFunc().\n   #end raw  \n$anInt",
-                    "$aFunc().\n1")
-
-    def test4(self):
-        """#raw till #end raw using explicit directive closure
-        Shouldn't gobble"""
-        self.verify("  #raw  #\n$aFunc().\n   #end raw  #\n$anInt",
-                    "  \n$aFunc().\n\n1")
-
-    def test5(self):
-        """single-line short form #raw: """
-        self.verify("#raw: $aFunc().\n\n",
-                    "$aFunc().\n\n")
-
-        self.verify("#raw: $aFunc().\n$anInt",
-                    "$aFunc().\n1")
-
-    def test6(self):
-        """ Escape characters in a #raw block """
-        self.verify(
-            (
-                '#raw: This escape should be preserved: \\$unexpanded '
-                'So should this one: \\#blah '
-                'The string "\\012" should not disappear.'
-            ),
-            (
-                r'This escape should be preserved: \$unexpanded '
-                r'So should this one: \#blah '
-                r'The string "\012" should not disappear.'
-            ),
-        )
-
-
 class ReturnDirective(OutputTest):
 
     def test1(self):

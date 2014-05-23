@@ -420,9 +420,6 @@ class MethodCompiler(GenUtils):
     def addStrConst(self, strConst):
         self._appendToPrevStrConst(strConst)
 
-    def addRawText(self, text):
-        self.addStrConst(text)
-
     def addMethComment(self, comm):
         offSet = self.setting('commentOffset')
         self.addChunk('#' + ' ' * offSet + comm)

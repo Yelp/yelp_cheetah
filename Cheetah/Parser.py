@@ -130,7 +130,6 @@ directiveNamesAndParsers = {
 
     # output, filtering, and caching
     'slurp': 'eatSlurp',
-    'raw': 'eatRaw',
     'filter': 'eatFilter',
     'echo': None,
     'silent': None,
@@ -1814,24 +1813,6 @@ class Parser(_LowLevelParser):
         self._compiler.commitStrConst()
         self.readToEOL(gobble=True)
 
-    def eatRaw(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        self.getDirectiveStartToken()
-        self.advance(len('raw'))
-        self.getWhiteSpace()
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self.getWhiteSpace(max=1)
-            rawBlock = self.readToEOL(gobble=False)
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            rawBlock = self._eatToThisEndDirective('raw')
-        self._compiler.addRawText(rawBlock)
-
     def eatMacroCall(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
@@ -1915,7 +1896,6 @@ class Parser(_LowLevelParser):
         self._src = origParseSrc
         self.setBreakPoint(origBreakPoint)
         self.setPos(origPos)
-        # self._compiler.addRawText('end')
 
     def eatCall(self):
         # @@TR: need to enable single line version of this
