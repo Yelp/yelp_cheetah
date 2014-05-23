@@ -1517,7 +1517,7 @@ class Parser(_LowLevelParser):
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         try:
             self._compiler.setCompilerSetting(settingName, valueExpr)
-        except:
+        except Exception:
             sys.stderr.write('An error occurred while processing the following #compiler directive.\n')
             sys.stderr.write('----------------------------------------------------------------------\n')
             sys.stderr.write('%s\n' % self[startPos:endPos])

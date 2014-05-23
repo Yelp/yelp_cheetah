@@ -198,9 +198,6 @@ class SettingsManager(_SettingsCollector):
         self._settings = {}
         self._initializeSettings()
 
-    def _defaultSettings(self):
-        return {}
-
     def _initializeSettings(self):
         """A hook that allows for complex setting initialization sequences that
         involve references to 'self' or other settings.  For example:
@@ -208,8 +205,7 @@ class SettingsManager(_SettingsCollector):
         This method should be called by the class' __init__() method when needed.
         The dummy implementation should be reimplemented by subclasses.
         """
-
-        pass
+        raise NotImplementedError
 
     # core post startup methods
 
@@ -221,10 +217,6 @@ class SettingsManager(_SettingsCollector):
         else:
             return self._settings.get(name, default)
 
-    def hasSetting(self, key):
-        """True/False"""
-        return key in self._settings
-
     def setSetting(self, name, value):
         """Set a setting in self._settings."""
         self._settings[name] = value
@@ -232,14 +224,6 @@ class SettingsManager(_SettingsCollector):
     def settings(self):
         """Return a reference to the settings dictionary"""
         return self._settings
-
-    def copySettings(self):
-        """Returns a shallow copy of the settings dictionary"""
-        return copyModule.copy(self._settings)
-
-    def deepcopySettings(self):
-        """Returns a deep copy of the settings dictionary"""
-        return copyModule.deepcopy(self._settings)
 
     def updateSettings(self, newSettings, merge=True):
         """Update the settings with a selective merge or a complete overwrite."""
@@ -255,16 +239,6 @@ class SettingsManager(_SettingsCollector):
         """Update the settings from a code in a Python src string."""
 
         newSettings = self.readSettingsFromPySrcStr(theString)
-        self.updateSettings(newSettings,
-                            merge=newSettings.get('mergeSettings', merge))
-
-    def updateSettingsFromConfigFileObj(self, inFile, convert=True, merge=True):
-        """See the docstring for .updateSettingsFromConfigFile()
-
-        The caller of this method is responsible for closing the inFile file
-        object."""
-
-        newSettings = self.readSettingsFromConfigFileObj(inFile, convert=convert)
         self.updateSettings(newSettings,
                             merge=newSettings.get('mergeSettings', merge))
 
