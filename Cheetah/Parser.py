@@ -158,7 +158,6 @@ directiveNamesAndParsers = {
     'pass': None,
     'break': None,
     'continue': None,
-    'stop': None,
     'return': None,
     'yield': None,
 
@@ -1336,7 +1335,7 @@ class Parser(_LowLevelParser):
     _simpleIndentingDirectives = '''
     else elif for while try except finally'''.split()
     _simpleExprDirectives = '''
-    pass continue stop return yield break
+    pass continue return yield break
     del assert raise
     silent echo
     import from'''.split()
