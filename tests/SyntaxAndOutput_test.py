@@ -1081,43 +1081,6 @@ class RawDirective(OutputTest):
         )
 
 
-class StopDirective(OutputTest):
-    def test1(self):
-        """#stop part way through source code"""
-        self.verify("$aFunc(2).\n#stop\n$anInt",
-                    "2.\n")
-
-    def test2(self):
-        """#stop at BOF"""
-        self.verify("#stop\n$anInt",
-                    "")
-
-    def test3(self):
-        """#stop at EOF"""
-        self.verify("$anInt\n#stop",
-                    "1\n")
-
-    def test4(self):
-        """#stop in pos test block"""
-        self.verify("""$anInt
-#if 1
-inside the if block
-#stop
-#end if
-blarg""",
-                    "1\ninside the if block\n")
-
-    def test5(self):
-        """#stop in neg test block"""
-        self.verify("""$anInt
-#if 0
-inside the if block
-#stop
-#end if
-blarg""",
-                    "1\nblarg")
-
-
 class ReturnDirective(OutputTest):
 
     def test1(self):
