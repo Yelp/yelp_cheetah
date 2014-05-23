@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/bukzor/yelp_cheetah.svg?branch=master)](https://travis-ci.org/bukzor/yelp_cheetah)
+[![Coverage Status](https://img.shields.io/coveralls/bukzor/yelp_cheetah.svg)](https://coveralls.io/r/bukzor/yelp_cheetah?branch=master)
 
 yelp_cheetah
 ============
