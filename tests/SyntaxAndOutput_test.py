@@ -19,7 +19,6 @@ import warnings
 
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
-from Cheetah.Compiler import DEFAULT_COMPILER_SETTINGS
 from Cheetah.NameMapper import NotFound
 from Cheetah.Parser import ParseError
 
@@ -256,16 +255,10 @@ class NonTokens(OutputTest):
         self.verify("$",
                     "$")
 
-    @pytest.mark.xfail
-    def test6_was_disabled(self):
+    def test6(self):
         """1 dollar sign followed by hash"""
         self.verify("\n$#\n",
                     "\n$#\n")
-
-    def test6(self):
-        """1 dollar sign followed by EOL Slurp Token"""
-        self.verify("\n$%s\n" % DEFAULT_COMPILER_SETTINGS['EOLSlurpToken'],
-                    "\n$")
 
 
 class Comments_SingleLine(OutputTest):
@@ -1000,85 +993,6 @@ class SlurpDirective(OutputTest):
         Should eat the garbage"""
         self.verify(" 1234 #slurp garbage   \n",
                     " 1234 ")
-
-
-class EOLSlurpToken(OutputTest):
-    _EOLSlurpToken = DEFAULT_COMPILER_SETTINGS['EOLSlurpToken']
-
-    def test1(self):
-        r"""#slurp with 1 \n """
-        self.verify("%s\n" % self._EOLSlurpToken,
-                    "")
-
-    def test2(self):
-        r"""#slurp with 1 \n, leading whitespace
-        Should gobble"""
-        self.verify("       %s\n" % self._EOLSlurpToken,
-                    "")
-
-    def test3(self):
-        r"""#slurp with 1 \n, leading content
-        Shouldn't gobble"""
-        self.verify(" 1234 %s\n" % self._EOLSlurpToken,
-                    " 1234 ")
-
-    def test4(self):
-        r"""#slurp with WS then \n, leading content
-        Shouldn't gobble"""
-        self.verify(" 1234 %s    \n" % self._EOLSlurpToken,
-                    " 1234 ")
-
-    def test5(self):
-        r"""#slurp with garbage chars then \n, leading content
-        Should NOT eat the garbage"""
-        self.verify(" 1234 %s garbage   \n" % self._EOLSlurpToken,
-                    " 1234 %s garbage   \n" % self._EOLSlurpToken)
-
-
-class RawDirective(OutputTest):
-    def test1(self):
-        """#raw till EOF"""
-        self.verify("#raw\n$aFunc().\n\n",
-                    "$aFunc().\n\n")
-
-    def test2(self):
-        """#raw till #end raw"""
-        self.verify("#raw\n$aFunc().\n#end raw\n$anInt",
-                    "$aFunc().\n1")
-
-    def test3(self):
-        """#raw till #end raw gobble WS"""
-        self.verify("  #raw  \n$aFunc().\n   #end raw  \n$anInt",
-                    "$aFunc().\n1")
-
-    def test4(self):
-        """#raw till #end raw using explicit directive closure
-        Shouldn't gobble"""
-        self.verify("  #raw  #\n$aFunc().\n   #end raw  #\n$anInt",
-                    "  \n$aFunc().\n\n1")
-
-    def test5(self):
-        """single-line short form #raw: """
-        self.verify("#raw: $aFunc().\n\n",
-                    "$aFunc().\n\n")
-
-        self.verify("#raw: $aFunc().\n$anInt",
-                    "$aFunc().\n1")
-
-    def test6(self):
-        """ Escape characters in a #raw block """
-        self.verify(
-            (
-                '#raw: This escape should be preserved: \\$unexpanded '
-                'So should this one: \\#blah '
-                'The string "\\012" should not disappear.'
-            ),
-            (
-                r'This escape should be preserved: \$unexpanded '
-                r'So should this one: \#blah '
-                r'The string "\012" should not disappear.'
-            ),
-        )
 
 
 class ReturnDirective(OutputTest):

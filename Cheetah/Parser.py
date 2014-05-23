@@ -130,7 +130,6 @@ directiveNamesAndParsers = {
 
     # output, filtering, and caching
     'slurp': 'eatSlurp',
-    'raw': 'eatRaw',
     'filter': 'eatFilter',
     'echo': None,
     'silent': None,
@@ -350,8 +349,7 @@ class _LowLevelParser(SourceReader):
             self.matchExpressionPlaceholderStart,
             self.matchDirective,
             self.matchPSPStartToken,
-            self.matchEOLSlurpToken,
-            ]
+        ]
 
     # regex setup
 
@@ -383,15 +381,6 @@ class _LowLevelParser(SourceReader):
             r'(?:\{|\(|\[)[ \t\f]*'
             + r'(?=[^\)\}\]])'
             )
-
-        if self.setting('EOLSlurpToken'):
-            self.EOLSlurpRE = re.compile(
-                re.escape(self.setting('EOLSlurpToken'))
-                + r'[ \t\f]*'
-                + r'(?:' + EOL + ')'
-                )
-        else:
-            self.EOLSlurpRE = None
 
     def _makeCommentREs(self):
         """Construct the regex bits that are used in comment parsing."""
@@ -454,7 +443,6 @@ class _LowLevelParser(SourceReader):
             self.matchExpressionPlaceholderStart
             self.matchDirective
             self.matchPSPStartToken
-            self.matchEOLSlurpToken
 
         Returns None if no match.
         """
@@ -482,10 +470,6 @@ class _LowLevelParser(SourceReader):
         elif match.group() in tripleQuotedStringStarts:
             raise ParseError(self, msg='Malformed triple-quoted string')
         return self.readTo(match.end())
-
-    def matchEOLSlurpToken(self):
-        if self.EOLSlurpRE:
-            return self.EOLSlurpRE.match(self.src(), self.pos())
 
     def matchCommentStartToken(self):
         return self.commentStartTokenRE.match(self.src(), self.pos())
@@ -1110,16 +1094,13 @@ class _LowLevelParser(SourceReader):
             if enclosures:
                 WS = self.getWhiteSpace()
                 expr += WS
-                if self.setting('allowPlaceholderFilterArgs') and self.peek() == ',':
-                    filterArgs = self.getCallArgString(enclosures=enclosures)[1:-1]
+                if self.peek() == closurePairsRev[enclosureOpenChar]:
+                    self.getc()
                 else:
-                    if self.peek() == closurePairsRev[enclosureOpenChar]:
-                        self.getc()
-                    else:
-                        restOfExpr = self.getExpression(enclosed=True, enclosures=enclosures)
-                        if restOfExpr[-1] == closurePairsRev[enclosureOpenChar]:
-                            restOfExpr = restOfExpr[:-1]
-                        expr += restOfExpr
+                    restOfExpr = self.getExpression(enclosed=True, enclosures=enclosures)
+                    if restOfExpr[-1] == closurePairsRev[enclosureOpenChar]:
+                        restOfExpr = restOfExpr[:-1]
+                    expr += restOfExpr
             rawPlaceholder = self[startPos: self.pos()]
         else:
             expr = self.getExpression(enclosed=True, enclosures=enclosures)
@@ -1238,8 +1219,6 @@ class Parser(_LowLevelParser):
                 self.eatDirective()
             elif self.matchPSPStartToken():
                 self.eatPSP()
-            elif self.matchEOLSlurpToken():
-                self.eatEOLSlurpToken()
             else:
                 self.eatPlainText()
         if assertEmptyStack:
@@ -1834,30 +1813,6 @@ class Parser(_LowLevelParser):
         self._compiler.commitStrConst()
         self.readToEOL(gobble=True)
 
-    def eatEOLSlurpToken(self):
-        if self.isLineClearToStartToken():
-            self._compiler.handleWSBeforeDirective()
-        self._compiler.commitStrConst()
-        self.readToEOL(gobble=True)
-
-    def eatRaw(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        self.getDirectiveStartToken()
-        self.advance(len('raw'))
-        self.getWhiteSpace()
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self.getWhiteSpace(max=1)
-            rawBlock = self.readToEOL(gobble=False)
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            rawBlock = self._eatToThisEndDirective('raw')
-        self._compiler.addRawText(rawBlock)
-
     def eatMacroCall(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
@@ -1941,7 +1896,6 @@ class Parser(_LowLevelParser):
         self._src = origParseSrc
         self.setBreakPoint(origBreakPoint)
         self.setPos(origPos)
-        # self._compiler.addRawText('end')
 
     def eatCall(self):
         # @@TR: need to enable single line version of this
