@@ -18,15 +18,6 @@ from Cheetah.SourceReader import SourceReader
 from Cheetah.Unspecified import Unspecified
 
 
-group = lambda *choices: '(' + '|'.join(choices) + ')'
-nongroup = lambda *choices: '(?:' + '|'.join(choices) + ')'
-namedGroup = lambda name, *choices: '(P:<' + name + '>' + '|'.join(choices) + ')'
-any = lambda *choices: group(*choices) + '*'
-maybe = lambda *choices: group(*choices) + '?'
-
-##################################################
-# CONSTANTS & GLOBALS
-
 SET_LOCAL = 0
 SET_GLOBAL = 1
 SET_MODULE = 2
@@ -108,8 +99,7 @@ for start, end in tripleQuotedStringPairs.items():
 
 WS = r'[ \f\t]*'
 EOL = r'\r\n|\n|\r'
-EOLZ = EOL + r'|\Z'
-escCharLookBehind = nongroup(r'(?<=\A)', r'(?<!\\)')
+escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
 nameCharLookAhead = r'(?=[A-Za-z_])'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
 EOLre = re.compile(r'(?:\r\n|\r|\n)')

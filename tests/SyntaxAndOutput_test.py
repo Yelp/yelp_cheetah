@@ -108,23 +108,25 @@ Template output mismatch:
 %(actual)s%(end)s'''
 
     convertEOLs = True
-    _EOLreplacement = None
+    _EOLreplacement = '\n'
 
     _searchList = [defaultTestNameSpace]
 
     def searchList(self):
         return self._searchList
 
+    def _getCompilerSettings(self):
+        return {}
+
     def verify(self, input, expectedOutput,
                inputEncoding=None,
                outputEncoding=None,
                convertEOLs=Unspecified):
-        if self._EOLreplacement:
-            if convertEOLs is Unspecified:
-                convertEOLs = self.convertEOLs
-            if convertEOLs:
-                input = input.replace('\n', self._EOLreplacement)
-                expectedOutput = expectedOutput.replace('\n', self._EOLreplacement)
+        if convertEOLs is Unspecified:
+            convertEOLs = self.convertEOLs
+        if convertEOLs:
+            input = input.replace('\n', self._EOLreplacement)
+            expectedOutput = expectedOutput.replace('\n', self._EOLreplacement)
 
         self._input = input
 
@@ -134,19 +136,14 @@ Template output mismatch:
         searchList = self.searchList() or self._searchList
         self.template = templateObj = templateClass(searchList=searchList)
 
-        output = templateObj.respond()  # rather than __str__, because of unicode
-        assert output == expectedOutput, self._outputMismatchReport(output, expectedOutput)
-
-    def _getCompilerSettings(self):
-        return {}
-
-    def _outputMismatchReport(self, output, expectedOutput):
-        EOLrepl = self._EOLreplacement or '\n'
-        marker = '*EOL*'
-        return self.report % {'template': self._input.replace(EOLrepl, marker),
-                              'expected': expectedOutput.replace(EOLrepl, marker),
-                              'actual': output.replace(EOLrepl, marker),
-                              'end': '(end)'}
+        output = templateObj.respond()
+        if output != expectedOutput:
+            raise AssertionError(self.report % {
+                'template': self._input.replace(self._EOLreplacement, '*eol*'),
+                'expected': expectedOutput.replace(self._EOLreplacement, '*eol*'),
+                'actual': output.replace(self._EOLreplacement, '*eol*'),
+                'end': '(end)',
+            })
 
 
 class EmptyTemplate(OutputTest):
