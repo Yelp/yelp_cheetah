@@ -44,7 +44,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useDottedNotation', True, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useStackFrames', True, 'Used for NameMapper.valueFromFrameOrSearchList rather than NameMapper.valueFromSearchList'),
     ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
-    ('includeRawExprInFilterArgs', True, ''),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     (
         'prioritizeSearchListOverSelf',
@@ -356,8 +355,6 @@ class MethodCompiler(GenUtils):
     def addFilteredChunk(self, chunk, filterArgs=None, rawExpr=None, lineCol=None):
         if filterArgs is None:
             filterArgs = ''
-        if self.setting('includeRawExprInFilterArgs') and rawExpr:
-            filterArgs += ', rawExpr=%s' % repr(rawExpr)
 
         if self.setting('alwaysFilterNone'):
             if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
