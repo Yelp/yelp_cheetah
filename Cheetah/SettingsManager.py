@@ -166,19 +166,6 @@ class _SettingsCollector(object):
                     if stringIsNumber(val):
                         subDict[key] = convStringToNum(val)
 
-                # now deal with any 'importSettings' commands
-                if key.lower() == 'importsettings':
-                    if val.find(';') < 0:
-                        importedSettings = self.readSettingsFromPySrcFile(val)
-                    else:
-                        path = val.split(';')[0]
-                        rest = ''.join(val.split(';')[1:]).strip()
-                        parentDict = self.readSettingsFromPySrcFile(path)
-                        importedSettings = parentDict[rest]
-
-                    subDict.update(mergeNestedDictionaries(subDict,
-                                                           importedSettings))
-
             if sect.lower() == 'globals':
                 newSettings.update(newSettings[sect])
                 del newSettings[sect]
