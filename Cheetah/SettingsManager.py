@@ -93,10 +93,6 @@ class _SettingsCollector(object):
 
         * The string 'False' will be converted to a Python false value
 
-        * Any string starting with 'python:' will be treated as a Python literal
-          or expression that needs to be eval'd. This approach is useful for
-          declaring lists and dictionaries.
-
         If a config section titled 'Globals' is present the options defined
         under it will be treated as top-level settings.
         """
@@ -121,8 +117,6 @@ class _SettingsCollector(object):
         for sect, subDict in newSettings.items():
             for key, val in subDict.items():
                 if convert:
-                    if val.lower().startswith('python:'):
-                        subDict[key] = eval(val[7:], {}, {})
                     if val.lower() == 'none':
                         subDict[key] = None
                     if val.lower() == 'true':
