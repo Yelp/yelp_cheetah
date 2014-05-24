@@ -17,6 +17,7 @@ import sys
 import unittest
 import warnings
 
+from Cheetah import five
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
@@ -2251,6 +2252,25 @@ class MiscComplexSyntax(OutputTest):
         """
         self.verify("#set $c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]\n$c",
                     "0")
+
+
+def test_parse_error():
+    try:
+        # Invalid because it does not have an identifier (and because it is
+        # unclosed)
+        compile_to_class('#def')
+    except ParseError as e:
+        ret = five.text(e)
+        assert ret == (
+            '\n\n'
+            'Invalid identifier\n'
+            'Line 1, column 4\n'
+            '\n'
+            'Line|Cheetah Code\n'
+            '----|-------------------------------------------------------------\n'
+            '1   |#def\n'
+            '        ^\n'
+        )
 
 
 # TODO: there's probably a pytest way to do this

@@ -1092,8 +1092,8 @@ class Parser(_LowLevelParser):
     sending state dependent code generation commands to
     Cheetah.Compiler.Compiler.
     """
-    def __init__(self, src, filename=None, breakPoint=None, compiler=None):
-        super(Parser, self).__init__(src, filename=filename, breakPoint=breakPoint)
+    def __init__(self, src, filename=None, compiler=None):
+        super(Parser, self).__init__(src, filename=filename)
         self.setSettingsManager(compiler)
         self._compiler = compiler
         self.setupState()

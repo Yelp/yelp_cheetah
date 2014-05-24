@@ -4,18 +4,14 @@ import re
 
 EOLre = re.compile(r'[ \f\t]*(?:\r\n|\r|\n)')
 EOLZre = re.compile(r'(?:\r\n|\r|\n|\Z)')
-ENCODINGsearch = re.compile("coding[=:]\s*([-\w.]+)").search
 
 
 class SourceReader(object):
-    def __init__(self, src, filename=None, breakPoint=None, encoding=None):
+    def __init__(self, src, filename=None, encoding=None):
         self._src = src
         self._filename = filename
         self._srcLen = len(src)
-        if breakPoint is None:
-            self._breakPoint = self._srcLen
-        else:
-            self.setBreakPoint(breakPoint)
+        self._breakPoint = self._srcLen
         self._pos = 0
 
         # collect some meta-information
