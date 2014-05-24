@@ -257,7 +257,6 @@ class MethodCompiler(GenUtils):
         self._indentLev = self.setting('initialMethIndentLevel')
         self._pendingStrConstChunks = []
         self._methodSignature = None
-        self._methodDef = None
         self._docStringLines = []
         self._methodBodyChunks = []
 
@@ -287,20 +286,13 @@ class MethodCompiler(GenUtils):
         self._indentLev += 1
 
     def dedent(self):
-        if self._indentLev:
-            self._indentLev -= 1
-        else:
-            raise Exception('Attempt to dedent when the indentLev is 0')
+        if not self._indentLev:
+            raise AssertionError('Attempt to dedent when the indentLev is 0')
+        self._indentLev -= 1
 
     # methods for final code wrapping
 
     def methodDef(self):
-        if self._methodDef:
-            return self._methodDef
-        else:
-            return self.wrapCode()
-
-    def wrapCode(self):
         self.commitStrConst()
         methodDefChunks = (
             self.methodSignature(),
@@ -308,7 +300,6 @@ class MethodCompiler(GenUtils):
             self.docString(),
             self.methodBody())
         methodDef = ''.join(methodDefChunks)
-        self._methodDef = methodDef
         return methodDef
 
     def methodSignature(self):
@@ -918,17 +909,12 @@ class ClassCompiler(GenUtils):
         from the methods of this class!!! or you will be assigning to attributes
         of this object instead."""
 
-        if name in self.__dict__:
-            return self.__dict__[name]
-        elif hasattr(self.__class__, name):
-            return getattr(self.__class__, name)
-        elif self._activeMethodsList and hasattr(self._activeMethodsList[-1], name):
+        if self._activeMethodsList and hasattr(self._activeMethodsList[-1], name):
             return getattr(self._activeMethodsList[-1], name)
         else:
             raise AttributeError(name)
 
     def _setupState(self):
-        self._classDef = None
         self._decoratorsForNextMethod = []
         self._activeMethodsList = []        # stack while parsing/generating
         self._finishedMethodsList = []      # store by order
@@ -964,9 +950,6 @@ class ClassCompiler(GenUtils):
         __init__.addChunk('super(%s, self).__init__(*args, **KWs)' % self._className)
         __init__.cleanupState()
         self._swallowMethodCompiler(__init__, pos=0)
-
-    def setClassName(self, name):
-        self._className = name
 
     def className(self):
         return self._className
@@ -1103,12 +1086,6 @@ class ClassCompiler(GenUtils):
     # code wrapping methods
 
     def classDef(self):
-        if self._classDef:
-            return self._classDef
-        else:
-            return self.wrapClassDef()
-
-    def wrapClassDef(self):
         ind = self.setting('indentationStep')
         classDefChunks = [self.classSignature(),
                           self.classDocstring(),
@@ -1133,7 +1110,6 @@ class ClassCompiler(GenUtils):
         addAttributes()
 
         classDef = '\n'.join(classDefChunks)
-        self._classDef = classDef
         return classDef
 
     def classSignature(self):
@@ -1167,16 +1143,13 @@ class ClassCompiler(GenUtils):
         return '\n\n'.join(attribs)
 
 
-class AutoClassCompiler(ClassCompiler):
-    pass
-
 ##################################################
 # MODULE COMPILERS
 
 
 class Compiler(SettingsManager, GenUtils):
     parserClass = Parser
-    classCompilerClass = AutoClassCompiler
+    classCompilerClass = ClassCompiler
 
     def __init__(self,
                  source=None,
@@ -1184,7 +1157,6 @@ class Compiler(SettingsManager, GenUtils):
                  mainClassName=None,  # string
                  mainMethodName=None,  # string
                  baseclassName=None,  # string
-                 extraImportStatements=None,  # list of strings
                  settings=None  # dict
                  ):
         super(Compiler, self).__init__()
@@ -1236,11 +1208,7 @@ class Compiler(SettingsManager, GenUtils):
         from the methods of this class!!! or you will be assigning to attributes
         of this object instead.
         """
-        if name in self.__dict__:
-            return self.__dict__[name]
-        elif hasattr(self.__class__, name):
-            return getattr(self.__class__, name)
-        elif self._activeClassesList and hasattr(self._activeClassesList[-1], name):
+        if self._activeClassesList and hasattr(self._activeClassesList[-1], name):
             return getattr(self._activeClassesList[-1], name)
         else:
             raise AttributeError(name)
