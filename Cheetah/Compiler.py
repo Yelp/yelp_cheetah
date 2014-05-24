@@ -40,7 +40,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('allowSearchListAsMethArg', True, ''),
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', True, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
-    ('useStackFrames', True, 'Used for NameMapper.valueFromFrameOrSearchList rather than NameMapper.valueFromSearchList'),
     ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     (
@@ -176,13 +175,6 @@ class GenUtils(object):
 
           B` = VFN(A`, name=B[0], executeCallables=(useAC and B[1]))B[2]
           A` = VFFSL(SL, name=A[0], executeCallables=(useAC and A[1]))A[2]
-
-
-        Note, if the compiler setting useStackFrames=False (default is true)
-        then
-          A` = VFSL([locals()] + SL + [globals(), __builtin__], name=A[0], executeCallables=(useAC and A[1]))A[2]
-        This option allows Cheetah to be used with Psyco, which doesn't support
-        stack frame introspection.
         """
         defaultUseAC = self.setting('useAutocalling')
         useDottedNotation = self.setting('useDottedNotation')
@@ -204,15 +196,8 @@ class GenUtils(object):
                 )
             else:
                 pythonCode = name + remainder
-        elif self.setting('useStackFrames'):
-            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
-                name,
-                defaultUseAC and useAC,
-                useDottedNotation,
-                remainder,
-            )
         else:
-            pythonCode = 'VFSL([locals()] + SL + [globals(), builtin], "%s", %s, %s)%s' % (
+            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
                 name,
                 defaultUseAC and useAC,
                 useDottedNotation,

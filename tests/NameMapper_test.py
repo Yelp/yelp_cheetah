@@ -515,6 +515,5 @@ def test_map_builtins_int():
             #return $int(val)
         #end def
         ''',
-        settings={'useStackFrames': False}
     )
     assert 5 == template_cls().intify('5')
