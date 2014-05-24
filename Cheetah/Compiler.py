@@ -1239,7 +1239,7 @@ class Compiler(SettingsManager, GenUtils):
             "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
             "from Cheetah.Template import NO_CONTENT",
             "from Cheetah.Template import Template",
-            "from Cheetah.DummyTransaction import *",
+            "from Cheetah.DummyTransaction import DummyTransaction",
             "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
             "import Cheetah.Filters as Filters",
         ]
