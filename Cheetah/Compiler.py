@@ -884,15 +884,6 @@ class AutoMethodCompiler(MethodCompiler):
 ##################################################
 # CLASS COMPILERS
 
-_initMethod_initCheetah = """\
-if not self._CHEETAH__instanceInitialized:
-    cheetahKWArgs = {}
-    allowedKWs = 'searchList namespaces filter filtersLib'.split()
-    for k,v in KWs.items():
-        if k in allowedKWs: cheetahKWArgs[k] = v
-    self._initCheetahInstance(**cheetahKWArgs)
-""".replace('\n', '\n' + ' ' * 8)
-
 
 class ClassCompiler(GenUtils):
     methodCompilerClass = AutoMethodCompiler
@@ -956,7 +947,6 @@ class ClassCompiler(GenUtils):
 
         self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
 
-        self._initMethChunks = []
         self._blockMetaData = {}
 
     def cleanupState(self):
@@ -964,18 +954,14 @@ class ClassCompiler(GenUtils):
             methCompiler = self._popActiveMethodCompiler()
             self._swallowMethodCompiler(methCompiler)
         self._setupInitMethod()
-        self.addAttribute(
-            '_mainCheetahMethod_for_' + self._className + '= ' + repr(self._mainMethodName)
-        )
 
     def _setupInitMethod(self):
-        __init__ = self._spawnMethodCompiler('__init__',
-                                             klass=self.methodCompilerClassForInit)
+        __init__ = self._spawnMethodCompiler(
+            '__init__',
+            klass=self.methodCompilerClassForInit,
+        )
         __init__.setMethodSignature("def __init__(self, *args, **KWs)")
         __init__.addChunk('super(%s, self).__init__(*args, **KWs)' % self._className)
-        __init__.addChunk(_initMethod_initCheetah % {'className': self._className})
-        for chunk in self._initMethChunks:
-            __init__.addChunk(chunk)
         __init__.cleanupState()
         self._swallowMethodCompiler(__init__, pos=0)
 
@@ -1062,9 +1048,6 @@ class ClassCompiler(GenUtils):
 
     def addClassDocString(self, line):
         self._classDocStringLines.append(line.replace('%', '%%'))
-
-    def addChunkToInit(self, chunk):
-        self._initMethChunks.append(chunk)
 
     def addAttribute(self, attribExpr):
         # first test to make sure that the user hasn't used any fancy Cheetah syntax
