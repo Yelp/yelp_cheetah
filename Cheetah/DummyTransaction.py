@@ -1,31 +1,11 @@
-
-'''
-Provides dummy Transaction and Response classes is used by Cheetah in place
-of real Webware transactions when the Template obj is not used directly as a
-Webware servlet.
-
-Warning: This may be deprecated in the future, please do not rely on any
-specific DummyTransaction or DummyResponse behavior
-'''
+"""Provides Transactional buffering support for cheetah."""
 
 import logging
 
 
-class DummyResponseFailure(Exception):
-    pass
-
-
 class DummyResponse(object):
-    '''
-        A dummy Response class is used by Cheetah in place of real Webware
-        Response objects when the Template obj is not used directly as a Webware
-        servlet
-    '''
     def __init__(self):
         self._outputChunks = []
-
-    def flush(self):
-        pass
 
     def safeConvert(self, chunk):
         # Exceptionally gross, but the safest way
