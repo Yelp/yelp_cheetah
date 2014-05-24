@@ -208,7 +208,6 @@ class Template(object):
 
         if not hasattr(self, 'transaction'):
             self.transaction = None
-        self._CHEETAH__instanceInitialized = True
         self._CHEETAH__isBuffering = False
         self._CHEETAH__isControlledByWebKit = False
 

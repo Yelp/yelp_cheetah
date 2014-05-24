@@ -922,8 +922,7 @@ class ClassCompiler(GenUtils):
         self._baseClass = 'Template'
         self._classDocStringLines = []
         # printed after methods in the gen class def:
-        self._generatedAttribs = ['_CHEETAH__instanceInitialized = False']
-        self._generatedAttribs.append('_CHEETAH_version = __CHEETAH_version__')
+        self._generatedAttribs = ['_CHEETAH_version = __CHEETAH_version__']
         self._generatedAttribs.append(
             '_CHEETAH_versionTuple = __CHEETAH_versionTuple__')
 
