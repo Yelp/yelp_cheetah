@@ -57,7 +57,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useKWsDictArgForPassingTrans', True, ''),
 
     ('commentOffset', 1, ''),
-    ('outputRowColComments', True, ''),
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
@@ -404,9 +403,7 @@ class MethodCompiler(GenUtils):
 
     def addPlaceholder(self, expr, filterArgs, rawPlaceholder, lineCol):
         self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
-
-        if self.setting('outputRowColComments'):
-            self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
+        self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
 
     def addSilent(self, expr):
         self.addChunk(expr)
@@ -1073,8 +1070,7 @@ class ClassCompiler(GenUtils):
         self.addChunk(codeChunk)
 
         # self.appendToPrevChunk(' # generated from ' + repr(rawDirective) )
-        # if self.setting('outputRowColComments'):
-        #    self.appendToPrevChunk(' at line %s, col %s' % lineCol + '.')
+        # self.appendToPrevChunk(' at line %s, col %s' % lineCol + '.')
 
     # code wrapping methods
 
