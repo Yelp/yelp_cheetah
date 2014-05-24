@@ -1,7 +1,5 @@
-import os.path
 import copy as copyModule
 import re
-import types
 from ConfigParser import ConfigParser
 from StringIO import StringIO
 from tokenize import Number
@@ -81,31 +79,6 @@ class _SettingsCollector(object):
     """
 
     _ConfigParserClass = ConfigParserCaseSensitive
-
-    def readSettingsFromModule(self, mod, ignoreUnderscored=True):
-        """Returns all settings from a Python module.
-        """
-        S = {}
-        attrs = vars(mod)
-        for k, v in attrs.iteritems():
-            if (ignoreUnderscored and k.startswith('_')):
-                continue
-            else:
-                S[k] = v
-        return S
-
-    def readSettingsFromPySrcStr(self, theString):
-        """Return a dictionary of the settings in a Python src string."""
-
-        globalsDict = {'True': (1 == 1),
-                       'False': (0 == 1),
-                       }
-        newSettings = {'self': self}
-        exec((theString + os.linesep), globalsDict, newSettings)
-        del newSettings['self']
-        module = types.ModuleType('temp_settings_module')
-        module.__dict__.update(newSettings)
-        return self.readSettingsFromModule(module)
 
     def readSettingsFromConfigFileObj(self, inFile, convert=True):
         """Return the settings from a config file that uses the syntax accepted by
@@ -221,13 +194,6 @@ class SettingsManager(_SettingsCollector):
             self._settings.update(newSettings)
 
     # source specific update methods
-
-    def updateSettingsFromPySrcStr(self, theString, merge=True):
-        """Update the settings from a code in a Python src string."""
-
-        newSettings = self.readSettingsFromPySrcStr(theString)
-        self.updateSettings(newSettings,
-                            merge=newSettings.get('mergeSettings', merge))
 
     def updateSettingsFromConfigStr(self, configStr, convert=True, merge=True):
         """See the docstring for .updateSettingsFromConfigFile()

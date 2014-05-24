@@ -1417,11 +1417,7 @@ class Compiler(SettingsManager, GenUtils):
             self._initializeSettings()
             self._parser.configureParser()
             return
-        elif 'python' in KWs:
-            settingsReader = self.updateSettingsFromPySrcStr
-            # this comes from SettingsManager
         else:
-            # this comes from SettingsManager
             settingsReader = self.updateSettingsFromConfigStr
 
         settingsReader(settingsStr)
