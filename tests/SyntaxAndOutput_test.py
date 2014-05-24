@@ -1,10 +1,10 @@
+# -*- coding: UTF-8 -*-
 from __future__ import unicode_literals
 
 '''
 Syntax and Output tests.
 
 TODO
-- #finally
 - #filter
 - #echo
 - #silent
@@ -57,13 +57,15 @@ defaultTestNameSpace = {
     'anInt': 1,
     'aFloat': 1.5,
     'aList': [b'item0', b'item1', b'item2'],
-    'aDict': {'one': 'item1',
-              'two': 'item2',
-              'nestedDict': {1: 'nestedItem1',
-                             'two': 'nestedItem2'
-                             },
-              'nestedFunc': dummyFunc,
-              },
+    'aDict': {
+        'one': 'item1',
+        'two': 'item2',
+        'nestedDict': {
+            1: 'nestedItem1',
+            'two': 'nestedItem2'
+        },
+        'nestedFunc': dummyFunc,
+    },
     'aFunc': dummyFunc,
     'anObj': DummyClass(),
     'aMeth': DummyClass().meth1,
@@ -92,7 +94,7 @@ defaultTestNameSpace = {
     'letterList': ['a', 'b', 'c'],
     '_': lambda x: 'Translated: ' + x,
     'unicodeData': u'aoeu12345\u1234',
-    }
+}
 
 
 class OutputTest(unittest.TestCase):
@@ -1192,6 +1194,13 @@ class AttrDirective(OutputTest):
         self.verify("  --   #attr $test = 'blarg'   \n$test",
                     "  --   \nblarg")
 
+    def test_attr_with_unicode(self):
+        self.verify(
+            "#attr $test = u'☃'\n"
+            '$test\n',
+            '☃\n'
+        )
+
 
 class DefDirective(OutputTest):
 
@@ -1478,7 +1487,6 @@ class SilentDirective(OutputTest):
 
 
 class SetDirective(OutputTest):
-
     def test1(self):
         """simple #set"""
         self.verify("#set $testVar = 'blarg'\n$testVar",
@@ -1572,6 +1580,16 @@ $testDict.two""",
                     "123")
         self.verify("""#set $i, ($j,$k) = [1,(2,3)]\n$i$j$k""",
                     "123")
+
+
+class DelDirective(OutputTest):
+    def test(self):
+        self.verify(
+            "#set foo = {'a': '1', 'b': '2'}\n"
+            "#del foo['a']\n"
+            '${foo.keys()}\n',
+            "['b']\n",
+        )
 
 
 class IfDirective(OutputTest):
@@ -1864,6 +1882,23 @@ blarg
   #end try
 #end try""",
                     "blarg\n")
+
+
+class FinallyDirective(OutputTest):
+    def test(self):
+        self.verify(
+            '#try\n'
+            '    before\n'
+            '    #raise ValueError\n'
+            '#except ValueError\n'
+            '    in except\n'
+            '#finally\n'
+            '    in finally\n'
+            '#end try\n',
+            '    before\n'
+            '    in except\n'
+            '    in finally\n'
+        )
 
 
 class PassDirective(OutputTest):

@@ -471,11 +471,6 @@ class MethodCompiler(GenUtils):
         """
         self.addIndentingDirective(expr, lineCol=lineCol)
 
-    def addOneLineIf(self, expr, lineCol=None):
-        """For a full #if ... #end if directive
-        """
-        self.addIndentingDirective(expr, lineCol=lineCol)
-
     def addTernaryExpr(self, conditionExpr, trueExpr, falseExpr, lineCol=None):
         """For a single-lie #if ... then .... else ... directive
         <condition> then <trueExpr> else <falseExpr>
@@ -1119,16 +1114,10 @@ class ClassCompiler(GenUtils):
         return '\n\n'.join(methodDefs)
 
     def attributes(self):
-        try:
-            attribs = [
-                self.setting('indentationStep') + str(attrib)
-                for attrib in self._generatedAttribs
-            ]
-        except UnicodeEncodeError:
-            attribs = [
-                self.setting('indentationStep') + unicode(attrib)
-                for attrib in self._generatedAttribs
-            ]
+        attribs = [
+            self.setting('indentationStep') + five.text(attrib)
+            for attrib in self._generatedAttribs
+        ]
         return '\n\n'.join(attribs)
 
 
