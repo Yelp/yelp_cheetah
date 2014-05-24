@@ -300,9 +300,6 @@ class MethodCompiler(GenUtils):
         else:
             return self.wrapCode()
 
-    __str__ = methodDef
-    __unicode__ = methodDef
-
     def wrapCode(self):
         self.commitStrConst()
         methodDefChunks = (
@@ -1127,9 +1124,6 @@ class ClassCompiler(GenUtils):
             return self._classDef
         else:
             return self.wrapClassDef()
-
-    __str__ = classDef
-    __unicode__ = classDef
 
     def wrapClassDef(self):
         ind = self.setting('indentationStep')
