@@ -295,9 +295,6 @@ class ArgList(object):
         defaults = (isinstance(d, basestring) and d.strip() or None for d in self.defaults)
         return list(map(None, (a.strip() for a in self.arguments), defaults))
 
-    def __str__(self):
-        return str(self.merge())
-
 
 class _LowLevelParser(SourceReader):
     """This class implements the methods to match or extract ('get*') the basic
