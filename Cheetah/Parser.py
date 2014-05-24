@@ -248,18 +248,6 @@ class ParseError(ValueError):
         return report
 
 
-class ForbiddenSyntax(ParseError):
-    pass
-
-
-class ForbiddenExpression(ForbiddenSyntax):
-    pass
-
-
-class ForbiddenDirective(ForbiddenSyntax):
-    pass
-
-
 class ArgList(object):
     """Used by _LowLevelParser.getArgList()"""
 
@@ -859,9 +847,7 @@ class _LowLevelParser(SourceReader):
         ]
 
         This method understands *arg, and **kw
-
         """
-
         if self.peek() == '(':
             self.advance()
         else:
