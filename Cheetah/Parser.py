@@ -1605,11 +1605,6 @@ class Parser(_LowLevelParser):
         else:
             argsList = []
 
-        def includeBlockMarkers():
-            if self.setting('includeBlockMarkers'):
-                startMarker = self.setting('blockMarkerStart')
-                self._compiler.addStrConst(startMarker[0] + methodName + startMarker[1])
-
         if self.matchColonForSingleLineShortFormDirective():
             isNestedDef = (self.setting('allowNestedDefScopes')
                            and [name for name in self._openDirectivesStack if name == 'def'])
@@ -1624,7 +1619,6 @@ class Parser(_LowLevelParser):
                 # @@TR: must come before _eatRestOfDirectiveTag ... for some reason
                 self._compiler.closeDef()
             elif directiveName == 'block':
-                includeBlockMarkers()
                 self._compiler.closeBlock()
             elif directiveName == 'closure' or isNestedDef:
                 self._compiler.dedent()
@@ -1640,8 +1634,6 @@ class Parser(_LowLevelParser):
                                   argsList=argsList,
                                   startPos=startPos,
                                   isLineClearToStartToken=isLineClearToStartToken)
-            if directiveName == 'block':
-                includeBlockMarkers()
 
         return methodName, rawSignature
 

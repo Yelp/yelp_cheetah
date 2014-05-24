@@ -58,9 +58,6 @@ _DEFAULT_COMPILER_SETTINGS = [
 
     ('commentOffset', 1, ''),
     ('outputRowColComments', True, ''),
-    ('includeBlockMarkers', False, 'Wrap #block\'s in a comment in the template\'s output'),
-    ('blockMarkerStart', ('\n<!-- START BLOCK: ', ' -->\n'), ''),
-    ('blockMarkerEnd', ('\n<!-- END BLOCK: ', ' -->\n'), ''),
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
@@ -1065,9 +1062,6 @@ class ClassCompiler(GenUtils):
         self.commitStrConst()
         methCompiler = self._popActiveMethodCompiler()
         methodName = methCompiler.methodName()
-        if self.setting('includeBlockMarkers'):
-            endMarker = self.setting('blockMarkerEnd')
-            methCompiler.addStrConst(endMarker[0] + methodName + endMarker[1])
         self._swallowMethodCompiler(methCompiler)
 
         # metaData = self._blockMetaData[methodName]
