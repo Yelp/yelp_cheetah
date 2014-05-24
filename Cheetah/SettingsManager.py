@@ -51,10 +51,6 @@ def convStringToNum(theString):
     return eval(theString, {}, {})
 
 
-class NoDefault(object):
-    pass
-
-
 class ConfigParserCaseSensitive(ConfigParser):
     """A case sensitive version of the standard Python ConfigParser."""
 
@@ -156,13 +152,9 @@ class SettingsManager(_SettingsCollector):
 
     # core post startup methods
 
-    def setting(self, name, default=NoDefault):
+    def setting(self, name):
         """Get a setting from self._settings, with or without a default value."""
-
-        if default is NoDefault:
-            return self._settings[name]
-        else:
-            return self._settings.get(name, default)
+        return self._settings[name]
 
     def setSetting(self, name, value):
         """Set a setting in self._settings."""

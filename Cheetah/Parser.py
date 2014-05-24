@@ -285,11 +285,8 @@ class _LowLevelParser(SourceReader):
     def setSettingsManager(self, settingsManager):
         self._settingsManager = settingsManager
 
-    def setting(self, key, default=Unspecified):
-        if default is Unspecified:
-            return self._settingsManager.setting(key)
-        else:
-            return self._settingsManager.setting(key, default=default)
+    def setting(self, key):
+        return self._settingsManager.setting(key)
 
     def setSetting(self, key, val):
         self._settingsManager.setSetting(key, val)
@@ -1133,12 +1130,8 @@ class Parser(_LowLevelParser):
         normalizeHandlerVal = normalizeParserVal
 
         _directiveNamesAndParsers = directiveNamesAndParsers.copy()
-        customNamesAndParsers = self.setting('directiveNamesAndParsers', {})
-        _directiveNamesAndParsers.update(customNamesAndParsers)
 
         _endDirectiveNamesAndHandlers = endDirectiveNamesAndHandlers.copy()
-        customNamesAndHandlers = self.setting('endDirectiveNamesAndHandlers', {})
-        _endDirectiveNamesAndHandlers.update(customNamesAndHandlers)
 
         self._directiveNamesAndParsers = {}
         for name, val in _directiveNamesAndParsers.items():
@@ -1159,17 +1152,6 @@ class Parser(_LowLevelParser):
                                      'for', 'while',
                                      'try',
                                      ]
-        for directiveName in self.setting('closeableDirectives', []):
-            self._closeableDirectives.append(directiveName)
-
-        macroDirectives = self.setting('macroDirectives', {})
-
-        for macroName, callback in macroDirectives.items():
-            if isinstance(callback, type):
-                callback = callback(parser=self)
-            assert callback
-            self._macros[macroName] = callback
-            self._directiveNamesAndParsers[macroName] = self.eatMacroCall
 
     # main parse loop
 
