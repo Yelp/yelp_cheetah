@@ -66,7 +66,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
     ('initialMethIndentLevel', 2, ''),
-    ('outputMethodsBeforeAttributes', True, ''),
     ('addTimestampsToCompilerOutput', True, ''),
 
     # Customizing the #extends directive
@@ -1155,12 +1154,8 @@ class ClassCompiler(GenUtils):
                 '\n',
                 self.attributes(),
                 ])
-        if self.setting('outputMethodsBeforeAttributes'):
-            addMethods()
-            addAttributes()
-        else:
-            addAttributes()
-            addMethods()
+        addMethods()
+        addAttributes()
 
         classDef = '\n'.join(classDefChunks)
         self._classDef = classDef
