@@ -69,7 +69,6 @@ _DEFAULT_COMPILER_SETTINGS = [
 
     # Customizing the #extends directive
     ('autoImportForExtendsDirective', True, ''),
-    ('handlerForExtendsDirective', None, ''),
 
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
@@ -1377,11 +1376,7 @@ class Compiler(SettingsManager, GenUtils):
         else:
             self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
 
-        if self.setting('handlerForExtendsDirective'):
-            handler = self.setting('handlerForExtendsDirective')
-            baseClassName = handler(compiler=self, baseClassName=baseClassName)
-            self._getActiveClassCompiler().setBaseClass(baseClassName)
-        elif (
+        if (
             not self.setting('autoImportForExtendsDirective') or
             baseClassName == 'object' or
             baseClassName in self.importedVarNames()
