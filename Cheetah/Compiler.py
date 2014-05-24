@@ -8,7 +8,6 @@
     Compiler.compile, and Compiler.__getattr__.
 '''
 
-import sys
 import os
 import os.path
 import re
@@ -19,7 +18,6 @@ import warnings
 import copy
 
 from Cheetah import five
-from Cheetah import NameMapper
 from Cheetah.Version import Version, VersionTuple
 from Cheetah.SettingsManager import SettingsManager
 from Cheetah.Parser import Parser, ParseError, specialVarRE
@@ -1207,18 +1205,6 @@ class Compiler(SettingsManager, GenUtils):
         super(Compiler, self).__init__()
         if settings:
             self.updateSettings(settings)
-        # disable useStackFrames if the C version of NameMapper isn't compiled
-        # it's painfully slow in the Python version and bites Windows users all
-        # the time:
-        if not NameMapper.C_VERSION:
-            if not sys.platform.startswith('java'):
-                warnings.warn(
-                    "\nYou don't have the C version of NameMapper installed! "
-                    "I'm disabling Cheetah's useStackFrames option as it is "
-                    "painfully slow with the Python version of NameMapper. "
-                    "You should get a copy of Cheetah with the compiled C version of NameMapper."
-                    )
-            self.setSetting('useStackFrames', False)
 
         self._compiled = False
         self._moduleName = moduleName
