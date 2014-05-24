@@ -4,7 +4,6 @@ Provides the core API for Cheetah.
 See the docstring in the Template class and the Users' Guide for more information
 '''
 
-import logging
 import types
 
 from Cheetah import five
@@ -106,27 +105,23 @@ class Template(object):
 
         super(Template, self).__init__()
 
-        ##################################################
-        # Setup instance state attributes used during the life of template
-        # post-compile
         if searchList:
             for namespace in searchList:
-                if isinstance(namespace, dict):
-                    intersection = self.Reserved_SearchList & set(namespace.keys())
-                    warn = False
-                    if intersection:
-                        warn = True
-                    if warn:
-                        logging.info(
-                            'The following keys are members of the Template class '
-                            'and will result in NameMapper collisions!'
+                if (
+                    isinstance(namespace, dict) and
+                    self.Reserved_SearchList & set(namespace)
+                ):
+                    raise AssertionError(
+                        'The following keys are members of the Template class '
+                        'and will result in NameMapper collisions!\n'
+                        '  > {0} \n'
+                        "Please change the key's name or use the compiler "
+                        'setting "prioritizeSearchListOverSelf=True" to '
+                        'prevent the NameMapper from using the Template member '
+                        'in place of your searchList variable'.format(
+                            ', '.join(self.Reserved_SearchList & set(namespace))
                         )
-                        logging.info('  > %s ' % ', '.join(list(intersection)))
-                        logging.info(
-                            "Please change the key's name or use the compiler setting "
-                            '"prioritizeSearchListOverSelf=True" to prevent the NameMapper from using'
-                        )
-                        logging.info('the Template member in place of your searchList variable')
+                    )
 
         self._initCheetahInstance(searchList, filter, filtersLib)
 
@@ -177,7 +172,10 @@ class Template(object):
         with '_CHEETAH_' (1 underscore).
         """
         if searchList is not None and not isinstance(searchList, (list, tuple)):
-            searchList = [searchList]
+            raise AssertionError(
+                'Expected searchList to be `None`, `list`, or `tuple` '
+                'but got {0}'.format(type(searchList))
+            )
 
         self._CHEETAH__globalSetVars = {}
 
