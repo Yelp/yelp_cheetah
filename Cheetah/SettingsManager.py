@@ -1,4 +1,3 @@
-import copy as copyModule
 import re
 from ConfigParser import ConfigParser
 from StringIO import StringIO
@@ -12,18 +11,12 @@ complexNumberRE = re.compile('[\(]*' + Number + r'[ \t]*\+[ \t]*' + Number + '[\
 # FUNCTIONS ##
 
 
-def mergeNestedDictionaries(dict1, dict2, copy=False, deepcopy=False):
+def mergeNestedDictionaries(dict1, dict2):
     """Recursively merge the values of dict2 into dict1.
 
     This little function is very handy for selectively overriding settings in a
     settings dictionary that has a nested structure.
     """
-
-    if copy:
-        dict1 = copyModule.copy(dict1)
-    elif deepcopy:
-        dict1 = copyModule.deepcopy(dict1)
-
     for key, val in dict2.iteritems():
         if key in dict1 and isinstance(val, dict) and isinstance(dict1[key], dict):
             dict1[key] = mergeNestedDictionaries(dict1[key], val)
