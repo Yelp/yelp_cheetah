@@ -17,15 +17,6 @@ from Cheetah.SourceReader import SourceReader
 from Cheetah.Unspecified import Unspecified
 
 
-group = lambda *choices: '(' + '|'.join(choices) + ')'
-nongroup = lambda *choices: '(?:' + '|'.join(choices) + ')'
-namedGroup = lambda name, *choices: '(P:<' + name + '>' + '|'.join(choices) + ')'
-any = lambda *choices: group(*choices) + '*'
-maybe = lambda *choices: group(*choices) + '?'
-
-##################################################
-# CONSTANTS & GLOBALS
-
 SET_LOCAL = 0
 SET_GLOBAL = 1
 SET_MODULE = 2
@@ -107,8 +98,7 @@ for start, end in tripleQuotedStringPairs.items():
 
 WS = r'[ \f\t]*'
 EOL = r'\r\n|\n|\r'
-EOLZ = EOL + r'|\Z'
-escCharLookBehind = nongroup(r'(?<=\A)', r'(?<!\\)')
+escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
 nameCharLookAhead = r'(?=[A-Za-z_])'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
 EOLre = re.compile(r'(?:\r\n|\r|\n)')
@@ -257,18 +247,6 @@ class ParseError(ValueError):
         return report
 
 
-class ForbiddenSyntax(ParseError):
-    pass
-
-
-class ForbiddenExpression(ForbiddenSyntax):
-    pass
-
-
-class ForbiddenDirective(ForbiddenSyntax):
-    pass
-
-
 class ArgList(object):
     """Used by _LowLevelParser.getArgList()"""
 
@@ -306,11 +284,8 @@ class _LowLevelParser(SourceReader):
     def setSettingsManager(self, settingsManager):
         self._settingsManager = settingsManager
 
-    def setting(self, key, default=Unspecified):
-        if default is Unspecified:
-            return self._settingsManager.setting(key)
-        else:
-            return self._settingsManager.setting(key, default=default)
+    def setting(self, key):
+        return self._settingsManager.setting(key)
 
     def setSetting(self, key, val):
         self._settingsManager.setSetting(key, val)
@@ -868,9 +843,7 @@ class _LowLevelParser(SourceReader):
         ]
 
         This method understands *arg, and **kw
-
         """
-
         if self.peek() == '(':
             self.advance()
         else:
@@ -1115,8 +1088,8 @@ class Parser(_LowLevelParser):
     sending state dependent code generation commands to
     Cheetah.Compiler.Compiler.
     """
-    def __init__(self, src, filename=None, breakPoint=None, compiler=None):
-        super(Parser, self).__init__(src, filename=filename, breakPoint=breakPoint)
+    def __init__(self, src, filename=None, compiler=None):
+        super(Parser, self).__init__(src, filename=filename)
         self.setSettingsManager(compiler)
         self._compiler = compiler
         self.setupState()
@@ -1156,12 +1129,8 @@ class Parser(_LowLevelParser):
         normalizeHandlerVal = normalizeParserVal
 
         _directiveNamesAndParsers = directiveNamesAndParsers.copy()
-        customNamesAndParsers = self.setting('directiveNamesAndParsers', {})
-        _directiveNamesAndParsers.update(customNamesAndParsers)
 
         _endDirectiveNamesAndHandlers = endDirectiveNamesAndHandlers.copy()
-        customNamesAndHandlers = self.setting('endDirectiveNamesAndHandlers', {})
-        _endDirectiveNamesAndHandlers.update(customNamesAndHandlers)
 
         self._directiveNamesAndParsers = {}
         for name, val in _directiveNamesAndParsers.items():
@@ -1182,17 +1151,6 @@ class Parser(_LowLevelParser):
                                      'for', 'while',
                                      'try',
                                      ]
-        for directiveName in self.setting('closeableDirectives', []):
-            self._closeableDirectives.append(directiveName)
-
-        macroDirectives = self.setting('macroDirectives', {})
-
-        for macroName, callback in macroDirectives.items():
-            if isinstance(callback, type):
-                callback = callback(parser=self)
-            assert callback
-            self._macros[macroName] = callback
-            self._directiveNamesAndParsers[macroName] = self.eatMacroCall
 
     # main parse loop
 
@@ -1526,7 +1484,7 @@ class Parser(_LowLevelParser):
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         try:
             self._compiler.setCompilerSetting(settingName, valueExpr)
-        except:
+        except Exception:
             sys.stderr.write('An error occurred while processing the following #compiler directive.\n')
             sys.stderr.write('----------------------------------------------------------------------\n')
             sys.stderr.write('%s\n' % self[startPos:endPos])
@@ -1628,11 +1586,6 @@ class Parser(_LowLevelParser):
         else:
             argsList = []
 
-        def includeBlockMarkers():
-            if self.setting('includeBlockMarkers'):
-                startMarker = self.setting('blockMarkerStart')
-                self._compiler.addStrConst(startMarker[0] + methodName + startMarker[1])
-
         if self.matchColonForSingleLineShortFormDirective():
             isNestedDef = (self.setting('allowNestedDefScopes')
                            and [name for name in self._openDirectivesStack if name == 'def'])
@@ -1647,7 +1600,6 @@ class Parser(_LowLevelParser):
                 # @@TR: must come before _eatRestOfDirectiveTag ... for some reason
                 self._compiler.closeDef()
             elif directiveName == 'block':
-                includeBlockMarkers()
                 self._compiler.closeBlock()
             elif directiveName == 'closure' or isNestedDef:
                 self._compiler.dedent()
@@ -1663,8 +1615,6 @@ class Parser(_LowLevelParser):
                                   argsList=argsList,
                                   startPos=startPos,
                                   isLineClearToStartToken=isLineClearToStartToken)
-            if directiveName == 'block':
-                includeBlockMarkers()
 
         return methodName, rawSignature
 

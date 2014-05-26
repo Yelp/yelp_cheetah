@@ -1,10 +1,10 @@
+# -*- coding: UTF-8 -*-
 from __future__ import unicode_literals
 
 '''
 Syntax and Output tests.
 
 TODO
-- #finally
 - #filter
 - #echo
 - #silent
@@ -17,6 +17,7 @@ import sys
 import unittest
 import warnings
 
+from Cheetah import five
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
@@ -56,13 +57,15 @@ defaultTestNameSpace = {
     'anInt': 1,
     'aFloat': 1.5,
     'aList': [b'item0', b'item1', b'item2'],
-    'aDict': {'one': 'item1',
-              'two': 'item2',
-              'nestedDict': {1: 'nestedItem1',
-                             'two': 'nestedItem2'
-                             },
-              'nestedFunc': dummyFunc,
-              },
+    'aDict': {
+        'one': 'item1',
+        'two': 'item2',
+        'nestedDict': {
+            1: 'nestedItem1',
+            'two': 'nestedItem2'
+        },
+        'nestedFunc': dummyFunc,
+    },
     'aFunc': dummyFunc,
     'anObj': DummyClass(),
     'aMeth': DummyClass().meth1,
@@ -91,7 +94,7 @@ defaultTestNameSpace = {
     'letterList': ['a', 'b', 'c'],
     '_': lambda x: 'Translated: ' + x,
     'unicodeData': u'aoeu12345\u1234',
-    }
+}
 
 
 class OutputTest(unittest.TestCase):
@@ -108,23 +111,25 @@ Template output mismatch:
 %(actual)s%(end)s'''
 
     convertEOLs = True
-    _EOLreplacement = None
+    _EOLreplacement = '\n'
 
     _searchList = [defaultTestNameSpace]
 
     def searchList(self):
         return self._searchList
 
+    def _getCompilerSettings(self):
+        return {}
+
     def verify(self, input, expectedOutput,
                inputEncoding=None,
                outputEncoding=None,
                convertEOLs=Unspecified):
-        if self._EOLreplacement:
-            if convertEOLs is Unspecified:
-                convertEOLs = self.convertEOLs
-            if convertEOLs:
-                input = input.replace('\n', self._EOLreplacement)
-                expectedOutput = expectedOutput.replace('\n', self._EOLreplacement)
+        if convertEOLs is Unspecified:
+            convertEOLs = self.convertEOLs
+        if convertEOLs:
+            input = input.replace('\n', self._EOLreplacement)
+            expectedOutput = expectedOutput.replace('\n', self._EOLreplacement)
 
         self._input = input
 
@@ -134,19 +139,14 @@ Template output mismatch:
         searchList = self.searchList() or self._searchList
         self.template = templateObj = templateClass(searchList=searchList)
 
-        output = templateObj.respond()  # rather than __str__, because of unicode
-        assert output == expectedOutput, self._outputMismatchReport(output, expectedOutput)
-
-    def _getCompilerSettings(self):
-        return {}
-
-    def _outputMismatchReport(self, output, expectedOutput):
-        EOLrepl = self._EOLreplacement or '\n'
-        marker = '*EOL*'
-        return self.report % {'template': self._input.replace(EOLrepl, marker),
-                              'expected': expectedOutput.replace(EOLrepl, marker),
-                              'actual': output.replace(EOLrepl, marker),
-                              'end': '(end)'}
+        output = templateObj.respond()
+        if output != expectedOutput:
+            raise AssertionError(self.report % {
+                'template': self._input.replace(self._EOLreplacement, '*eol*'),
+                'expected': expectedOutput.replace(self._EOLreplacement, '*eol*'),
+                'actual': output.replace(self._EOLreplacement, '*eol*'),
+                'end': '(end)',
+            })
 
 
 class EmptyTemplate(OutputTest):
@@ -1194,6 +1194,13 @@ class AttrDirective(OutputTest):
         self.verify("  --   #attr $test = 'blarg'   \n$test",
                     "  --   \nblarg")
 
+    def test_attr_with_unicode(self):
+        self.verify(
+            "#attr $test = u'☃'\n"
+            '$test\n',
+            '☃\n'
+        )
+
 
 class DefDirective(OutputTest):
 
@@ -1480,7 +1487,6 @@ class SilentDirective(OutputTest):
 
 
 class SetDirective(OutputTest):
-
     def test1(self):
         """simple #set"""
         self.verify("#set $testVar = 'blarg'\n$testVar",
@@ -1574,6 +1580,16 @@ $testDict.two""",
                     "123")
         self.verify("""#set $i, ($j,$k) = [1,(2,3)]\n$i$j$k""",
                     "123")
+
+
+class DelDirective(OutputTest):
+    def test(self):
+        self.verify(
+            "#set foo = {'a': '1', 'b': '2'}\n"
+            "#del foo['a']\n"
+            '${foo.keys()}\n',
+            "['b']\n",
+        )
 
 
 class IfDirective(OutputTest):
@@ -1866,6 +1882,23 @@ blarg
   #end try
 #end try""",
                     "blarg\n")
+
+
+class FinallyDirective(OutputTest):
+    def test(self):
+        self.verify(
+            '#try\n'
+            '    before\n'
+            '    #raise ValueError\n'
+            '#except ValueError\n'
+            '    in except\n'
+            '#finally\n'
+            '    in finally\n'
+            '#end try\n',
+            '    before\n'
+            '    in except\n'
+            '    in finally\n'
+        )
 
 
 class PassDirective(OutputTest):
@@ -2254,6 +2287,25 @@ class MiscComplexSyntax(OutputTest):
         """
         self.verify("#set $c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]\n$c",
                     "0")
+
+
+def test_parse_error():
+    try:
+        # Invalid because it does not have an identifier (and because it is
+        # unclosed)
+        compile_to_class('#def')
+    except ParseError as e:
+        ret = five.text(e)
+        assert ret == (
+            '\n\n'
+            'Invalid identifier\n'
+            'Line 1, column 4\n'
+            '\n'
+            'Line|Cheetah Code\n'
+            '----|-------------------------------------------------------------\n'
+            '1   |#def\n'
+            '        ^\n'
+        )
 
 
 # TODO: there's probably a pytest way to do this

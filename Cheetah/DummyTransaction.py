@@ -1,61 +1,15 @@
-
-'''
-Provides dummy Transaction and Response classes is used by Cheetah in place
-of real Webware transactions when the Template obj is not used directly as a
-Webware servlet.
-
-Warning: This may be deprecated in the future, please do not rely on any
-specific DummyTransaction or DummyResponse behavior
-'''
-
-import logging
-
-
-class DummyResponseFailure(Exception):
-    pass
+"""Provides Transactional buffering support for cheetah."""
 
 
 class DummyResponse(object):
-    '''
-        A dummy Response class is used by Cheetah in place of real Webware
-        Response objects when the Template obj is not used directly as a Webware
-        servlet
-    '''
     def __init__(self):
         self._outputChunks = []
-
-    def flush(self):
-        pass
-
-    def safeConvert(self, chunk):
-        # Exceptionally gross, but the safest way
-        # I've found to ensure I get a legit unicode object
-        if not chunk:
-            return u''
-        if isinstance(chunk, unicode):
-            return chunk
-        try:
-            return chunk.decode('utf-8', 'strict')
-        except UnicodeDecodeError:
-            try:
-                return chunk.decode('latin-1', 'strict')
-            except UnicodeDecodeError:
-                return chunk.decode('ascii', 'ignore')
-        except AttributeError:
-            return unicode(chunk, errors='ignore')
-        return chunk
 
     def write(self, value):
         self._outputChunks.append(value)
 
-    def getvalue(self, outputChunks=None):
-        chunks = outputChunks or self._outputChunks
-        try:
-            return u''.join(chunks)
-        except UnicodeDecodeError:
-            logging.debug('Trying to work around a UnicodeDecodeError in getvalue()')
-            logging.debug('...perhaps you could fix "%s" while you\'re debugging')
-            return ''.join((self.safeConvert(c) for c in chunks))
+    def getvalue(self):
+        return u''.join(self._outputChunks)
 
 
 class DummyTransaction(object):

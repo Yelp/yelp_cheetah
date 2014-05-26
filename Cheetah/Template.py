@@ -4,9 +4,9 @@ Provides the core API for Cheetah.
 See the docstring in the Template class and the Users' Guide for more information
 '''
 
-import logging
 import types
 
+from Cheetah import five
 from Cheetah import Filters
 from Cheetah.NameMapper import NotFound, valueFromSearchList
 from Cheetah.Unspecified import Unspecified
@@ -40,13 +40,12 @@ class Template(object):
           klass._CHEETAH__globalSetVars (_CHEETAH__xxx with 2 underscores)
     """
 
-    def __init__(self,
-                 searchList=None,
-                 # use either or.  They are aliases for the same thing.
-
-                 filter='BaseFilter',  # which filter from Cheetah.Filters
-                 filtersLib=Filters,
-                 ):
+    def __init__(
+        self,
+        searchList=None,
+        filter=u'BaseFilter',
+        filtersLib=Filters,
+    ):
         """Instantiates an existing template.
 
         To create an instance of an existing, precompiled template class:
@@ -91,48 +90,40 @@ class Template(object):
                A module containing subclasses of Cheetah.Filters.BaseFilter. See the
                Users' Guide for more details.
         """
-        errmsg = "arg '%s' must be %s"
-        errmsgextra = errmsg + "\n%s"
-
-        if not isinstance(filter, (basestring, types.TypeType)) and not \
-                (isinstance(filter, type) and issubclass(filter, Filters.BaseFilter)):
-            raise TypeError(errmsgextra %
-                            ('filter', 'string or class',
-                             '(if class, must be subclass of Cheetah.Filters.BaseFilter)'))
-        if not isinstance(filtersLib, (basestring, types.ModuleType)):
-            raise TypeError(errmsgextra %
-                            ('filtersLib', 'string or module',
-                             '(if module, must contain subclasses of Cheetah.Filters.BaseFilter)'))
+        if not isinstance(filter, (five.text, type)):
+            raise AssertionError(
+                'Expected `filter` to be `text` or `type` but got {0}'.format(
+                    type(filter)
+                )
+            )
+        if not isinstance(filtersLib, types.ModuleType):
+            raise AssertionError(
+                'Expected `filtersLib` to be `module` but got {0}'.format(
+                    type(filtersLib)
+                )
+            )
 
         super(Template, self).__init__()
 
-        ##################################################
-        # Setup instance state attributes used during the life of template
-        # post-compile
         if searchList:
             for namespace in searchList:
-                if isinstance(namespace, dict):
-                    intersection = self.Reserved_SearchList & set(namespace.keys())
-                    warn = False
-                    if intersection:
-                        warn = True
-                    if warn:
-                        logging.info(
-                            'The following keys are members of the Template class '
-                            'and will result in NameMapper collisions!'
+                if (
+                    isinstance(namespace, dict) and
+                    self.Reserved_SearchList & set(namespace)
+                ):
+                    raise AssertionError(
+                        'The following keys are members of the Template class '
+                        'and will result in NameMapper collisions!\n'
+                        '  > {0} \n'
+                        "Please change the key's name or use the compiler "
+                        'setting "prioritizeSearchListOverSelf=True" to '
+                        'prevent the NameMapper from using the Template member '
+                        'in place of your searchList variable'.format(
+                            ', '.join(self.Reserved_SearchList & set(namespace))
                         )
-                        logging.info('  > %s ' % ', '.join(list(intersection)))
-                        logging.info(
-                            "Please change the key's name or use the compiler setting "
-                            '"prioritizeSearchListOverSelf=True" to prevent the NameMapper from using'
-                        )
-                        logging.info('the Template member in place of your searchList variable')
+                    )
 
-        self._initCheetahInstance(
-            searchList=searchList,
-            filter=filter,
-            filtersLib=filtersLib,
-        )
+        self._initCheetahInstance(searchList, filter, filtersLib)
 
     def searchList(self):
         """Return a reference to the searchlist
@@ -169,10 +160,7 @@ class Template(object):
     ##################################################
     # internal methods -- not to be called by end-users
 
-    def _initCheetahInstance(self,
-                             searchList=None,
-                             filter='BaseFilter',  # which filter from Cheetah.Filters
-                             filtersLib=Filters):
+    def _initCheetahInstance(self, searchList, filter, filtersLib):
         """Sets up the instance attributes that cheetah templates use at
         run-time.
 
@@ -184,7 +172,10 @@ class Template(object):
         with '_CHEETAH_' (1 underscore).
         """
         if searchList is not None and not isinstance(searchList, (list, tuple)):
-            searchList = [searchList]
+            raise AssertionError(
+                'Expected searchList to be `None`, `list`, or `tuple` '
+                'but got {0}'.format(type(searchList))
+            )
 
         self._CHEETAH__globalSetVars = {}
 
@@ -197,7 +188,7 @@ class Template(object):
         # @@TR: consider allowing simple callables as the filter argument
         self._CHEETAH__filtersLib = filtersLib
         self._CHEETAH__filters = {}
-        if isinstance(filter, basestring):
+        if isinstance(filter, five.text):
             filterName = filter
             klass = getattr(self._CHEETAH__filtersLib, filterName)
         else:
@@ -208,7 +199,6 @@ class Template(object):
 
         if not hasattr(self, 'transaction'):
             self.transaction = None
-        self._CHEETAH__instanceInitialized = True
         self._CHEETAH__isBuffering = False
         self._CHEETAH__isControlledByWebKit = False
 

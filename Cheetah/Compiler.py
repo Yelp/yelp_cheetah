@@ -54,10 +54,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useKWsDictArgForPassingTrans', True, ''),
 
     ('commentOffset', 1, ''),
-    ('outputRowColComments', True, ''),
-    ('includeBlockMarkers', False, 'Wrap #block\'s in a comment in the template\'s output'),
-    ('blockMarkerStart', ('\n<!-- START BLOCK: ', ' -->\n'), ''),
-    ('blockMarkerEnd', ('\n<!-- END BLOCK: ', ' -->\n'), ''),
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
@@ -240,7 +236,6 @@ class MethodCompiler(GenUtils):
         self._indentLev = self.setting('initialMethIndentLevel')
         self._pendingStrConstChunks = []
         self._methodSignature = None
-        self._methodDef = None
         self._docStringLines = []
         self._methodBodyChunks = []
 
@@ -270,20 +265,13 @@ class MethodCompiler(GenUtils):
         self._indentLev += 1
 
     def dedent(self):
-        if self._indentLev:
-            self._indentLev -= 1
-        else:
-            raise Exception('Attempt to dedent when the indentLev is 0')
+        if not self._indentLev:
+            raise AssertionError('Attempt to dedent when the indentLev is 0')
+        self._indentLev -= 1
 
     # methods for final code wrapping
 
     def methodDef(self):
-        if self._methodDef:
-            return self._methodDef
-        else:
-            return self.wrapCode()
-
-    def wrapCode(self):
         self.commitStrConst()
         methodDefChunks = (
             self.methodSignature(),
@@ -291,7 +279,6 @@ class MethodCompiler(GenUtils):
             self.docString(),
             self.methodBody())
         methodDef = ''.join(methodDefChunks)
-        self._methodDef = methodDef
         return methodDef
 
     def methodSignature(self):
@@ -399,9 +386,7 @@ class MethodCompiler(GenUtils):
 
     def addPlaceholder(self, expr, filterArgs, rawPlaceholder, lineCol):
         self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
-
-        if self.setting('outputRowColComments'):
-            self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
+        self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
 
     def addSilent(self, expr):
         self.addChunk(expr)
@@ -465,11 +450,6 @@ class MethodCompiler(GenUtils):
         self.indent()
 
     def addIf(self, expr, lineCol=None):
-        """For a full #if ... #end if directive
-        """
-        self.addIndentingDirective(expr, lineCol=lineCol)
-
-    def addOneLineIf(self, expr, lineCol=None):
         """For a full #if ... #end if directive
         """
         self.addIndentingDirective(expr, lineCol=lineCol)
@@ -867,15 +847,6 @@ class AutoMethodCompiler(MethodCompiler):
 ##################################################
 # CLASS COMPILERS
 
-_initMethod_initCheetah = """\
-if not self._CHEETAH__instanceInitialized:
-    cheetahKWArgs = {}
-    allowedKWs = 'searchList namespaces filter filtersLib'.split()
-    for k,v in KWs.items():
-        if k in allowedKWs: cheetahKWArgs[k] = v
-    self._initCheetahInstance(**cheetahKWArgs)
-""".replace('\n', '\n' + ' ' * 8)
-
 
 class ClassCompiler(GenUtils):
     methodCompilerClass = AutoMethodCompiler
@@ -910,17 +881,12 @@ class ClassCompiler(GenUtils):
         from the methods of this class!!! or you will be assigning to attributes
         of this object instead."""
 
-        if name in self.__dict__:
-            return self.__dict__[name]
-        elif hasattr(self.__class__, name):
-            return getattr(self.__class__, name)
-        elif self._activeMethodsList and hasattr(self._activeMethodsList[-1], name):
+        if self._activeMethodsList and hasattr(self._activeMethodsList[-1], name):
             return getattr(self._activeMethodsList[-1], name)
         else:
             raise AttributeError(name)
 
     def _setupState(self):
-        self._classDef = None
         self._decoratorsForNextMethod = []
         self._activeMethodsList = []        # stack while parsing/generating
         self._finishedMethodsList = []      # store by order
@@ -928,8 +894,7 @@ class ClassCompiler(GenUtils):
         self._baseClass = 'Template'
         self._classDocStringLines = []
         # printed after methods in the gen class def:
-        self._generatedAttribs = ['_CHEETAH__instanceInitialized = False']
-        self._generatedAttribs.append('_CHEETAH_version = __CHEETAH_version__')
+        self._generatedAttribs = ['_CHEETAH_version = __CHEETAH_version__']
         self._generatedAttribs.append(
             '_CHEETAH_versionTuple = __CHEETAH_versionTuple__')
 
@@ -939,7 +904,6 @@ class ClassCompiler(GenUtils):
 
         self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
 
-        self._initMethChunks = []
         self._blockMetaData = {}
 
     def cleanupState(self):
@@ -947,23 +911,16 @@ class ClassCompiler(GenUtils):
             methCompiler = self._popActiveMethodCompiler()
             self._swallowMethodCompiler(methCompiler)
         self._setupInitMethod()
-        self.addAttribute(
-            '_mainCheetahMethod_for_' + self._className + '= ' + repr(self._mainMethodName)
-        )
 
     def _setupInitMethod(self):
-        __init__ = self._spawnMethodCompiler('__init__',
-                                             klass=self.methodCompilerClassForInit)
+        __init__ = self._spawnMethodCompiler(
+            '__init__',
+            klass=self.methodCompilerClassForInit,
+        )
         __init__.setMethodSignature("def __init__(self, *args, **KWs)")
         __init__.addChunk('super(%s, self).__init__(*args, **KWs)' % self._className)
-        __init__.addChunk(_initMethod_initCheetah % {'className': self._className})
-        for chunk in self._initMethChunks:
-            __init__.addChunk(chunk)
         __init__.cleanupState()
         self._swallowMethodCompiler(__init__, pos=0)
-
-    def setClassName(self, name):
-        self._className = name
 
     def className(self):
         return self._className
@@ -1046,9 +1003,6 @@ class ClassCompiler(GenUtils):
     def addClassDocString(self, line):
         self._classDocStringLines.append(line.replace('%', '%%'))
 
-    def addChunkToInit(self, chunk):
-        self._initMethChunks.append(chunk)
-
     def addAttribute(self, attribExpr):
         # first test to make sure that the user hasn't used any fancy Cheetah syntax
         # (placeholders, directives, etc.) inside the expression
@@ -1083,9 +1037,6 @@ class ClassCompiler(GenUtils):
         self.commitStrConst()
         methCompiler = self._popActiveMethodCompiler()
         methodName = methCompiler.methodName()
-        if self.setting('includeBlockMarkers'):
-            endMarker = self.setting('blockMarkerEnd')
-            methCompiler.addStrConst(endMarker[0] + methodName + endMarker[1])
         self._swallowMethodCompiler(methCompiler)
 
         # metaData = self._blockMetaData[methodName]
@@ -1097,18 +1048,11 @@ class ClassCompiler(GenUtils):
         self.addChunk(codeChunk)
 
         # self.appendToPrevChunk(' # generated from ' + repr(rawDirective) )
-        # if self.setting('outputRowColComments'):
-        #    self.appendToPrevChunk(' at line %s, col %s' % lineCol + '.')
+        # self.appendToPrevChunk(' at line %s, col %s' % lineCol + '.')
 
     # code wrapping methods
 
     def classDef(self):
-        if self._classDef:
-            return self._classDef
-        else:
-            return self.wrapClassDef()
-
-    def wrapClassDef(self):
         ind = self.setting('indentationStep')
         classDefChunks = [self.classSignature(),
                           self.classDocstring(),
@@ -1133,7 +1077,6 @@ class ClassCompiler(GenUtils):
         addAttributes()
 
         classDef = '\n'.join(classDefChunks)
-        self._classDef = classDef
         return classDef
 
     def classSignature(self):
@@ -1154,21 +1097,12 @@ class ClassCompiler(GenUtils):
         return '\n\n'.join(methodDefs)
 
     def attributes(self):
-        try:
-            attribs = [
-                self.setting('indentationStep') + str(attrib)
-                for attrib in self._generatedAttribs
-            ]
-        except UnicodeEncodeError:
-            attribs = [
-                self.setting('indentationStep') + unicode(attrib)
-                for attrib in self._generatedAttribs
-            ]
+        attribs = [
+            self.setting('indentationStep') + five.text(attrib)
+            for attrib in self._generatedAttribs
+        ]
         return '\n\n'.join(attribs)
 
-
-class AutoClassCompiler(ClassCompiler):
-    pass
 
 ##################################################
 # MODULE COMPILERS
@@ -1176,7 +1110,7 @@ class AutoClassCompiler(ClassCompiler):
 
 class Compiler(SettingsManager, GenUtils):
     parserClass = Parser
-    classCompilerClass = AutoClassCompiler
+    classCompilerClass = ClassCompiler
 
     def __init__(self,
                  source=None,
@@ -1184,7 +1118,6 @@ class Compiler(SettingsManager, GenUtils):
                  mainClassName=None,  # string
                  mainMethodName=None,  # string
                  baseclassName=None,  # string
-                 extraImportStatements=None,  # list of strings
                  settings=None  # dict
                  ):
         super(Compiler, self).__init__()
@@ -1224,11 +1157,7 @@ class Compiler(SettingsManager, GenUtils):
         from the methods of this class!!! or you will be assigning to attributes
         of this object instead.
         """
-        if name in self.__dict__:
-            return self.__dict__[name]
-        elif hasattr(self.__class__, name):
-            return getattr(self.__class__, name)
-        elif self._activeClassesList and hasattr(self._activeClassesList[-1], name):
+        if self._activeClassesList and hasattr(self._activeClassesList[-1], name):
             return getattr(self._activeClassesList[-1], name)
         else:
             raise AttributeError(name)
@@ -1260,7 +1189,7 @@ class Compiler(SettingsManager, GenUtils):
             "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
             "from Cheetah.Template import NO_CONTENT",
             "from Cheetah.Template import Template",
-            "from Cheetah.DummyTransaction import *",
+            "from Cheetah.DummyTransaction import DummyTransaction",
             "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
             "import Cheetah.Filters as Filters",
         ]
@@ -1405,11 +1334,7 @@ class Compiler(SettingsManager, GenUtils):
             self._initializeSettings()
             self._parser.configureParser()
             return
-        elif 'python' in KWs:
-            settingsReader = self.updateSettingsFromPySrcStr
-            # this comes from SettingsManager
         else:
-            # this comes from SettingsManager
             settingsReader = self.updateSettingsFromConfigStr
 
         settingsReader(settingsStr)
