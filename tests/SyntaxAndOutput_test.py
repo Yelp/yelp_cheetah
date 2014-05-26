@@ -1760,9 +1760,9 @@ class PSP(OutputTest):
 <%
 me = self.getVar('me')
 if isinstance(me, int):
-    write('Bork')
+    write(u'Bork')
 else:
-    write('Nork')
+    write(u'Nork')
 %>'''
         self.verify(template, 'This is my template\nBork')
 
