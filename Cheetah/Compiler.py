@@ -8,7 +8,6 @@
     Compiler.compile, and Compiler.__getattr__.
 '''
 
-import sys
 import os
 import os.path
 import re
@@ -19,7 +18,6 @@ import warnings
 import copy
 
 from Cheetah import five
-from Cheetah import NameMapper
 from Cheetah.Version import Version, VersionTuple
 from Cheetah.SettingsManager import SettingsManager
 from Cheetah.Parser import Parser, ParseError, specialVarRE
@@ -42,7 +40,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('allowSearchListAsMethArg', True, ''),
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', True, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
-    ('useStackFrames', True, 'Used for NameMapper.valueFromFrameOrSearchList rather than NameMapper.valueFromSearchList'),
     ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     (
@@ -178,13 +175,6 @@ class GenUtils(object):
 
           B` = VFN(A`, name=B[0], executeCallables=(useAC and B[1]))B[2]
           A` = VFFSL(SL, name=A[0], executeCallables=(useAC and A[1]))A[2]
-
-
-        Note, if the compiler setting useStackFrames=False (default is true)
-        then
-          A` = VFSL([locals()] + SL + [globals(), __builtin__], name=A[0], executeCallables=(useAC and A[1]))A[2]
-        This option allows Cheetah to be used with Psyco, which doesn't support
-        stack frame introspection.
         """
         defaultUseAC = self.setting('useAutocalling')
         useDottedNotation = self.setting('useDottedNotation')
@@ -206,15 +196,8 @@ class GenUtils(object):
                 )
             else:
                 pythonCode = name + remainder
-        elif self.setting('useStackFrames'):
-            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
-                name,
-                defaultUseAC and useAC,
-                useDottedNotation,
-                remainder,
-            )
         else:
-            pythonCode = 'VFSL([locals()] + SL + [globals(), builtin], "%s", %s, %s)%s' % (
+            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
                 name,
                 defaultUseAC and useAC,
                 useDottedNotation,
@@ -1207,18 +1190,6 @@ class Compiler(SettingsManager, GenUtils):
         super(Compiler, self).__init__()
         if settings:
             self.updateSettings(settings)
-        # disable useStackFrames if the C version of NameMapper isn't compiled
-        # it's painfully slow in the Python version and bites Windows users all
-        # the time:
-        if not NameMapper.C_VERSION:
-            if not sys.platform.startswith('java'):
-                warnings.warn(
-                    "\nYou don't have the C version of NameMapper installed! "
-                    "I'm disabling Cheetah's useStackFrames option as it is "
-                    "painfully slow with the Python version of NameMapper. "
-                    "You should get a copy of Cheetah with the compiled C version of NameMapper."
-                    )
-            self.setSetting('useStackFrames', False)
 
         self._compiled = False
         self._moduleName = moduleName

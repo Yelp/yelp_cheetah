@@ -6,8 +6,6 @@ import subprocess
 import sys
 from time import time
 
-from Cheetah.NameMapper import C_VERSION
-
 
 BEST_OF = 5
 TIME_PER_TEST = 200  # milliseconds
@@ -55,7 +53,6 @@ def main():
     print('=' * 80)
     sha = get_output('git', 'rev-parse', 'HEAD')
     print('SHA = {0}'.format(sha))
-    print('C_VERSION = {0!r}'.format(C_VERSION))
     print('BEST_OF = {0}'.format(BEST_OF))
     print('ITERATIONS = {0}'.format(ITERATIONS))
     print('TIME_PER_TEST = {0}'.format(TIME_PER_TEST))
