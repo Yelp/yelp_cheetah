@@ -101,6 +101,7 @@ EOL = r'\r\n|\n|\r'
 escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
 nameCharLookAhead = r'(?=[A-Za-z_])'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
+directiveRE = re.compile(r'[@a-zA-Z_][a-zA-Z0-9_-]*')
 EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
 specialVarRE = re.compile(r'([a-zA-z_]+)@')  # for matching specialVar comments
@@ -559,30 +560,20 @@ class _LowLevelParser(SourceReader):
         self.setPos(startPos)
         return directiveName
 
-    def matchDirectiveName(self, directiveNameChars=identchars + '0123456789-@'):
-        startPos = self.pos()
-        possibleMatches = self._directiveNamesAndParsers.keys()
-        name = ''
-        match = None
+    def matchDirectiveName(self):
+        directive_match = directiveRE.match(self.src(), self.pos())
+        match_text = directive_match.group(0)
 
-        while not self.atEnd():
-            c = self.getc()
-            if c not in directiveNameChars:
-                break
-            name += c
-            if name == '@':
-                if not self.atEnd() and self.peek() in identchars:
-                    match = '@'
-                break
-            possibleMatches = [dn for dn in possibleMatches if dn.startswith(name)]
-            if not possibleMatches:
-                break
-            elif (name in possibleMatches and (self.atEnd() or self.peek() not in directiveNameChars)):
-                match = name
-                break
-
-        self.setPos(startPos)
-        return match
+        # Things that look like decorators are caught here
+        if match_text == '@':
+            return None
+        # #@ is the "directive" for decorators
+        elif match_text.startswith('@') and match_text[1] in identchars:
+            return '@'
+        elif match_text in self._directiveNamesAndParsers:
+            return match_text
+        else:
+            return None
 
     def matchDirectiveStartToken(self):
         return self.directiveStartTokenRE.match(self.src(), self.pos())
