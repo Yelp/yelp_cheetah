@@ -78,7 +78,7 @@ def compile_template(filename):
     if not isinstance(filename, five.text):
         filename = filename.decode('utf-8')
 
-    Cheetah.compile.compile_file(
+    return Cheetah.compile.compile_file(
         filename,
         settings=CHEETAH_OPTS,
         compiler_cls=Compiler,
