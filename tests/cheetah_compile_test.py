@@ -7,7 +7,7 @@ import sys
 
 from Cheetah import five
 from Cheetah.cheetah_compile import compile_template
-from Cheetah.Parser import ParseError
+from Cheetah.Parser import UnknownDirectiveError
 
 
 def get_cheetah_template_output(py_path):
@@ -34,17 +34,17 @@ def test_unknown_macro_name(tmpdir):
     tmpl_path = write_template(tmpdir.strpath, '#foo\n')
     try:
         compile_template(tmpl_path)
-    except ParseError as e:
+    except UnknownDirectiveError as e:
         ret = five.text(e)
         assert ret == (
             '\n\n'
             'Bad macro name: "foo". You may want to escape that # sign?\n'
-            'Line 1, column 1\n'
+            'Line 1, column 2\n'
             '\n'
             'Line|Cheetah Code\n'
             '----|-------------------------------------------------------------\n'
             '1   |#foo\n'
-            '     ^\n'
+            '      ^\n'
         )
         return
     raise AssertionError('Expected to raise')
