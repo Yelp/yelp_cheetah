@@ -75,6 +75,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('gettextTokens', ["_", "N_", "ngettext"], ''),
     ('allowExpressionsInExtendsDirective', False, ''),
     ('allowNestedDefScopes', True, ''),
+    ('macroDirectives', {}, 'For providing macros'),
 ]
 
 DEFAULT_COMPILER_SETTINGS = dict([(v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS])

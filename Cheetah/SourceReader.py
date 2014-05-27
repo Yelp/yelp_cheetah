@@ -10,8 +10,7 @@ class SourceReader(object):
     def __init__(self, src, filename=None, encoding=None):
         self._src = src
         self._filename = filename
-        self._srcLen = len(src)
-        self._breakPoint = self._srcLen
+        self._breakPoint = len(self._src)
         self._pos = 0
 
         # collect some meta-information
@@ -88,10 +87,10 @@ class SourceReader(object):
         return self._breakPoint
 
     def setBreakPoint(self, pos):
-        if pos > self._srcLen:
+        if pos > len(self._src):
             raise AssertionError(
                 "New breakpoint ({0}) is invalid: beyond the end of stream's "
-                "source string ({1})".format(pos, self._srcLen)
+                "source string ({1})".format(pos, len(self._src))
             )
         elif not pos >= 0:
             raise AssertionError(

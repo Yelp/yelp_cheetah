@@ -2308,6 +2308,57 @@ def test_parse_error():
         )
 
 
+def to_kwargs_string(kwargs):
+    return ', '.join(
+        '{0}={1!r}'.format(key, value) for key, value in kwargs.items()
+    )
+
+
+class ClassMacro(object):
+    def __init__(self, parser):
+        pass
+
+    def __call__(self, src, **kwargs):
+        return (
+            'Hello from ClassMacro\n'
+            'arglist: {0}\n'
+            'source: {1}\n'.format(to_kwargs_string(kwargs), src)
+        )
+
+
+def func_macro(src, **kwargs):
+    return (
+        'Hello from func_macro\n'
+        'arglist: {0}\n'
+        'source: {1}\n'.format(to_kwargs_string(kwargs), src)
+    )
+
+
+MACRO_SETTINGS = {
+    'macroDirectives': {'ClassMacro': ClassMacro, 'func_macro': func_macro},
+}
+
+
+@pytest.mark.parametrize('macro_name', ('ClassMacro', 'func_macro'))
+def test_class_macros(macro_name):
+    cls = compile_to_class(
+        'before\n'
+        '#{0} hello="world"\n'
+        'macro source\n'
+        '#end {0}\n'
+        'after\n'.format(macro_name),
+        settings=MACRO_SETTINGS,
+    )
+
+    assert cls().respond() == (
+        'before\n'
+        'Hello from {0}\n'
+        "arglist: hello='world'\n"
+        'source: macro source\n\n'
+        'after\n'.format(macro_name)
+    )
+
+
 # TODO: there's probably a pytest way to do this
 def __add_eol_tests():
     """Add tests for different end-of-line formats."""

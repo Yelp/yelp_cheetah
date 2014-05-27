@@ -1152,6 +1152,13 @@ class Parser(_LowLevelParser):
                                      'try',
                                      ]
 
+        for macroName, callback in self.setting('macroDirectives').items():
+            if isinstance(callback, type):
+                callback = callback(parser=self)
+            assert callback
+            self._macros[macroName] = callback
+            self._directiveNamesAndParsers[macroName] = self.eatMacroCall
+
     # main parse loop
 
     def parse(self, breakPoint=None, assertEmptyStack=True):
