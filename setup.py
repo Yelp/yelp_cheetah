@@ -47,7 +47,7 @@ def run_setup(with_binary):
 
     setup(
         name="yelp_cheetah",
-        version='0.1.0a',
+        version='0.1.0',
         description='cheetah, hacked by yelpers',
         classifiers=[
             'Intended Audience :: Developers',
@@ -68,7 +68,7 @@ def run_setup(with_binary):
             'Topic :: Software Development :: User Interfaces',
             'Topic :: Text Processing',
         ],
-        author="Anthony Sottile, Buck Golemon",
+        author="Anthony Sottile, Buck Evan",
         author_email="buck@yelp.com",
         url="http://github.com/bukzor/yelp_cheetah",
         license='MIT License',
