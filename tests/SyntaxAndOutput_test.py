@@ -2350,6 +2350,14 @@ def test_class_macros(macro_name):
     )
 
 
+def test_comment_directive_ambiguity():
+    cls = compile_to_class(
+        '#set $foo = 1##set $bar = 2\n'
+        '$foo $bar\n'
+    )
+    assert cls().respond().strip() == '1 2'
+
+
 # TODO: there's probably a pytest way to do this
 def __add_eol_tests():
     """Add tests for different end-of-line formats."""
