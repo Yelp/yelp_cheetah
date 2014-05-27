@@ -1,11 +1,10 @@
 #-------Main Package Settings-----------#
 import sys
 
-name = 'Cheetah'
+name = 'yelp_cheetah'
 from cheetah.Version import Version as version
-maintainer = "R. Tyler Ballance"
-author = "Tavis Rudd"
-author_email = "cheetahtemplate-discuss@lists.sf.net"
+author="Anthony Sottile, Buck Evan",
+author_email = "buck@yelp.com"
 url = "http://www.cheetahtemplate.org/"
 packages = ['Cheetah',
             'Cheetah.Macros',            
