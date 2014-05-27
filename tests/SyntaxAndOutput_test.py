@@ -176,15 +176,6 @@ class EmptyTemplate(OutputTest):
 class Backslashes(OutputTest):
     convertEOLs = False
 
-    def setUp(self):
-        with open('backslashes.txt', 'w') as backslashes:
-            backslashes.write(
-                r'\ #LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n'
-            )
-
-    def tearDown(self):
-        os.remove('backslashes.txt')
-
     def test1(self):
         """ a single \\ using rawstrings"""
         self.verify(r"\ ",
@@ -202,7 +193,7 @@ class Backslashes(OutputTest):
 
     def test4(self):
         """ single line from an apache conf file"""
-        self.verify(r'#LogFormat "%h %l %u %t \"%r\" %>s %b"',
+        self.verify(r'\#LogFormat "%h %l %u %t \"%r\" %>s %b"',
                     r'#LogFormat "%h %l %u %t \"%r\" %>s %b"')
 
     def test5(self):
@@ -213,7 +204,7 @@ class Backslashes(OutputTest):
         triple-quotes for strings with lots of \\n in them and repr(theStr) for
         shorter strings with only a few newlines."""
 
-        self.verify(r'#LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n',
+        self.verify(r'\#LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n',
                     r'#LogFormat "%h %l %u %t \"%r\" %>s %b"' + '\n\n\n\n\n\n\n')
 
     def test7(self):
@@ -225,7 +216,7 @@ class Backslashes(OutputTest):
         """ single line from an apache conf file with single quotes and many NEWLINES
         """
 
-        self.verify(r"""#LogFormat '%h %l %u %t \"%r\" %>s %b'""" + '\n\n\n\n\n\n\n',
+        self.verify(r"""\#LogFormat '%h %l %u %t \"%r\" %>s %b'""" + '\n\n\n\n\n\n\n',
                     r"""#LogFormat '%h %l %u %t \"%r\" %>s %b'""" + '\n\n\n\n\n\n\n')
 
 
@@ -242,7 +233,7 @@ class NonTokens(OutputTest):
 
     def test3(self):
         """escapted comments"""
-        self.verify("  \##escaped comment  ",
+        self.verify("  \#\#escaped comment  ",
                     "  ##escaped comment  ")
 
     def test4(self):
@@ -2357,6 +2348,14 @@ def test_class_macros(macro_name):
         'source: macro source\n\n'
         'after\n'.format(macro_name)
     )
+
+
+def test_comment_directive_ambiguity():
+    cls = compile_to_class(
+        '#set $foo = 1##set $bar = 2\n'
+        '$foo $bar\n'
+    )
+    assert cls().respond().strip() == '1 2'
 
 
 # TODO: there's probably a pytest way to do this

@@ -101,6 +101,7 @@ EOL = r'\r\n|\n|\r'
 escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
 nameCharLookAhead = r'(?=[A-Za-z_])'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
+directiveRE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@[a-zA-Z_][a-zA-Z0-9_]*)')
 EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
 specialVarRE = re.compile(r'([a-zA-z_]+)@')  # for matching specialVar comments
@@ -245,6 +246,10 @@ class ParseError(ValueError):
             report += self.extMsg + '\n'
 
         return report
+
+
+class UnknownDirectiveError(ParseError):
+    pass
 
 
 class ArgList(object):
@@ -559,30 +564,26 @@ class _LowLevelParser(SourceReader):
         self.setPos(startPos)
         return directiveName
 
-    def matchDirectiveName(self, directiveNameChars=identchars + '0123456789-@'):
-        startPos = self.pos()
-        possibleMatches = self._directiveNamesAndParsers.keys()
-        name = ''
-        match = None
+    def matchDirectiveName(self):
+        directive_match = directiveRE.match(self.src(), self.pos())
+        # There is a case where something looks like a decorator but actually
+        # isn't a decorator.  The parsing for this is particularly wonky
+        if directive_match is None:
+            return None
 
-        while not self.atEnd():
-            c = self.getc()
-            if c not in directiveNameChars:
-                break
-            name += c
-            if name == '@':
-                if not self.atEnd() and self.peek() in identchars:
-                    match = '@'
-                break
-            possibleMatches = [dn for dn in possibleMatches if dn.startswith(name)]
-            if not possibleMatches:
-                break
-            elif (name in possibleMatches and (self.atEnd() or self.peek() not in directiveNameChars)):
-                match = name
-                break
+        match_text = directive_match.group(0)
 
-        self.setPos(startPos)
-        return match
+        # #@ is the "directive" for decorators
+        if match_text.startswith('@'):
+            return '@'
+        elif match_text in self._directiveNamesAndParsers:
+            return match_text
+        else:
+            raise UnknownDirectiveError(
+                self,
+                'Bad macro name: "{0}". '
+                'You may want to escape that # sign?'.format(match_text),
+            )
 
     def matchDirectiveStartToken(self):
         return self.directiveStartTokenRE.match(self.src(), self.pos())
@@ -1312,10 +1313,26 @@ class Parser(_LowLevelParser):
 
     def _eatRestOfDirectiveTag(self, isLineClearToStartToken, endOfFirstLinePos):
         foundComment = False
+        # There's a potential ambiguity when parsing comments on directived
+        # lines.
+        # The difficult thing to differentiate is between the following
+        # cases:
+        # 1. #if foo:##end if#
+        # Here, the part that begins with ## is matched as a comment but is
+        # actually a directive
+        # 2. #if foo: ##comment
+        # Here it is actually a comment, but (potentially) ParseErrors as a
+        # missing directive.
         if self.matchCommentStartToken():
             pos = self.pos()
             self.advance()
-            if not self.matchDirective():
+
+            try:
+                matched_directive = self.matchDirective()
+            except UnknownDirectiveError:
+                matched_directive = False
+
+            if not matched_directive:
                 self.setPos(pos)
                 foundComment = True
                 self.eatComment()  # this won't gobble the EOL
@@ -1323,7 +1340,7 @@ class Parser(_LowLevelParser):
                 self.setPos(pos)
 
         if not foundComment and self.matchDirectiveEndToken():
-                self.getDirectiveEndToken()
+            self.getDirectiveEndToken()
         elif isLineClearToStartToken and (not self.atEnd()) and self.peek() in '\r\n':
             # still gobble the EOL if a comment was found.
             self.readToEOL(gobble=True)
