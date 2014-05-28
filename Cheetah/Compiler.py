@@ -18,7 +18,6 @@ import warnings
 import copy
 
 from Cheetah import five
-from Cheetah.Version import Version, VersionTuple
 from Cheetah.SettingsManager import SettingsManager
 from Cheetah.Parser import Parser, ParseError
 from Cheetah.Parser import SET_GLOBAL, SET_MODULE
@@ -873,9 +872,7 @@ class ClassCompiler(GenUtils):
         self._methodsIndex = {}      # store by name
         self._baseClass = 'Template'
         # printed after methods in the gen class def:
-        self._generatedAttribs = ['_CHEETAH_version = __CHEETAH_version__']
-        self._generatedAttribs.append(
-            '_CHEETAH_versionTuple = __CHEETAH_versionTuple__')
+        self._generatedAttribs = []
 
         if self.setting('addTimestampsToCompilerOutput'):
             self._generatedAttribs.append('_CHEETAH_genTime = __CHEETAH_genTime__')
@@ -1148,8 +1145,6 @@ class Compiler(SettingsManager, GenUtils):
             '    import __builtin__ as builtin',
             "from os.path import getmtime, exists",
             "import types",
-            "from Cheetah.Version import MinCompatibleVersion as RequiredCheetahVersion",
-            "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
             "from Cheetah.Template import NO_CONTENT",
             "from Cheetah.Template import Template",
             "from Cheetah.DummyTransaction import DummyTransaction",
@@ -1362,8 +1357,6 @@ class Compiler(SettingsManager, GenUtils):
     __str__ = getModuleCode
 
     def wrapModuleDef(self):
-        self.addModuleGlobal('__CHEETAH_version__ = %r' % Version)
-        self.addModuleGlobal('__CHEETAH_versionTuple__ = %r' % (VersionTuple,))
         if self.setting('addTimestampsToCompilerOutput'):
             self.addModuleGlobal('__CHEETAH_genTime__ = %r' % time.time())
             self.addModuleGlobal('__CHEETAH_genTimestamp__ = %r' % self.timestamp())
@@ -1380,12 +1373,6 @@ class Compiler(SettingsManager, GenUtils):
 
             %(constants)s
             %(specialVars)s
-
-            if __CHEETAH_versionTuple__ < RequiredCheetahVersionTuple:
-                raise AssertionError(
-                  'This template was compiled with Cheetah version'
-                  ' %%s. Templates compiled before version %%s must be recompiled.'%%(
-                     __CHEETAH_version__, RequiredCheetahVersion))
 
             %(classes)s
 
