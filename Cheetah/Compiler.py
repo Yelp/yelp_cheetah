@@ -1447,7 +1447,8 @@ class Compiler(SettingsManager, GenUtils):
 
 if __name__ == '__main__':
     from os import environ
-    print({main_class_name}(searchList=[environ]).respond())
+    from sys import stdout
+    stdout.write({main_class_name}(searchList=[environ]).respond())
 """.format(main_class_name=self._mainClassName)
 
 # vim: shiftwidth=4 tabstop=4 expandtab
