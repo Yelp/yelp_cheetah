@@ -57,11 +57,9 @@ class SourceReader(object):
         BOL = self._BOLs[lineNum]
         return lineNum + 1, pos - BOL + 1
 
-    def getRowColLine(self, pos=None):
-        if pos is None:
-            pos = self._pos
-        row, col = self.getRowCol(pos)
-        return row, col, self.splitlines()[row-1]
+    def getRowColLine(self):
+        row, col = self.getRowCol(self._pos)
+        return row, col, self.splitlines()[row - 1]
 
     def pos(self):
         return self._pos
@@ -153,11 +151,8 @@ class SourceReader(object):
         src = self.src()
         return max(src.rfind('\n', 0, pos)+1, src.rfind('\r', 0, pos) + 1, 0)
 
-    def findEOL(self, pos=None, gobble=False):
-        if pos is None:
-            pos = self._pos
-
-        match = EOLZre.search(self.src(), pos)
+    def findEOL(self, gobble=False):
+        match = EOLZre.search(self.src(), self._pos)
         if gobble:
             return match.end()
         else:

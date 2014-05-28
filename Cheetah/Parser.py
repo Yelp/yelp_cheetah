@@ -452,8 +452,7 @@ class _LowLevelParser(SourceReader):
 
     def getCommentStartToken(self):
         match = self.matchCommentStartToken()
-        if not match:
-            raise ParseError(self, msg='Invalid single-line comment start token')
+        assert match
         return self.readTo(match.end())
 
     def matchMultiLineCommentStartToken(self):
@@ -461,8 +460,7 @@ class _LowLevelParser(SourceReader):
 
     def getMultiLineCommentStartToken(self):
         match = self.matchMultiLineCommentStartToken()
-        if not match:
-            raise ParseError(self, msg='Invalid multi-line comment start token')
+        assert match
         return self.readTo(match.end())
 
     def matchMultiLineCommentEndToken(self):
@@ -470,8 +468,7 @@ class _LowLevelParser(SourceReader):
 
     def getMultiLineCommentEndToken(self):
         match = self.matchMultiLineCommentEndToken()
-        if not match:
-            raise ParseError(self, msg='Invalid multi-line comment end token')
+        assert match
         return self.readTo(match.end())
 
     def getCommaSeparatedSymbols(self):
@@ -538,7 +535,7 @@ class _LowLevelParser(SourceReader):
     def getIdentifier(self):
         match = self.matchIdentifier()
         if not match:
-            raise ParseError(self, msg='Invalid identifier')
+            raise ParseError(self, 'Invalid identifier')
         return self.readTo(match.end())
 
     def matchAssignmentOperator(self):
@@ -549,8 +546,7 @@ class _LowLevelParser(SourceReader):
 
     def getAssignmentOperator(self):
         match = self.matchAssignmentOperator()
-        if not match:
-            raise ParseError(self, msg='Expected assignment operator')
+        assert match
         return self.readTo(match.end())
 
     def matchDirective(self):
@@ -590,8 +586,7 @@ class _LowLevelParser(SourceReader):
 
     def getDirectiveStartToken(self):
         match = self.matchDirectiveStartToken()
-        if not match:
-            raise ParseError(self, msg='Invalid directive start token')
+        assert match
         return self.readTo(match.end())
 
     def matchDirectiveEndToken(self):
@@ -599,8 +594,7 @@ class _LowLevelParser(SourceReader):
 
     def getDirectiveEndToken(self):
         match = self.matchDirectiveEndToken()
-        if not match:
-            raise ParseError(self, msg='Invalid directive end token')
+        assert match
         return self.readTo(match.end())
 
     def matchColonForSingleLineShortFormDirective(self):
@@ -623,14 +617,12 @@ class _LowLevelParser(SourceReader):
 
     def getPSPStartToken(self):
         match = self.matchPSPStartToken()
-        if not match:
-            raise ParseError(self, msg='Invalid psp start token')
+        assert match
         return self.readTo(match.end())
 
     def getPSPEndToken(self):
         match = self.matchPSPEndToken()
-        if not match:
-            raise ParseError(self, msg='Invalid psp end token')
+        assert match
         return self.readTo(match.end())
 
     def matchCheetahVarStart(self):
@@ -656,8 +648,7 @@ class _LowLevelParser(SourceReader):
     def getCheetahVarStartToken(self):
         """just the start token, not the enclosure"""
         match = self.matchCheetahVarStartToken()
-        if not match:
-            raise ParseError(self, msg='Expected Cheetah $var start token')
+        assert match
         return self.readTo(match.end())
 
     def getTargetVarsList(self):
@@ -1043,7 +1034,7 @@ class _LowLevelParser(SourceReader):
                 self,
                 msg='This form of $placeholder syntax is not valid here.')
 
-    def getPlaceholder(self, plain=False, returnEverything=False):
+    def getPlaceholder(self, plain=False):
         startPos = self.pos()
         lineCol = self.getRowCol(startPos)
         self.getCheetahVarStartToken()
@@ -1078,10 +1069,7 @@ class _LowLevelParser(SourceReader):
                 expr = expr[:-1]
             rawPlaceholder = self[startPos: self.pos()]
 
-        if returnEverything:
-            return (expr, rawPlaceholder, lineCol, filterArgs)
-        else:
-            return expr
+        return (expr, rawPlaceholder, lineCol, filterArgs)
 
 
 class Parser(_LowLevelParser):
@@ -1249,7 +1237,7 @@ class Parser(_LowLevelParser):
         self._compiler.addComment(comm)
 
     def eatPlaceholder(self):
-        (expr, rawPlaceholder, lineCol, filterArgs) = self.getPlaceholder(returnEverything=True)
+        (expr, rawPlaceholder, lineCol, filterArgs) = self.getPlaceholder()
 
         self._compiler.addPlaceholder(
             expr,
@@ -1690,11 +1678,8 @@ class Parser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len('extends'))
         self.getWhiteSpace()
-        if self.setting('allowExpressionsInExtendsDirective'):
-            baseName = self.getExpression()
-        else:
-            baseName = self.getCommaSeparatedSymbols()
-            baseName = ', '.join(baseName)
+        baseName = self.getCommaSeparatedSymbols()
+        baseName = ', '.join(baseName)
 
         self._compiler.setBaseClass(baseName)  # in compiler
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
@@ -1749,10 +1734,7 @@ class Parser(_LowLevelParser):
         self.advance(3)
         self.getWhiteSpace()
         style = SET_LOCAL
-        if self.startswith('local'):
-            self.getIdentifier()
-            self.getWhiteSpace()
-        elif self.startswith('global'):
+        if self.startswith('global'):
             self.getIdentifier()
             self.getWhiteSpace()
             style = SET_GLOBAL

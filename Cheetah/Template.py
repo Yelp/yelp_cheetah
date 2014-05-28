@@ -183,7 +183,6 @@ class Template(object):
         self._CHEETAH__searchList = [self._CHEETAH__globalSetVars, self]
         if searchList is not None:
             self._CHEETAH__searchList.extend(list(searchList))
-        self._CHEETAH__cheetahIncludes = {}
 
         # @@TR: consider allowing simple callables as the filter argument
         self._CHEETAH__filtersLib = filtersLib
@@ -197,10 +196,8 @@ class Template(object):
         self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName] = klass(self).filter
         self._CHEETAH__initialFilter = self._CHEETAH__currentFilter
 
-        if not hasattr(self, 'transaction'):
-            self.transaction = None
+        self.transaction = None
         self._CHEETAH__isBuffering = False
-        self._CHEETAH__isControlledByWebKit = False
 
     def respond(self):
         raise NotImplementedError
