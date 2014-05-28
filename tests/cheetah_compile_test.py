@@ -32,7 +32,7 @@ def _test_compile_template(tmpl_file):
     tmpl_py = compile_template(tmpl_file)
     assert os.path.exists(tmpl_py)
     ret = run_python(tmpl_py)
-    assert ret == 'Hello world\n'
+    assert ret == 'Hello world'
 
 
 def test_compile_template(template_writer):
@@ -52,5 +52,5 @@ def test_compile_multiple_files(template_writer):
     tmpl1 = template_writer.write('foo')
     tmpl2 = template_writer.write('bar')
     compile_all([tmpl1, tmpl2])
-    assert run_python(tmpl1.replace('.tmpl', '.py')) == 'foo\n'
-    assert run_python(tmpl2.replace('.tmpl', '.py')) == 'bar\n'
+    assert run_python(tmpl1.replace('.tmpl', '.py')) == 'foo'
+    assert run_python(tmpl2.replace('.tmpl', '.py')) == 'bar'
