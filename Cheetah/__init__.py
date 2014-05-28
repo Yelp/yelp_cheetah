@@ -16,6 +16,3 @@ cheetahtemplate-discuss@lists.sourceforge.net
 Subscribe at
     http://lists.sourceforge.net/lists/listinfo/cheetahtemplate-discuss
 '''
-
-Version = '0.1.1a'
-VersionTuple = (0, 1, 0, 'alpha', 1)
