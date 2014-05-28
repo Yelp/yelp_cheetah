@@ -104,9 +104,6 @@ identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
 directiveRE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@[a-zA-Z_][a-zA-Z0-9_]*)')
 EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
-specialVarRE = re.compile(r'([a-zA-z_]+)@')  # for matching specialVar comments
-# e.g. ##author@ Tavis Rudd
-
 escapedNewlineRE = re.compile(r'(?<!\\)((\\\\)*)\\(n|012)')
 
 # TODO(buck): audit all directives. delete with prejudice.
