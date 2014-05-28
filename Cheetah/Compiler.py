@@ -65,9 +65,6 @@ _DEFAULT_COMPILER_SETTINGS = [
 
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
-    ('multiLineCommentStartToken', '#*', ''),
-    ('multiLineCommentEndToken', '*#', ''),
-    ('gobbleWhitespaceAroundMultiLineComments', True, ''),
     ('directiveStartToken', '#', ''),
     ('directiveEndToken', '#', ''),
     ('PSPStartToken', '<%', ''),

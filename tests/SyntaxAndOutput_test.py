@@ -229,11 +229,6 @@ class NonTokens(OutputTest):
         self.verify("  \#\#escaped comment  ",
                     "  ##escaped comment  ")
 
-    def test4(self):
-        """escapted multi-line comments"""
-        self.verify("  \#*escaped comment \n*#  ",
-                    "  #*escaped comment \n*#  ")
-
     def test5(self):
         """1 dollar sign"""
         self.verify("$",
@@ -304,122 +299,6 @@ class Comments_SingleLine(OutputTest):
         """
         self.verify("##for $i in range(15)",
                     "")
-
-
-class Comments_MultiLine_NoGobble(OutputTest):
-    """
-    Multiline comments used to not gobble whitespace.  They do now, but this can
-    be turned off with a compilerSetting
-    """
-
-    def _getCompilerSettings(self):
-        return {'gobbleWhitespaceAroundMultiLineComments': False}
-
-    def test1(self):
-        """#* *# followed by WS
-        Shouldn't gobble WS
-        """
-        self.verify("#* blarg *#   ",
-                    "   ")
-
-    def test2(self):
-        """#* *# preceded and followed by WS
-        Shouldn't gobble WS
-        """
-        self.verify("   #* blarg *#   ",
-                    "      ")
-
-    def test3(self):
-        """#* *# followed by WS, with NEWLINE
-        Shouldn't gobble WS
-        """
-        self.verify("#* \nblarg\n *#   ",
-                    "   ")
-
-    def test4(self):
-        """#* *# preceded and followed by WS, with NEWLINE
-        Shouldn't gobble WS
-        """
-        self.verify("   #* \nblarg\n *#   ",
-                    "      ")
-
-
-class Comments_MultiLine(OutputTest):
-    """
-    Note: Multiline comments don't gobble whitespace!
-    """
-
-    def test1(self):
-        """#* *# followed by WS
-        Should gobble WS
-        """
-        self.verify("#* blarg *#   ",
-                    "")
-
-    def test2(self):
-        """#* *# preceded and followed by WS
-        Should gobble WS
-        """
-        self.verify("   #* blarg *#   ",
-                    "")
-
-    def test3(self):
-        """#* *# followed by WS, with NEWLINE
-        Shouldn't gobble WS
-        """
-        self.verify("#* \nblarg\n *#   ",
-                    "")
-
-    def test4(self):
-        """#* *# preceded and followed by WS, with NEWLINE
-        Shouldn't gobble WS
-        """
-        self.verify("   #* \nblarg\n *#   ",
-                    "")
-
-    def test5(self):
-        """#* *# containing nothing
-        """
-        self.verify("#**#",
-                    "")
-
-    def test6(self):
-        """#* *# containing only NEWLINES
-        """
-        self.verify("  #*\n\n\n\n\n\n\n\n*#  ",
-                    "")
-
-    def test7(self):
-        """#* *# containing $placeholders
-        """
-        self.verify("#* $var $var(1234*$c) *#",
-                    "")
-
-    def test8(self):
-        """#* *# containing #for directive
-        """
-        self.verify("#* #for $i in range(15) *#",
-                    "")
-
-    def test9(self):
-        """ text around #* *# containing #for directive
-        """
-        self.verify("foo\nfoo bar #* #for $i in range(15) *# foo\n",
-                    "foo\nfoo bar  foo\n")
-
-    def test9_point_5(self):
-        """ text around #* *# containing #for directive and trailing whitespace
-        which should be gobbled
-        """
-        self.verify("foo\nfoo bar #* #for $i in range(15) *#   \ntest",
-                    "foo\nfoo bar \ntest")
-
-    def test10(self):
-        """ text around #* *# containing #for directive and newlines: trailing whitespace
-        which should be gobbled.
-        """
-        self.verify("foo\nfoo bar #* \n\n#for $i in range(15) \n\n*#   \ntest",
-                    "foo\nfoo bar \ntest")
 
 
 class Placeholders(OutputTest):
