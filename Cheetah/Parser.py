@@ -310,13 +310,11 @@ class _LowLevelParser(SourceReader):
         self._makePspREs()
         self._possibleNonStrConstantChars = (
             self.setting('commentStartToken')[0] +
-            self.setting('multiLineCommentStartToken')[0] +
             self.setting('cheetahVarStartToken')[0] +
             self.setting('directiveStartToken')[0] +
             self.setting('PSPStartToken')[0])
         self._nonStrConstMatchers = [
             self.matchCommentStartToken,
-            self.matchMultiLineCommentStartToken,
             self.matchVariablePlaceholderStart,
             self.matchExpressionPlaceholderStart,
             self.matchDirective,
@@ -358,16 +356,6 @@ class _LowLevelParser(SourceReader):
         """Construct the regex bits that are used in comment parsing."""
         startTokenEsc = re.escape(self.setting('commentStartToken'))
         self.commentStartTokenRE = re.compile(escCharLookBehind + startTokenEsc)
-        del startTokenEsc
-
-        startTokenEsc = re.escape(
-            self.setting('multiLineCommentStartToken'))
-        endTokenEsc = re.escape(
-            self.setting('multiLineCommentEndToken'))
-        self.multiLineCommentTokenStartRE = re.compile(escCharLookBehind +
-                                                       startTokenEsc)
-        self.multiLineCommentEndTokenRE = re.compile(escCharLookBehind +
-                                                     endTokenEsc)
 
     def _makeDirectiveREs(self):
         """Construct the regexs that are used in directive parsing."""
@@ -410,7 +398,6 @@ class _LowLevelParser(SourceReader):
     def matchTopLevelToken(self):
         """Returns the first match found from the following methods:
             self.matchCommentStartToken
-            self.matchMultiLineCommentStartToken
             self.matchVariablePlaceholderStart
             self.matchExpressionPlaceholderStart
             self.matchDirective
@@ -448,22 +435,6 @@ class _LowLevelParser(SourceReader):
 
     def getCommentStartToken(self):
         match = self.matchCommentStartToken()
-        assert match
-        return self.readTo(match.end())
-
-    def matchMultiLineCommentStartToken(self):
-        return self.multiLineCommentTokenStartRE.match(self.src(), self.pos())
-
-    def getMultiLineCommentStartToken(self):
-        match = self.matchMultiLineCommentStartToken()
-        assert match
-        return self.readTo(match.end())
-
-    def matchMultiLineCommentEndToken(self):
-        return self.multiLineCommentEndTokenRE.match(self.src(), self.pos())
-
-    def getMultiLineCommentEndToken(self):
-        match = self.matchMultiLineCommentEndToken()
         assert match
         return self.readTo(match.end())
 
@@ -1155,8 +1126,6 @@ class Parser(_LowLevelParser):
         while not self.atEnd():
             if self.matchCommentStartToken():
                 self.eatComment()
-            elif self.matchMultiLineCommentStartToken():
-                self.eatMultiLineComment()
             elif self.matchVariablePlaceholderStart():
                 self.eatPlaceholder()
             elif self.matchExpressionPlaceholderStart():
@@ -1195,41 +1164,6 @@ class Parser(_LowLevelParser):
             self._compiler.handleWSBeforeDirective()
         self.getCommentStartToken()
         comm = self.readToEOL(gobble=isLineClearToStartToken)
-        self._compiler.addComment(comm)
-
-    def eatMultiLineComment(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLine = self.findEOL()
-
-        self.getMultiLineCommentStartToken()
-        endPos = startPos = self.pos()
-        level = 1
-        while True:
-            endPos = self.pos()
-            if self.atEnd():
-                break
-            if self.matchMultiLineCommentStartToken():
-                self.getMultiLineCommentStartToken()
-                level += 1
-            elif self.matchMultiLineCommentEndToken():
-                self.getMultiLineCommentEndToken()
-                level -= 1
-            if not level:
-                break
-            self.advance()
-        comm = self.readTo(endPos, start=startPos)
-
-        if not self.atEnd():
-            self.getMultiLineCommentEndToken()
-
-        if (not self.atEnd()) and self.setting('gobbleWhitespaceAroundMultiLineComments'):
-            restOfLine = self[self.pos():self.findEOL()]
-            if not restOfLine.strip():  # WS only to EOL
-                self.readToEOL(gobble=isLineClearToStartToken)
-
-            if isLineClearToStartToken and (self.atEnd() or self.pos() > endOfFirstLine):
-                self._compiler.handleWSBeforeDirective()
-
         self._compiler.addComment(comm)
 
     def eatPlaceholder(self):
