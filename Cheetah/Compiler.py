@@ -20,7 +20,7 @@ import copy
 from Cheetah import five
 from Cheetah.Version import Version, VersionTuple
 from Cheetah.SettingsManager import SettingsManager
-from Cheetah.Parser import Parser, ParseError, specialVarRE
+from Cheetah.Parser import Parser, ParseError
 from Cheetah.Parser import SET_GLOBAL, SET_MODULE
 from Cheetah.Parser import escapedNewlineRE
 
@@ -236,7 +236,6 @@ class MethodCompiler(GenUtils):
         self._indentLev = self.setting('initialMethIndentLevel')
         self._pendingStrConstChunks = []
         self._methodSignature = None
-        self._docStringLines = []
         self._methodBodyChunks = []
 
         self._callRegionsStack = []
@@ -276,7 +275,6 @@ class MethodCompiler(GenUtils):
         methodDefChunks = (
             self.methodSignature(),
             '\n',
-            self.docString(),
             self.methodBody())
         methodDef = ''.join(methodDefChunks)
         return methodDef
@@ -290,19 +288,7 @@ class MethodCompiler(GenUtils):
     def methodBody(self):
         return ''.join(self._methodBodyChunks)
 
-    def docString(self):
-        if not self._docStringLines:
-            return ''
-
-        ind = self._indent*2
-        docStr = (ind + '"""\n' + ind +
-                  ('\n' + ind).join([ln.replace('"""', "'''") for ln in self._docStringLines]) +
-                  '\n' + ind + '"""\n')
-        return docStr
-
     # methods for adding code
-    def addMethDocString(self, line):
-        self._docStringLines.append(line.replace('%', '%%'))
 
     def addChunk(self, chunk):
         self.commitStrConst()
@@ -892,7 +878,6 @@ class ClassCompiler(GenUtils):
         self._finishedMethodsList = []      # store by order
         self._methodsIndex = {}      # store by name
         self._baseClass = 'Template'
-        self._classDocStringLines = []
         # printed after methods in the gen class def:
         self._generatedAttribs = ['_CHEETAH_version = __CHEETAH_version__']
         self._generatedAttribs.append(
@@ -1000,9 +985,6 @@ class ClassCompiler(GenUtils):
         """
         self._decoratorsForNextMethod.append(decoratorExpr)
 
-    def addClassDocString(self, line):
-        self._classDocStringLines.append(line.replace('%', '%%'))
-
     def addAttribute(self, attribExpr):
         # first test to make sure that the user hasn't used any fancy Cheetah syntax
         # (placeholders, directives, etc.) inside the expression
@@ -1054,9 +1036,7 @@ class ClassCompiler(GenUtils):
 
     def classDef(self):
         ind = self.setting('indentationStep')
-        classDefChunks = [self.classSignature(),
-                          self.classDocstring(),
-                          ]
+        classDefChunks = [self.classSignature()]
 
         def addMethods():
             classDefChunks.extend([
@@ -1081,16 +1061,6 @@ class ClassCompiler(GenUtils):
 
     def classSignature(self):
         return "class %s(%s):" % (self.className(), self._baseClass)
-
-    def classDocstring(self):
-        if not self._classDocStringLines:
-            return ''
-        ind = self.setting('indentationStep')
-        docStr = ('%(ind)s"""\n%(ind)s' +
-                  '\n%(ind)s'.join(self._classDocStringLines) +
-                  '\n%(ind)s"""\n'
-                  ) % {'ind': ind}
-        return docStr
 
     def methodDefs(self):
         methodDefs = [methGen.methodDef() for methGen in self._finishedMethods()]
@@ -1173,7 +1143,6 @@ class Compiler(SettingsManager, GenUtils):
         self._moduleEncoding = 'ascii'
         self._moduleEncodingStr = ''
         self._moduleHeaderLines = []
-        self._moduleDocStringLines = []
         self._specialVars = {}
         self._importStatements = [
             "import sys",
@@ -1351,11 +1320,6 @@ class Compiler(SettingsManager, GenUtils):
         """
         self._moduleHeaderLines.append(line)
 
-    def addModuleDocString(self, line):
-        """Adds a line to the generated module docstring.
-        """
-        self._moduleDocStringLines.append(line)
-
     def addModuleGlobal(self, line):
         """Adds a line of global module code.  It is inserted after the import
         statements and Cheetah default module constants.
@@ -1388,32 +1352,8 @@ class Compiler(SettingsManager, GenUtils):
         if re.match(r'#+$', comm):      # skip bar comments
             return
 
-        specialVarMatch = specialVarRE.match(comm)
-        if specialVarMatch:
-            # @@TR: this is a bit hackish and is being replaced with
-            # #set module varName = ...
-            return self.addSpecialVar(specialVarMatch.group(1),
-                                      comm[specialVarMatch.end():])
-        elif comm.startswith('doc:'):
-            addLine = self.addMethDocString
-            comm = comm[len('doc:'):].strip()
-        elif comm.startswith('doc-method:'):
-            addLine = self.addMethDocString
-            comm = comm[len('doc-method:'):].strip()
-        elif comm.startswith('doc-module:'):
-            addLine = self.addModuleDocString
-            comm = comm[len('doc-module:'):].strip()
-        elif comm.startswith('doc-class:'):
-            addLine = self.addClassDocString
-            comm = comm[len('doc-class:'):].strip()
-        elif comm.startswith('header:'):
-            addLine = self.addModuleHeader
-            comm = comm[len('header:'):].strip()
-        else:
-            addLine = self.addMethComment
-
         for line in comm.splitlines():
-            addLine(line)
+            self.addMethComment(line)
 
     # methods for module code wrapping
 
@@ -1441,7 +1381,6 @@ class Compiler(SettingsManager, GenUtils):
         moduleDef = textwrap.dedent(
             """
             %(header)s
-            %(docstring)s
 
             %(imports)s
 
@@ -1460,7 +1399,6 @@ class Compiler(SettingsManager, GenUtils):
             """
         ).strip() % {
             'header': self.moduleHeader(),
-            'docstring': self.moduleDocstring(),
             'specialVars': self.specialVars(),
             'imports': self.importStatements(),
             'constants': self.moduleConstants(),
@@ -1485,14 +1423,6 @@ class Compiler(SettingsManager, GenUtils):
                 ('\n#' + ' ' * offSet).join(self._moduleHeaderLines) + '\n')
 
         return header
-
-    def moduleDocstring(self):
-        if not self._moduleDocStringLines:
-            return ''
-
-        return ('"""' +
-                '\n'.join(self._moduleDocStringLines) +
-                '\n"""\n')
 
     def specialVars(self):
         chunks = []
