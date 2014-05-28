@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+from __future__ import absolute_import
 from __future__ import unicode_literals
 
 '''
@@ -17,7 +18,6 @@ import sys
 import unittest
 import warnings
 
-from Cheetah import five
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
@@ -1187,7 +1187,7 @@ class AttrDirective(OutputTest):
 
     def test_attr_with_unicode(self):
         self.verify(
-            "#attr $test = u'☃'\n"
+            "#attr test = u'☃'\n"
             '$test\n',
             '☃\n'
         )
@@ -1305,6 +1305,16 @@ class DefDirective(OutputTest):
                     + "#end def\n"
                     + "$testMeth()",
                     "1234 5678\n")
+
+
+def test_def_with_self_as_argument():
+    cls = compile_to_class(
+        '#def foo(self, bar)\n'
+        '$bar\n'
+        '#end def\n'
+        '$foo("baz")\n',
+    )
+    assert cls().respond().strip() == 'baz'
 
 
 class DecoratorDirective(OutputTest):
@@ -2278,25 +2288,6 @@ class MiscComplexSyntax(OutputTest):
         """
         self.verify("#set $c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]\n$c",
                     "0")
-
-
-def test_parse_error():
-    try:
-        # Invalid because it does not have an identifier (and because it is
-        # unclosed)
-        compile_to_class('#def')
-    except ParseError as e:
-        ret = five.text(e)
-        assert ret == (
-            '\n\n'
-            'Invalid identifier\n'
-            'Line 1, column 4\n'
-            '\n'
-            'Line|Cheetah Code\n'
-            '----|-------------------------------------------------------------\n'
-            '1   |#def\n'
-            '        ^\n'
-        )
 
 
 def to_kwargs_string(kwargs):

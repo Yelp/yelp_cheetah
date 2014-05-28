@@ -1,15 +1,13 @@
+from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import io
 import pytest
-import os.path
-import subprocess
-import sys
 
-from Cheetah import five
+from Cheetah.compile import compile_to_class
 from Cheetah.Parser import ArgList
-from Cheetah.cheetah_compile import compile_template
 from Cheetah.Parser import UnknownDirectiveError
+from Cheetah.Parser import ParseError
+from testing.util import assert_raises_exactly
 
 
 @pytest.yield_fixture
@@ -47,41 +45,114 @@ def test_merge3(arglist):
     assert arglist.merge() == [('arg', "'This is my block'")]
 
 
-def get_cheetah_template_output(py_path):
-    proc = subprocess.Popen([sys.executable, py_path], stdout=subprocess.PIPE)
-    ret = proc.communicate()[0]
-    return ret
+def test_unknown_macro_name():
+    with assert_raises_exactly(
+        UnknownDirectiveError,
+        '\n\n'
+        'Bad macro name: "foo". You may want to escape that # sign?\n'
+        'Line 1, column 2\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#foo\n'
+        '      ^\n',
+    ):
+        compile_to_class('#foo\n')
 
 
-def write_template(tmpdir_path, src):
-    tmpl_path = os.path.join(tmpdir_path, 'a.tmpl')
-    with io.open(tmpl_path, 'w') as tmpl_file:
-        tmpl_file.write(src)
-    return tmpl_path
+def test_malformed_triple_quotes():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Malformed triple-quoted string\n'
+        'Line 1, column 3\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |${"""}\n'
+        '       ^\n',
+    ):
+        compile_to_class('${"""}')
 
 
-def test_acceptable_directive_name(tmpdir):
-    tmpl_path = write_template(tmpdir.strpath, '#if True\nHai\n#end if\n')
-    py_path = compile_template(tmpl_path)
-    output = get_cheetah_template_output(py_path)
-    assert output.strip() == 'Hai'
+def test_unclosed_directives():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Some #directives are missing their corresponding #end ___ tag: if\n'
+        'Line 1, column 9\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#if True\n'
+        '             ^\n'
+    ):
+        compile_to_class('#if True\n')
 
 
-def test_unknown_macro_name(tmpdir):
-    tmpl_path = write_template(tmpdir.strpath, '#foo\n')
-    try:
-        compile_template(tmpl_path)
-    except UnknownDirectiveError as e:
-        ret = five.text(e)
-        assert ret == (
-            '\n\n'
-            'Bad macro name: "foo". You may want to escape that # sign?\n'
-            'Line 1, column 2\n'
-            '\n'
-            'Line|Cheetah Code\n'
-            '----|-------------------------------------------------------------\n'
-            '1   |#foo\n'
-            '      ^\n'
+def test_invalid_identifier():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Invalid identifier\n'
+        'Line 1, column 5\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#def\n'
+        '         ^\n'
+    ):
+        compile_to_class('#def\n')
+
+
+def test_end_but_nothing_to_end():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        '#end found, but nothing to end\n'
+        'Line 1, column 8\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#end if\n'
+        '            ^\n'
+    ):
+        compile_to_class('#end if\n')
+
+
+def test_invalid_end_directive():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Invalid end directive\n'
+        'Line 1, column 5\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#end\n'
+        '         ^\n'
+    ):
+        compile_to_class('#end\n')
+
+
+def test_invalid_nesting_directives():
+    # TODO: this one is off by a bit on the exception message
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        '#end if found, expected #end for\n'
+        'Line 4, column 1\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '2   |#for i in range(5)\n'
+        '3   |#end if\n'
+        '4   |#end for\n'
+        '     ^\n'
+    ):
+        compile_to_class(
+            '#if True\n'
+            '#for i in range(5)\n'
+            '#end if\n'
+            '#end for\n'
         )
-        return
-    raise AssertionError('Expected to raise')

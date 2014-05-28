@@ -30,7 +30,7 @@ def compile_all(filenames):
         compile_template(filename)
 
 
-def main():
+def main():  # pragma: no cover (called by commandline only)
     compile_all(sys.argv[1:])
 
 

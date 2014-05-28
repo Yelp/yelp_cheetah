@@ -1,12 +1,11 @@
+from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import io
-import os
 import os.path
-import subprocess
-import sys
 
 from Cheetah.cheetah_compile import compile_template
+from testing.util import run_python
 
 
 def test_templates_runnable_using_env(tmpdir):
@@ -21,10 +20,5 @@ def test_templates_runnable_using_env(tmpdir):
 
     compile_template(tmpl_filename)
 
-    ret = subprocess.Popen(
-        [sys.executable, tmpl_py_filename],
-        env={'foo': 'herp', 'bar': 'derp'},
-        stdout=subprocess.PIPE,
-    ).communicate()[0]
-
+    ret = run_python(tmpl_py_filename, env={'foo': 'herp', 'bar': 'derp'})
     assert ret.strip() == 'herp\nderp'
