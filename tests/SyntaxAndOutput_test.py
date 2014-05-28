@@ -2,14 +2,7 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-'''
-Syntax and Output tests.
-
-TODO
-- #filter
-- #echo
-- #silent
-'''
+"""Syntax and Output tests."""
 
 import os
 import os.path
@@ -2187,12 +2180,8 @@ $sep$letter#slurp
 class FilterDirective(OutputTest):
     convertEOLs = False
 
-    def _getCompilerSettings(self):
-        return {'useFilterArgsInPlaceholders': True}
-
     def test1(self):
-        """#filter BaseFilter
-        """
+        """#filter BaseFilter"""
         self.verify("#filter BaseFilter\n$none#end filter",
                     "")
 
@@ -2200,18 +2189,9 @@ class FilterDirective(OutputTest):
                     "")
 
     def test2(self):
-        """#filter ReplaceNone with WS
-        """
+        """#filter ReplaceNone with WS"""
         self.verify("#filter BaseFilter  \n$none#end filter",
                     "")
-
-
-class EchoDirective(OutputTest):
-    def test1(self):
-        """#echo 1234
-        """
-        self.verify("#echo 1234",
-                    "1234")
 
 
 class VarExists(OutputTest):               # Template.varExists()

@@ -377,9 +377,6 @@ class MethodCompiler(GenUtils):
     def addSilent(self, expr):
         self.addChunk(expr)
 
-    def addEcho(self, expr, rawExpr=None):
-        self.addFilteredChunk(expr, rawExpr=rawExpr)
-
     def addSet(self, expr, exprComponents, setStyle):
         if setStyle is SET_GLOBAL:
             (LVALUE, OP, RVALUE) = (exprComponents.LVALUE,

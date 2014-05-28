@@ -118,7 +118,6 @@ directiveNamesAndParsers = {
     # output, filtering, and caching
     'slurp': 'eatSlurp',
     'filter': 'eatFilter',
-    'echo': None,
     'silent': None,
 
     'call': 'eatCall',
@@ -1263,7 +1262,7 @@ class Parser(_LowLevelParser):
     _simpleExprDirectives = '''
     pass continue return yield break
     del assert raise
-    silent echo
+    silent
     import from'''.split()
     _directiveHandlerNames = {'import': 'addImportStatement',
                               'from': 'addImportStatement', }
@@ -1287,7 +1286,7 @@ class Parser(_LowLevelParser):
             if not handlerName:
                 handlerName = 'add' + directiveName.capitalize()
             handler = getattr(self._compiler, handlerName)
-            if directiveName in ('silent', 'echo'):
+            if directiveName == 'silent':
                 includeDirectiveNameInExpr = False
             else:
                 includeDirectiveNameInExpr = True
