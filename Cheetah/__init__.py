@@ -17,7 +17,5 @@ Subscribe at
     http://lists.sourceforge.net/lists/listinfo/cheetahtemplate-discuss
 '''
 
-from .Version import Version  # noqa
-from .Version import VersionTuple  # noqa
-from .Version import MinCompatibleVersion  # noqa
-from .Version import MinCompatibleVersionTuple  # noqa
+Version = '0.1.1a'
+VersionTuple = (0, 1, 0, 'alpha', 1)

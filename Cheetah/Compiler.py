@@ -18,7 +18,8 @@ import warnings
 import copy
 
 from Cheetah import five
-from Cheetah.Version import Version, VersionTuple
+from Cheetah import Version
+from Cheetah import VersionTuple
 from Cheetah.SettingsManager import SettingsManager
 from Cheetah.Parser import Parser, ParseError
 from Cheetah.Parser import SET_GLOBAL, SET_MODULE
@@ -1151,8 +1152,6 @@ class Compiler(SettingsManager, GenUtils):
             '    import __builtin__ as builtin',
             "from os.path import getmtime, exists",
             "import types",
-            "from Cheetah.Version import MinCompatibleVersion as RequiredCheetahVersion",
-            "from Cheetah.Version import MinCompatibleVersionTuple as RequiredCheetahVersionTuple",
             "from Cheetah.Template import NO_CONTENT",
             "from Cheetah.Template import Template",
             "from Cheetah.DummyTransaction import DummyTransaction",
@@ -1383,12 +1382,6 @@ class Compiler(SettingsManager, GenUtils):
 
             %(constants)s
             %(specialVars)s
-
-            if __CHEETAH_versionTuple__ < RequiredCheetahVersionTuple:
-                raise AssertionError(
-                  'This template was compiled with Cheetah version'
-                  ' %%s. Templates compiled before version %%s must be recompiled.'%%(
-                     __CHEETAH_version__, RequiredCheetahVersion))
 
             %(classes)s
 
