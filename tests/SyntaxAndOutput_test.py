@@ -1550,60 +1550,12 @@ class IfDirective(OutputTest):
                     "blarg\n")
 
 
-class PSP(OutputTest):
-    def searchList(self):
-        return None
-
-    def test1(self):
-        """simple <%= [int] %>"""
-        self.verify("<%= 1234 %>",  "1234")
-
-    def test2(self):
-        """simple <%= [string] %>"""
-        self.verify("<%= 'blarg' %>", "blarg")
-
-    def test3(self):
-        """simple <%= None %>"""
-        self.verify("<%= None %>", "")
-
-    def test4(self):
-        """simple <%= [string] %> + $anInt"""
-        self.verify("<%= 'blarg' %>$anInt", "blarg1")
-
-    def test5(self):
-        """simple <%= [EXPR] %> + $anInt"""
-        self.verify("<%= ('blarg' * 2).upper() %>$anInt", "BLARGBLARG1")
-
-    def test6(self):
-        """for loop in <%%>"""
-        self.verify("<% for i in range(5):%>1<%end%>", "11111")
-
-    def test7(self):
-        """for loop in <%%> and using <%=i%>"""
-        self.verify("<% for i in range(5):%><%=i%><%end%>", "01234")
-
-    def test8(self):
-        """for loop in <% $%> and using <%=i%>"""
-        self.verify("""<% for i in range(5):
-    i=i*2$%><%=i%><%end%>""", "02468")
-
-    def test9(self):
-        """for loop in <% $%> and using <%=i%> plus extra text"""
-        self.verify("""<% for i in range(5):
-    i=i*2$%><%=i%>-<%end%>""", "0-2-4-6-8-")
-
-    def test10(self):
-        """ Using getVar and write within a PSP """
-        self._searchList = [{'me': 1}]
-        template = '''This is my template
-<%
-me = self.getVar('me')
-if isinstance(me, int):
-    write('Bork')
-else:
-    write('Nork')
-%>'''
-        self.verify(template, 'This is my template\nBork')
+def test_simple_psp():
+    """Let's be fair, this is really only useful for
+    <% import pdb; pdb.set_trace() %>
+    """
+    cls = compile_to_class('<% write(u"hello world") %>')
+    assert cls().respond() == 'hello world'
 
 
 class WhileDirective(OutputTest):
