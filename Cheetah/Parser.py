@@ -128,8 +128,6 @@ directiveNamesAndParsers = {
     'block': 'eatBlock',
     '@': 'eatDecorator',
 
-    'closure': 'eatClosure',
-
     'set': 'eatSet',
     'del': None,
 
@@ -165,7 +163,6 @@ directiveNamesAndParsers = {
 endDirectiveNamesAndHandlers = {
     'def': 'handleEndDef',      # has short-form
     'block': None,              # has short-form
-    'closure': None,            # has short-form
     'call': None,               # has short-form
     'filter': None,
     'while': None,              # has short-form
@@ -1099,7 +1096,7 @@ class Parser(_LowLevelParser):
                 continue
             self._endDirectiveNamesAndHandlers[name] = normalizeHandlerVal(val)
 
-        self._closeableDirectives = ['def', 'block', 'closure',
+        self._closeableDirectives = ['def', 'block',
                                      'call',
                                      'filter',
                                      'if',
@@ -1381,11 +1378,6 @@ class Parser(_LowLevelParser):
         elif directiveName in 'while for if try'.split():
             self._compiler.commitStrConst()
             self._compiler.dedent()
-        elif directiveName == 'closure':
-            self._compiler.commitStrConst()
-            self._compiler.dedent()
-            # @@TR: temporary hack of useSearchList
-            self.setSetting('useSearchList', self._useSearchList_orig)
 
     # specific directive eat methods
 
@@ -1488,9 +1480,9 @@ class Parser(_LowLevelParser):
         self.getWhiteSpace()
 
         directiveName = self.matchDirective()
-        if not directiveName or directiveName not in ('def', 'block', 'closure', '@'):
+        if not directiveName or directiveName not in ('def', 'block', '@'):
             raise ParseError(
-                self, msg='Expected #def, #block, #closure or another @decorator')
+                self, msg='Expected #def, #block or another @decorator')
         self.eatDirective()
 
     def eatDef(self):
@@ -1504,11 +1496,8 @@ class Parser(_LowLevelParser):
             'lineCol': self.getRowCol(startPos),
             }
 
-    def eatClosure(self):
-        self._eatDefOrBlock('closure')
-
     def _eatDefOrBlock(self, directiveName):
-        assert directiveName in ('def', 'block', 'closure')
+        assert directiveName in ('def', 'block')
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
         startPos = self.pos()
@@ -1542,7 +1531,7 @@ class Parser(_LowLevelParser):
                 self._compiler.closeDef()
             elif directiveName == 'block':
                 self._compiler.closeBlock()
-            elif directiveName == 'closure' or isNestedDef:
+            elif isNestedDef:
                 self._compiler.dedent()
 
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
@@ -1574,7 +1563,7 @@ class Parser(_LowLevelParser):
                        and len([name for name in self._openDirectivesStack if name == 'def']) > 1)
         if directiveName == 'block' or (directiveName == 'def' and not isNestedDef):
             self._compiler.startMethodDef(methodName, argsList, parserComment)
-        else:  # closure
+        else:  # nested def
             self._useSearchList_orig = self.setting('useSearchList')
             self.setSetting('useSearchList', False)
             self._compiler.addClosure(methodName, argsList, parserComment)
@@ -1590,7 +1579,7 @@ class Parser(_LowLevelParser):
                        and [name for name in self._openDirectivesStack if name == 'def'])
         if directiveName == 'block' or (directiveName == 'def' and not isNestedDef):
             self._compiler.startMethodDef(methodName, argsList, parserComment)
-        else:  # closure
+        else:  # nested def
             # @@TR: temporary hack of useSearchList
             useSearchList_orig = self.setting('useSearchList')
             self.setSetting('useSearchList', False)
@@ -1598,7 +1587,7 @@ class Parser(_LowLevelParser):
 
         self.getWhiteSpace(max=1)
         self.parse(breakPoint=endPos)
-        if directiveName == 'closure' or isNestedDef:  # @@TR: temporary hack of useSearchList
+        if isNestedDef:  # @@TR: temporary hack of useSearchList
             self.setSetting('useSearchList', useSearchList_orig)
 
     def eatExtends(self):

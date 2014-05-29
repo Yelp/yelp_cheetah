@@ -2158,6 +2158,23 @@ def test_comment_directive_ambiguity():
     assert cls().respond().strip() == '1 2'
 
 
+def test_nested_defs():
+    cls = compile_to_class(
+        '#def foo\n'
+        '    #set a = 1\n'
+        '    #def bar(arg)\n'
+        '        $a\n'
+        '        $arg'
+        '    #end def\n'
+        '    $bar(2)\n'
+        '#end def\n'
+        '$foo()\n'
+        '$search_list_variable\n'
+    )
+    instance = cls(searchList=[{'search_list_variable': 3}])
+    assert ' '.join(instance.respond().strip().split()) == '1 2 3'
+
+
 # TODO: there's probably a pytest way to do this
 def __add_eol_tests():
     """Add tests for different end-of-line formats."""
