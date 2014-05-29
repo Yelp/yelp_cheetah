@@ -14,6 +14,7 @@ from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
 from Cheetah.compile import _create_module_from_source
 from Cheetah.NameMapper import NotFound
+from Cheetah.Parser import directiveNamesAndParsers
 from Cheetah.Template import Template
 
 
@@ -205,13 +206,112 @@ ZeroDivisionError: integer division or modulo by zero''', traceback)
 
 
 def test_compile_is_deterministic():
-    template = (
-        '#def foo(arg)\n'
-        '$arg\n'
-        '#end def\n'
-        '#call foo\n'
-        'Hello world\n'
-        '#end call\n'
-    )
-    compiled_templates = [compile_source(template) for _ in range(5)]
+    # This crazy template uses all of the currently supported directives
+    MEGA_TEMPLATE = """
+#encoding utf-8
+#compiler-settings
+useDottedNotation = True
+#end compiler-settings
+#extends testing.templates.extends_test_template
+#implements respond
+
+#import sys
+#from tests.SyntaxAndOutput_test import dummydecorator
+
+
+#attr attribute = "bar"
+
+
+#@dummydecorator
+#def foo_call_func(arg)
+    $arg
+#end def
+
+
+#def returning_function
+    #return 5
+#end def
+
+
+#def try_raise_finally_func
+    #try
+        #raise AssertionError("foo")
+    #except AssertionError
+        Caught AssertionError
+    #except ValueError
+        #pass
+    #finally
+        Finally
+    #end try
+#end def
+
+
+#def spacer
+   #super()
+   after
+#end def
+
+
+#def gen
+    #yield 1
+    #yield 2
+    #yield 3
+#end def
+
+
+#call $foo_call_func
+Hello world
+#end call
+
+
+#set foo = {"a": 1}
+#del foo['a']
+$foo
+
+
+#assert True
+
+
+$returning_function()
+$spacer()
+
+#if 15
+   15!
+#elif 16
+   16!
+#else
+   not 15 or 16
+#end if
+
+#set arr = [1, 2, 3]
+#silent arr.append(4)
+$arr
+
+#block infinite_loop_meybs
+    #while True
+        infinite loop?
+        #break ## nope lol
+    #end while
+#end block
+
+#filter None
+    Default filter?
+#end filter
+
+
+#for i in $gen()
+    #if $i == 2
+        #continue
+    #end if
+    $i#slurp
+#end for
+    """
+    compiled_templates = [compile_source(MEGA_TEMPLATE) for _ in range(5)]
     assert len(set(compiled_templates)) == 1
+
+    # Make sure we got all of the directives
+    for directive_name in directiveNamesAndParsers:
+        assert '#{0}'.format(directive_name) in MEGA_TEMPLATE
+
+    # also make sure MEGA_TEMPLATE renders
+    assert compile_to_class(MEGA_TEMPLATE)().respond()
