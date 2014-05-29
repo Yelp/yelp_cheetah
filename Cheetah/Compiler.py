@@ -13,7 +13,6 @@ import os.path
 import re
 import textwrap
 import time
-import random
 import warnings
 import copy
 
@@ -57,7 +56,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
     ('initialMethIndentLevel', 2, ''),
-    ('addTimestampsToCompilerOutput', True, ''),
 
     # Customizing the #extends directive
     ('autoImportForExtendsDirective', True, ''),
@@ -216,6 +214,7 @@ class MethodCompiler(GenUtils):
     def __init__(self, methodName, classCompiler,
                  initialMethodComment=None,
                  decorators=None):
+        self._next_variable_id = 0
         self._settingsManager = classCompiler
         self._classCompiler = classCompiler
         self._moduleCompiler = classCompiler._moduleCompiler
@@ -537,8 +536,8 @@ class MethodCompiler(GenUtils):
             self.indent()
 
     def nextCacheID(self):
-        return ('_' + str(random.randrange(100, 999))
-                + str(random.randrange(10000, 99999)))
+        self._next_variable_id += 1
+        return u'_{0}'.format(self._next_variable_id)
 
     def nextCallRegionID(self):
         return self.nextCacheID()
@@ -843,10 +842,6 @@ class ClassCompiler(GenUtils):
         # printed after methods in the gen class def:
         self._generatedAttribs = []
 
-        if self.setting('addTimestampsToCompilerOutput'):
-            self._generatedAttribs.append('_CHEETAH_genTime = __CHEETAH_genTime__')
-            self._generatedAttribs.append('_CHEETAH_genTimestamp = __CHEETAH_genTimestamp__')
-
         self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
 
         self._blockMetaData = {}
@@ -1043,7 +1038,7 @@ class Compiler(SettingsManager, GenUtils):
     classCompilerClass = ClassCompiler
 
     def __init__(self,
-                 source=None,
+                 source,
                  moduleName='DynamicallyCompiledCheetahTemplate',
                  mainClassName=None,  # string
                  mainMethodName=None,  # string
@@ -1326,9 +1321,6 @@ class Compiler(SettingsManager, GenUtils):
     __str__ = getModuleCode
 
     def wrapModuleDef(self):
-        if self.setting('addTimestampsToCompilerOutput'):
-            self.addModuleGlobal('__CHEETAH_genTime__ = %r' % time.time())
-            self.addModuleGlobal('__CHEETAH_genTimestamp__ = %r' % self.timestamp())
         if self._filePath:
             self.addModuleGlobal('__CHEETAH_src__ = %r' % self._filePath)
         else:
