@@ -513,27 +513,9 @@ class MethodCompiler(GenUtils):
 
     def addPSP(self, PSP):
         self.commitStrConst()
-        autoIndent = False
-        if PSP[0] == '=':
-            PSP = PSP[1:]
-            if PSP:
-                self.addWriteChunk('_filter(' + PSP + ')')
-            return
-
-        elif PSP.lower() == 'end':
-            self.dedent()
-            return
-        elif PSP[-1] == '$':
-            autoIndent = True
-            PSP = PSP[:-1]
-        elif PSP[-1] == ':':
-            autoIndent = True
 
         for line in PSP.splitlines():
             self.addChunk(line)
-
-        if autoIndent:
-            self.indent()
 
     def nextCacheID(self):
         self._next_variable_id += 1
