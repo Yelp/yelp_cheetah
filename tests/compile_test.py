@@ -205,6 +205,13 @@ ZeroDivisionError: integer division or modulo by zero''', traceback)
 
 
 def test_compile_is_deterministic():
-    template = ''
+    template = (
+        '#def foo(arg)\n'
+        '$arg\n'
+        '#end def\n'
+        '#call foo\n'
+        'Hello world\n'
+        '#end call\n'
+    )
     compiled_templates = [compile_source(template) for _ in range(5)]
     assert len(set(compiled_templates)) == 1
