@@ -121,7 +121,6 @@ directiveNamesAndParsers = {
     'silent': None,
 
     'call': 'eatCall',
-    'arg': 'eatCallArg',
 
     # declaration, assignment, and deletion
     'attr': 'eatAttr',
@@ -1811,22 +1810,6 @@ class Parser(_LowLevelParser):
             self.pushToOpenDirectivesStack("call")
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             self._compiler.startCallRegion(functionName, args, lineCol)
-
-    def eatCallArg(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        lineCol = self.getRowCol()
-        self.getDirectiveStartToken()
-
-        self.advance(len('arg'))
-        self.getWhiteSpace()
-        argName = self.getIdentifier()
-        self.getWhiteSpace()
-        self._compiler.setCallArg(argName, lineCol)
-        if self.peek() == ':':
-            self.getc()
-        else:
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 
     def eatFilter(self):
         isLineClearToStartToken = self.isLineClearToStartToken()

@@ -551,7 +551,6 @@ class MethodCompiler(GenUtils):
         callDetails.functionName = functionName
         callDetails.args = args
         callDetails.lineCol = lineCol
-        callDetails.usesKeywordArgs = False
         self._callRegionsStack.append((ID, callDetails))  # attrib of current methodCompiler
 
         self.addChunk('## START %(regionTitle)s REGION: ' % locals()
@@ -565,28 +564,6 @@ class MethodCompiler(GenUtils):
             self.addChunk('self.transaction = trans')
         else:
             self.addChunk('self._CHEETAH__isBuffering = True')
-        self.addChunk('write = _callCollector%(ID)s.response().write' % locals())
-
-    def setCallArg(self, argName, lineCol):
-        ID, callDetails = self._callRegionsStack[-1]
-        argName = str(argName)
-        if callDetails.usesKeywordArgs:
-            self._endCallArg()
-        else:
-            callDetails.usesKeywordArgs = True
-            self.addChunk('_callKws%(ID)s = {}' % locals())
-            self.addChunk('_currentCallArgname%(ID)s = %(argName)r' % locals())
-        callDetails.currentArgname = argName
-
-    def _endCallArg(self):
-        ID, callDetails = self._callRegionsStack[-1]
-        currCallArg = callDetails.currentArgname
-        self.addChunk(('_callKws%(ID)s[%(currCallArg)r] ='
-                       ' _callCollector%(ID)s.response().getvalue()') % locals())
-        self.addChunk('del _callCollector%(ID)s' % locals())
-        self.addChunk('trans = _callCollector%(ID)s = DummyTransaction()' % locals())
-        if self.setting('autoAssignDummyTransactionToSelf'):
-            self.addChunk('self.transaction = trans')
         self.addChunk('write = _callCollector%(ID)s.response().write' % locals())
 
     def endCallRegion(self, regionTitle='CALL'):
@@ -603,21 +580,13 @@ class MethodCompiler(GenUtils):
             self.addChunk('del _wasBuffering%(ID)s' % locals())
             self.addChunk('del _orig_trans%(ID)s' % locals())
 
-        if not callDetails.usesKeywordArgs:
-            reset()
-            self.addChunk('_callArgVal%(ID)s = _callCollector%(ID)s.response().getvalue()' % locals())
-            self.addChunk('del _callCollector%(ID)s' % locals())
-            if initialKwArgs:
-                initialKwArgs = ', ' + initialKwArgs
-            self.addFilteredChunk('%(functionName)s(_callArgVal%(ID)s%(initialKwArgs)s)' % locals())
-            self.addChunk('del _callArgVal%(ID)s' % locals())
-        else:
-            if initialKwArgs:
-                initialKwArgs = initialKwArgs + ', '
-            self._endCallArg()
-            reset()
-            self.addFilteredChunk('%(functionName)s(%(initialKwArgs)s**_callKws%(ID)s)' % locals())
-            self.addChunk('del _callKws%(ID)s' % locals())
+        reset()
+        self.addChunk('_callArgVal%(ID)s = _callCollector%(ID)s.response().getvalue()' % locals())
+        self.addChunk('del _callCollector%(ID)s' % locals())
+        if initialKwArgs:
+            initialKwArgs = ', ' + initialKwArgs
+        self.addFilteredChunk('%(functionName)s(_callArgVal%(ID)s%(initialKwArgs)s)' % locals())
+        self.addChunk('del _callArgVal%(ID)s' % locals())
         self.addChunk('## END %(regionTitle)s REGION: ' % locals()
                       + ID
                       + ' of ' + functionName

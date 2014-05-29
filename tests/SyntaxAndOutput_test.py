@@ -738,32 +738,6 @@ $(1234 + 1) foo#slurp
 #end call''',
                     "1235 FOO")
 
-    def test4(self):
-        r"""#call with keyword #args"""
-        self.verify('''\
-#def meth(arg1, arg2)
-$arg1.upper() - $arg2.lower()#slurp
-#end def
-#call self.meth
-#arg arg1
-$(1234 + 1) foo#slurp
-#arg arg2
-UPPER#slurp
-#end call''',
-                    "1235 FOO - upper")
-
-    def test5(self):
-        r"""#call with single-line keyword #args """
-        self.verify('''\
-#def meth(arg1, arg2)
-$arg1.upper() - $arg2.lower()#slurp
-#end def
-#call self.meth
-#arg arg1:$(1234 + 1) foo#slurp
-#arg arg2:UPPER#slurp
-#end call''',
-                    "1235 FOO - upper")
-
     def test6(self):
         """#call with python kwargs and cheetah output for the 1s positional
         arg"""
@@ -776,29 +750,6 @@ $arg1.upper() - $arg2.lower()#slurp
 $(1234 + 1) foo#slurp
 #end call''',
                     "1235 FOO - upper")
-
-    def test7(self):
-        """#call with python kwargs and #args"""
-        self.verify('''\
-#def meth(arg1, arg2, arg3)
-$arg1.upper() - $arg2.lower() - $arg3#slurp
-#end def
-#call self.meth arg2="UPPER", arg3=999
-#arg arg1:$(1234 + 1) foo#slurp
-#end call''',
-                    "1235 FOO - upper - 999")
-
-    def test8(self):
-        """#call with python kwargs and #args, and using a function to get the
-        function that will be called"""
-        self.verify('''\
-#def meth(arg1, arg2, arg3)
-$arg1.upper() - $arg2.lower() - $arg3#slurp
-#end def
-#call getattr(self, "meth") arg2="UPPER", arg3=999
-#arg arg1:$(1234 + 1) foo#slurp
-#end call''',
-                    "1235 FOO - upper - 999")
 
     def test9(self):
         """nested #call directives"""
@@ -819,7 +770,6 @@ $x$y#slurp
 #end call 3
 #set two = 2
 #call self.meth2 y=10/two
-#arg x
 4#slurp
 #end call 4
 #end call 2
