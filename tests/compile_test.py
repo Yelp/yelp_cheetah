@@ -202,3 +202,9 @@ def test_compile_to_class_traceback():
     ret\(\).respond\(\)
   File "<generated cheetah module>", line \d*, in respond
 ZeroDivisionError: integer division or modulo by zero''', traceback)
+
+
+def test_compile_is_deterministic():
+    template = ''
+    compiled_templates = [compile_source(template) for _ in range(5)]
+    assert len(set(compiled_templates)) == 1

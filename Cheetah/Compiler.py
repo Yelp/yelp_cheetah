@@ -57,7 +57,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
     ('initialMethIndentLevel', 2, ''),
-    ('addTimestampsToCompilerOutput', True, ''),
 
     # Customizing the #extends directive
     ('autoImportForExtendsDirective', True, ''),
@@ -843,10 +842,6 @@ class ClassCompiler(GenUtils):
         # printed after methods in the gen class def:
         self._generatedAttribs = []
 
-        if self.setting('addTimestampsToCompilerOutput'):
-            self._generatedAttribs.append('_CHEETAH_genTime = __CHEETAH_genTime__')
-            self._generatedAttribs.append('_CHEETAH_genTimestamp = __CHEETAH_genTimestamp__')
-
         self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
 
         self._blockMetaData = {}
@@ -1326,9 +1321,6 @@ class Compiler(SettingsManager, GenUtils):
     __str__ = getModuleCode
 
     def wrapModuleDef(self):
-        if self.setting('addTimestampsToCompilerOutput'):
-            self.addModuleGlobal('__CHEETAH_genTime__ = %r' % time.time())
-            self.addModuleGlobal('__CHEETAH_genTimestamp__ = %r' % self.timestamp())
         if self._filePath:
             self.addModuleGlobal('__CHEETAH_src__ = %r' % self._filePath)
         else:
