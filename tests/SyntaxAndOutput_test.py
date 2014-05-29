@@ -2175,6 +2175,34 @@ def test_nested_defs():
     assert ' '.join(instance.respond().strip().split()) == '1 2 3'
 
 
+@pytest.mark.xfail
+def test_nested_defs_with_calls():
+    """Fails with unbound local `trans` referenced before assignment."""
+    cls = compile_to_class(
+        '#def callfn1(arg)\n'
+        'Arg fn1: $arg\n'
+        '#end def\n'
+        '\n'
+        '#def callfn2(arg)\n'
+        'Arg fn2: $arg\b'
+        '#end def\n'
+        '\n'
+        '#def foo\n'
+        '    #call callfn1\n'
+        '        #def bar\n'
+        '            #call callfn2\n'
+        '                val\n'
+        '            #end call\n'
+        '        #end def\n'
+        '        $bar()\n'
+        '    #end call\n'
+        '#end def\n'
+        '$foo()\n'
+    )
+    ret = ' '.join(cls().respond().strip().split())
+    assert ret == 'Arg fn1: Arg fn2: val'
+
+
 # TODO: there's probably a pytest way to do this
 def __add_eol_tests():
     """Add tests for different end-of-line formats."""
