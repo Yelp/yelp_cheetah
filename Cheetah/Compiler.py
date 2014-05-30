@@ -38,7 +38,6 @@ _DEFAULT_COMPILER_SETTINGS = [
             'into the initializer instead of Template members first'
         ),
     ),
-    ('autoAssignDummyTransactionToSelf', False, ''),
     ('useKWsDictArgForPassingTrans', True, ''),
 
     ('commentOffset', 1, ''),
@@ -515,10 +514,7 @@ class MethodCompiler(GenUtils):
         self.addChunk('_orig_trans%(ID)s = trans' % locals())
         self.addChunk('_wasBuffering%(ID)s = self._CHEETAH__isBuffering' % locals())
         self.addChunk('trans = _callCollector%(ID)s = DummyTransaction()' % locals())
-        if self.setting('autoAssignDummyTransactionToSelf'):
-            self.addChunk('self.transaction = trans')
-        else:
-            self.addChunk('self._CHEETAH__isBuffering = True')
+        self.addChunk('self.transaction = trans')
         self.addChunk('write = _callCollector%(ID)s.response().write' % locals())
 
     def endCallRegion(self, regionTitle='CALL'):
@@ -528,8 +524,7 @@ class MethodCompiler(GenUtils):
 
         def reset(ID=ID):
             self.addChunk('trans = _orig_trans%(ID)s' % locals())
-            if self.setting('autoAssignDummyTransactionToSelf'):
-                self.addChunk('self.transaction = trans')
+            self.addChunk('self.transaction = trans')
             self.addChunk('write = trans.response().write')
             self.addChunk('self._CHEETAH__isBuffering = _wasBuffering%(ID)s ' % locals())
             self.addChunk('del _wasBuffering%(ID)s' % locals())
@@ -663,8 +658,7 @@ class AutoMethodCompiler(MethodCompiler):
             self.addChunk('if not trans:')
             self.indent()
             self.addChunk('trans = DummyTransaction()')
-            if self.setting('autoAssignDummyTransactionToSelf'):
-                self.addChunk('self.transaction = trans')
+            self.addChunk('self.transaction = trans')
             self.addChunk('_dummyTrans = True')
             self.dedent()
             self.addChunk('else: _dummyTrans = False')
@@ -703,11 +697,7 @@ class AutoMethodCompiler(MethodCompiler):
         self.addChunk('')
 
     def addStop(self, expr=None):
-        if self.setting('autoAssignDummyTransactionToSelf'):
-            no_content = 'NO_CONTENT'
-        else:
-            no_content = "''"
-
+        no_content = 'NO_CONTENT'
         self.addChunk('if _dummyTrans:')
         self.indent()
         self.addChunk('self.transaction = None')
