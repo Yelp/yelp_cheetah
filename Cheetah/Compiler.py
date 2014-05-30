@@ -25,15 +25,6 @@ from Cheetah.Parser import escapedNewlineRE
 # Settings format: (key, default, docstring)
 _DEFAULT_COMPILER_SETTINGS = [
     ('useNameMapper', True, 'Enable NameMapper for dotted notation and searchList support'),
-    (
-        'useSearchList',
-        True,
-        (
-            'Enable the searchList, requires useNameMapper=True, if disabled, '
-            'first portion of the $variable is a global, builtin, or local '
-            "variable that doesn't need looking up in the searchList"
-        ),
-    ),
     ('allowSearchListAsMethArg', True, ''),
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
@@ -166,31 +157,16 @@ class GenUtils(object):
         """
         defaultUseAC = self.setting('useAutocalling')
         useDottedNotation = self.setting('useDottedNotation')
-        useSearchList = self.setting('useSearchList')
 
         nameChunks.reverse()
         name, useAC, remainder = nameChunks.pop()
 
-        if not useSearchList:
-            firstDotIdx = name.find('.')
-            if firstDotIdx != -1 and firstDotIdx < len(name):
-                beforeFirstDot, afterDot = name[:firstDotIdx], name[firstDotIdx + 1:]
-                pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (
-                    beforeFirstDot,
-                    afterDot,
-                    defaultUseAC and useAC,
-                    useDottedNotation,
-                    remainder,
-                )
-            else:
-                pythonCode = name + remainder
-        else:
-            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
-                name,
-                defaultUseAC and useAC,
-                useDottedNotation,
-                remainder,
-            )
+        pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
+            name,
+            defaultUseAC and useAC,
+            useDottedNotation,
+            remainder,
+        )
 
         while nameChunks:
             name, useAC, remainder = nameChunks.pop()

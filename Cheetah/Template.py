@@ -68,14 +68,6 @@ class Template(object):
               etc.) which Cheetah will search through to find the variables
               referenced in $placeholders.
 
-              If you provide a single namespace instead of a list, Cheetah will
-              automatically convert it into a list.
-
-              NOTE: Cheetah does NOT force you to use the namespaces search list
-              and related features.  It's on by default, but you can turn if off
-              using the compiler settings useSearchList=False or
-              useNameMapper=False.
-
              - filter
                Default: 'BaseFilter'
 
