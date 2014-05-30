@@ -28,7 +28,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('allowSearchListAsMethArg', True, ''),
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
-    ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     (
         'prioritizeSearchListOverSelf',
@@ -269,17 +268,14 @@ class MethodCompiler(GenUtils):
         self.addChunk('write(' + chunk + ')')
 
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
-        if self.setting('alwaysFilterNone'):
-            if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
-                self.addChunk("_v = %s # %r" % (chunk, rawExpr))
-                if lineCol:
-                    self.appendToPrevChunk(' on line %s, col %s' % lineCol)
-            else:
-                self.addChunk("_v = %s" % chunk)
-
-            self.addChunk("if _v is not NO_CONTENT: write(_filter(_v))")
+        if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
+            self.addChunk("_v = %s # %r" % (chunk, rawExpr))
+            if lineCol:
+                self.appendToPrevChunk(' on line %s, col %s' % lineCol)
         else:
-            self.addChunk("write(_filter(%s))" % chunk)
+            self.addChunk("_v = %s" % chunk)
+
+        self.addChunk("if _v is not NO_CONTENT: write(_filter(_v))")
 
     def _appendToPrevStrConst(self, strConst):
         if self._pendingStrConstChunks:
