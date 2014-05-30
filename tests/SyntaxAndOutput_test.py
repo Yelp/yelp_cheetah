@@ -609,11 +609,6 @@ class NameMapper(OutputTest):
         self.verify("$aList[:2][0]",
                     "item0")
 
-    def test6(self):
-        """dictionary access - NameMapper style"""
-        self.verify("$aDict.one",
-                    "item1")
-
     def test7(self):
         """dictionary access - Python style"""
         self.verify("$aDict['one']",
@@ -621,47 +616,31 @@ class NameMapper(OutputTest):
 
     def test9(self):
         """dictionary access combined with string method"""
-        self.verify("$aDict.one.upper()",
+        self.verify("$aDict['one'].upper()",
                     "ITEM1")
-
-    def test10(self):
-        """nested dictionary access - NameMapper style"""
-        self.verify("$aDict.nestedDict.two",
-                    "nestedItem2")
 
     def test11(self):
         """nested dictionary access - Python style"""
         self.verify("$aDict['nestedDict']['two']",
                     "nestedItem2")
 
-    def test12(self):
-        """nested dictionary access - alternating style"""
-        self.verify("$aDict['nestedDict'].two",
-                    "nestedItem2")
-
+    @pytest.mark.xfail
     def test13(self):
-        """nested dictionary access using method - alternating style"""
-        self.verify("$aDict.get('nestedDict').two",
+        """nested dictionary access using method"""
+        self.verify("$aDict.get('nestedDict')['two']",
                     "nestedItem2")
 
     def test14(self):
-        """nested dictionary access - NameMapper style - followed by method"""
-        self.verify("$aDict.nestedDict.two.upper()",
-                    "NESTEDITEM2")
-
-    def test15(self):
-        """nested dictionary access - alternating style - followed by method"""
-        self.verify("$aDict['nestedDict'].two.upper()",
+        self.verify("$aDict['nestedDict']['two'].upper()",
                     "NESTEDITEM2")
 
     def test16(self):
-        """nested dictionary access - NameMapper style - followed by method, then slice"""
-        self.verify("${aDict.nestedDict.two.upper()[:4]}",
+        self.verify("${aDict['nestedDict']['two'].upper()[:4]}",
                     "NEST")
 
     def test17(self):
         """nested dictionary access - Python style using a soft-coded key"""
-        self.verify("$aDict[$anObj.meth('nestedDict')].two",
+        self.verify("$aDict[$anObj.meth('nestedDict')]['two']",
                     "nestedItem2")
 
     def test18(self):
@@ -1069,7 +1048,7 @@ class DefDirective(OutputTest):
     def test10(self):
         """#def with *args + **KWs, gobble WS"""
         self.verify(
-            "  #def testMeth($*args, $**KWs)   \n1234-$args-$KWs.a\n  #end def\n$testMeth(1,2, a=1)",
+            "  #def testMeth($*args, $**KWs)   \n1234-$args-$KWs['a']\n  #end def\n$testMeth(1,2, a=1)",
             "1234-(1, 2)-1\n")
 
     def test11(self):
@@ -1331,8 +1310,8 @@ class SetDirective(OutputTest):
     def test5(self):
         """#set with a dictionary"""
         self.verify("""#set $testDict = {'one':'one1','two':'two2','three':'three3'}
-$testDict.one
-$testDict.two""",
+$testDict['one']
+$testDict['two']""",
                     "one1\ntwo2")
 
     def test6(self):

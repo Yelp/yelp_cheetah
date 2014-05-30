@@ -36,7 +36,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ),
     ('allowSearchListAsMethArg', True, ''),
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
-    ('useDottedNotation', True, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
+    ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     (

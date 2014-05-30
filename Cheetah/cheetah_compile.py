@@ -11,10 +11,6 @@ CHEETAH_OPTS = dict(
     # This strange fellow makes template functions write to the current buffer,
     # rather than returning a flattened string (and losing the Markup blessing)
     autoAssignDummyTransactionToSelf=True,
-    # These are the cretins responsible for magically resolving $foo.bar as
-    # foo['bar'] and $self.foo as self.foo().
-    useAutocalling=False,
-    useDottedNotation=False,
 )
 
 
