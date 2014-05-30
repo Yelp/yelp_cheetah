@@ -34,13 +34,7 @@ def compile_source(
             '`cls_name` must be `text` but got {0!r}'.format(type(cls_name))
         )
 
-    compiler = compiler_cls(
-        source,
-        moduleName=cls_name,
-        mainClassName=cls_name,
-        settings=settings,
-    )
-    compiler.compile()
+    compiler = compiler_cls(source, cls_name, settings=settings)
     return compiler.getModuleCode()
 
 

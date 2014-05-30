@@ -286,15 +286,6 @@ class _LowLevelParser(SourceReader):
     def setSetting(self, key, val):
         self._settingsManager.setSetting(key, val)
 
-    def settings(self):
-        return self._settingsManager.settings()
-
-    def updateSettings(self, settings):
-        self._settingsManager.updateSettings(settings)
-
-    def _initializeSettings(self):
-        self._settingsManager._initializeSettings()
-
     def configureParser(self):
         """Is called by the Compiler instance after the parser has had a
         settingsManager assigned with self.setSettingsManager()
@@ -609,7 +600,6 @@ class _LowLevelParser(SourceReader):
         return self._compiler.genCheetahVar(self.getCheetahVarNameChunks(), plain=plain)
 
     def getCheetahVarNameChunks(self):
-
         """
         nameChunks = list of Cheetah $var subcomponents represented as tuples
           [ (namemapperPart,autoCall,restOfName),
@@ -1049,8 +1039,6 @@ class Parser(_LowLevelParser):
 
         self._directiveNamesAndParsers = {}
         for name, val in _directiveNamesAndParsers.items():
-            if val in (False, 0):
-                continue
             self._directiveNamesAndParsers[name] = normalizeParserVal(val)
 
         self._endDirectiveNamesAndHandlers = {}
@@ -1345,11 +1333,8 @@ class Parser(_LowLevelParser):
     # specific directive eat methods
 
     def eatEncoding(self):
-        self.getDirectiveStartToken()
-        self.advance(len('encoding'))
-        self.getWhiteSpace()
-        encoding = self.readToEOL()
-        self._compiler.setModuleEncoding(encoding.strip())
+        # eatEncoding is now a noop
+        self.readToEOL()
 
     def eatCompilerSettings(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
