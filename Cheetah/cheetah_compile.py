@@ -7,7 +7,6 @@ from Cheetah import five
 
 
 CHEETAH_OPTS = dict(
-    allowNestedDefScopes=False,
     # This strange fellow makes template functions write to the current buffer,
     # rather than returning a flattened string (and losing the Markup blessing)
     autoAssignDummyTransactionToSelf=True,

@@ -2094,24 +2094,6 @@ def test_comment_directive_ambiguity():
     assert cls().respond().strip() == '1 2'
 
 
-def test_nested_defs():
-    cls = compile_to_class(
-        '#def foo\n'
-        '    #set a = 1\n'
-        '    #def bar(arg)\n'
-        '        $a\n'
-        '        $arg'
-        '    #end def\n'
-        '    $bar(2)\n'
-        '#end def\n'
-        '$foo()\n'
-        '$search_list_variable\n'
-    )
-    instance = cls(searchList=[{'search_list_variable': 3}])
-    assert ' '.join(instance.respond().strip().split()) == '1 2 3'
-
-
-@pytest.mark.xfail
 def test_nested_defs_with_calls():
     """Fails with unbound local `trans` referenced before assignment."""
     cls = compile_to_class(
@@ -2120,13 +2102,13 @@ def test_nested_defs_with_calls():
         '#end def\n'
         '\n'
         '#def callfn2(arg)\n'
-        'Arg fn2: $arg\b'
+        'Arg fn2: $arg\n'
         '#end def\n'
         '\n'
         '#def foo\n'
-        '    #call callfn1\n'
+        '    #call $callfn1\n'
         '        #def bar\n'
-        '            #call callfn2\n'
+        '            #call $callfn2\n'
         '                val\n'
         '            #end call\n'
         '        #end def\n'
