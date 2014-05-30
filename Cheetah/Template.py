@@ -189,7 +189,6 @@ class Template(object):
         self._CHEETAH__initialFilter = self._CHEETAH__currentFilter
 
         self.transaction = None
-        self._CHEETAH__isBuffering = False
 
     def respond(self):
         raise NotImplementedError

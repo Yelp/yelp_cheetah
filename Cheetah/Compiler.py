@@ -269,10 +269,7 @@ class MethodCompiler(GenUtils):
     def addWriteChunk(self, chunk):
         self.addChunk('write(' + chunk + ')')
 
-    def addFilteredChunk(self, chunk, filterArgs=None, rawExpr=None, lineCol=None):
-        if filterArgs is None:
-            filterArgs = ''
-
+    def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if self.setting('alwaysFilterNone'):
             if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
                 self.addChunk("_v = %s # %r" % (chunk, rawExpr))
@@ -281,9 +278,9 @@ class MethodCompiler(GenUtils):
             else:
                 self.addChunk("_v = %s" % chunk)
 
-            self.addChunk("if _v is not NO_CONTENT: write(_filter(_v%s))" % filterArgs)
+            self.addChunk("if _v is not NO_CONTENT: write(_filter(_v))")
         else:
-            self.addChunk("write(_filter(%s%s))" % (chunk, filterArgs))
+            self.addChunk("write(_filter(%s))" % chunk)
 
     def _appendToPrevStrConst(self, strConst):
         if self._pendingStrConstChunks:
@@ -338,8 +335,8 @@ class MethodCompiler(GenUtils):
         offSet = self.setting('commentOffset')
         self.addChunk('#' + ' ' * offSet + comm)
 
-    def addPlaceholder(self, expr, filterArgs, rawPlaceholder, lineCol):
-        self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
+    def addPlaceholder(self, expr, rawPlaceholder, lineCol):
+        self.addFilteredChunk(expr, rawPlaceholder, lineCol=lineCol)
         self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
 
     def addSilent(self, expr):
@@ -423,17 +420,6 @@ class MethodCompiler(GenUtils):
     def addElif(self, expr, dedent=True, lineCol=None):
         self.addElse(expr, dedent=dedent, lineCol=lineCol)
 
-    def addClosure(self, functionName, argsList, parserComment):
-        argStringChunks = []
-        for arg in argsList:
-            chunk = arg[0]
-            if arg[1] is not None:
-                chunk += '=' + arg[1]
-            argStringChunks.append(chunk)
-        signature = "def " + functionName + "(" + ','.join(argStringChunks) + "):"
-        self.addIndentingDirective(signature)
-        self.addChunk('#' + parserComment)
-
     def addTry(self, expr, lineCol=None):
         self.addIndentingDirective(expr, lineCol=lineCol)
 
@@ -512,7 +498,6 @@ class MethodCompiler(GenUtils):
                       + ' of ' + functionName
                       + ' at line %s, col %s' % lineCol + ' in the source.')
         self.addChunk('_orig_trans%(ID)s = trans' % locals())
-        self.addChunk('_wasBuffering%(ID)s = self._CHEETAH__isBuffering' % locals())
         self.addChunk('trans = _callCollector%(ID)s = DummyTransaction()' % locals())
         self.addChunk('self.transaction = trans')
         self.addChunk('write = _callCollector%(ID)s.response().write' % locals())
@@ -526,8 +511,6 @@ class MethodCompiler(GenUtils):
             self.addChunk('trans = _orig_trans%(ID)s' % locals())
             self.addChunk('self.transaction = trans')
             self.addChunk('write = trans.response().write')
-            self.addChunk('self._CHEETAH__isBuffering = _wasBuffering%(ID)s ' % locals())
-            self.addChunk('del _wasBuffering%(ID)s' % locals())
             self.addChunk('del _orig_trans%(ID)s' % locals())
 
         reset()
@@ -649,16 +632,14 @@ class AutoMethodCompiler(MethodCompiler):
         if self._streamingEnabled and not self.isClassMethod() and not self.isStaticMethod():
             if self._useKWsDictArgForPassingTrans() and self._kwargsName:
                 self.addChunk('trans = %s.get("trans")' % self._kwargsName)
-            self.addChunk('if (not trans and not self._CHEETAH__isBuffering'
-                          ' and not callable(self.transaction)):')
+            self.addChunk('if not trans:')
             self.indent()
             self.addChunk('trans = self.transaction'
                           ' # is None unless self.awake() was called')
             self.dedent()
             self.addChunk('if not trans:')
             self.indent()
-            self.addChunk('trans = DummyTransaction()')
-            self.addChunk('self.transaction = trans')
+            self.addChunk('self.transaction = trans = DummyTransaction()')
             self.addChunk('_dummyTrans = True')
             self.dedent()
             self.addChunk('else: _dummyTrans = False')

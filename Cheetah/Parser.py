@@ -963,7 +963,6 @@ class _LowLevelParser(SourceReader):
         else:
             enclosures = []
 
-        filterArgs = None
         if self.matchIdentifier():
             nameChunks = self.getCheetahVarNameChunks()
             expr = self._compiler.genCheetahVar(nameChunks[:], plain=plain)
@@ -985,7 +984,7 @@ class _LowLevelParser(SourceReader):
                 expr = expr[:-1]
             rawPlaceholder = self[startPos: self.pos()]
 
-        return (expr, rawPlaceholder, lineCol, filterArgs)
+        return (expr, rawPlaceholder, lineCol)
 
 
 class Parser(_LowLevelParser):
@@ -1114,11 +1113,10 @@ class Parser(_LowLevelParser):
         self._compiler.addComment(comm)
 
     def eatPlaceholder(self):
-        (expr, rawPlaceholder, lineCol, filterArgs) = self.getPlaceholder()
+        (expr, rawPlaceholder, lineCol) = self.getPlaceholder()
 
         self._compiler.addPlaceholder(
             expr,
-            filterArgs=filterArgs,
             rawPlaceholder=rawPlaceholder,
             lineCol=lineCol,
         )

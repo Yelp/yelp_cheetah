@@ -107,8 +107,8 @@ class SourceReader(object):
 
     def getc(self):
         pos = self._pos
-        if self.validPos(pos + 1):
-            self._pos += 1
+        assert self.validPos(pos + 1)
+        self._pos += 1
         return self._src[pos]
 
     def advance(self, offset=1):
