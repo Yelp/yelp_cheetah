@@ -38,7 +38,6 @@ _DEFAULT_COMPILER_SETTINGS = [
             'into the initializer instead of Template members first'
         ),
     ),
-    ('useKWsDictArgForPassingTrans', True, ''),
 
     ('commentOffset', 1, ''),
     ('mainMethodName', 'respond', ''),
@@ -577,11 +576,11 @@ class AutoMethodCompiler(MethodCompiler):
         self._isStaticMethod = None
 
     def _useKWsDictArgForPassingTrans(self):
-        alreadyHasTransArg = [argname for argname, defval in self._argStringList
-                              if argname == 'trans']
-        return (self.methodName() != 'respond'
-                and not alreadyHasTransArg
-                and self.setting('useKWsDictArgForPassingTrans'))
+        alreadyHasTransArg = [
+            argname for argname, defval in self._argStringList
+            if argname == 'trans'
+        ]
+        return self.methodName() != 'respond' and not alreadyHasTransArg
 
     def isClassMethod(self):
         if self._isClassMethod is None:
