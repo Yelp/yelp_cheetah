@@ -66,7 +66,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
     ('gettextTokens', ["_", "N_", "ngettext"], ''),
-    ('allowNestedDefScopes', False, ''),
     ('macroDirectives', {}, 'For providing macros'),
 ]
 

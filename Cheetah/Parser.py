@@ -1421,8 +1421,6 @@ class Parser(_LowLevelParser):
             argsList = []
 
         if self.matchColonForSingleLineShortFormDirective():
-            isNestedDef = (self.setting('allowNestedDefScopes')
-                           and [name for name in self._openDirectivesStack if name == 'def'])
             self.getc()
             rawSignature = self[startPos:endOfFirstLinePos]
             self._eatSingleLineDef(directiveName=directiveName,
@@ -1430,13 +1428,11 @@ class Parser(_LowLevelParser):
                                    argsList=argsList,
                                    startPos=startPos,
                                    endPos=endOfFirstLinePos)
-            if directiveName == 'def' and not isNestedDef:
+            if directiveName == 'def':
                 # @@TR: must come before _eatRestOfDirectiveTag ... for some reason
                 self._compiler.closeDef()
             elif directiveName == 'block':
                 self._compiler.closeBlock()
-            elif isNestedDef:
-                self._compiler.dedent()
 
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         else:
@@ -1463,14 +1459,7 @@ class Parser(_LowLevelParser):
                          ' at line %s, col %s' % self.getRowCol(startPos)
                          + '.')
 
-        isNestedDef = (self.setting('allowNestedDefScopes')
-                       and len([name for name in self._openDirectivesStack if name == 'def']) > 1)
-        if directiveName == 'block' or (directiveName == 'def' and not isNestedDef):
-            self._compiler.startMethodDef(methodName, argsList, parserComment)
-        else:  # nested def
-            self._useSearchList_orig = self.setting('useSearchList')
-            self.setSetting('useSearchList', False)
-            self._compiler.addClosure(methodName, argsList, parserComment)
+        self._compiler.startMethodDef(methodName, argsList, parserComment)
 
         return methodName
 
@@ -1479,20 +1468,10 @@ class Parser(_LowLevelParser):
         parserComment = ('## Generated from ' + fullSignature +
                          ' at line %s, col %s' % self.getRowCol(startPos)
                          + '.')
-        isNestedDef = (self.setting('allowNestedDefScopes')
-                       and [name for name in self._openDirectivesStack if name == 'def'])
-        if directiveName == 'block' or (directiveName == 'def' and not isNestedDef):
-            self._compiler.startMethodDef(methodName, argsList, parserComment)
-        else:  # nested def
-            # @@TR: temporary hack of useSearchList
-            useSearchList_orig = self.setting('useSearchList')
-            self.setSetting('useSearchList', False)
-            self._compiler.addClosure(methodName, argsList, parserComment)
+        self._compiler.startMethodDef(methodName, argsList, parserComment)
 
         self.getWhiteSpace(max=1)
         self.parse(breakPoint=endPos)
-        if isNestedDef:  # @@TR: temporary hack of useSearchList
-            self.setSetting('useSearchList', useSearchList_orig)
 
     def eatExtends(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
@@ -1777,15 +1756,7 @@ class Parser(_LowLevelParser):
 
     # end directive handlers
     def handleEndDef(self):
-        isNestedDef = (self.setting('allowNestedDefScopes')
-                       and [name for name in self._openDirectivesStack if name == 'def'])
-        if not isNestedDef:
-            self._compiler.closeDef()
-        else:
-            # @@TR: temporary hack of useSearchList
-            self.setSetting('useSearchList', self._useSearchList_orig)
-            self._compiler.commitStrConst()
-            self._compiler.dedent()
+        self._compiler.closeDef()
 
     def pushToOpenDirectivesStack(self, directiveName):
         assert directiveName in self._closeableDirectives
