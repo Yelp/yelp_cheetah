@@ -1837,7 +1837,7 @@ $anInt//comment
         self.verify("""$anInt##comment
 #compiler commentStartToken = '//'
 $anInt//comment
-#compiler reset
+#compiler commentStartToken = '##'
 $anInt//comment
 """,
                     "1\n1\n1//comment\n")
@@ -1853,7 +1853,9 @@ class CompilerSettingsDirective(OutputTest):
 cheetahVarStartToken = @
 #end compiler-settings
 @anInt
-#compiler-settings reset
+#compiler-settings
+cheetahVarStartToken = $
+#end compiler-settings
 $anInt
 """,
                     "1\n1\n1\n")

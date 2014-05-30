@@ -644,8 +644,6 @@ class AutoMethodCompiler(MethodCompiler):
     def cleanupState(self):
         MethodCompiler.cleanupState(self)
         self.commitStrConst()
-        if self._callRegionsStack:
-            self.endCallRegion()
 
         if self._streamingEnabled:
             kwargsName = None
@@ -1225,16 +1223,7 @@ class Compiler(SettingsManager, GenUtils):
         self._parser.configureParser()
 
     def setCompilerSettings(self, keywords, settingsStr):
-        KWs = keywords
-
-        if 'reset' in KWs:
-            # @@TR: this is actually caught by the parser at the moment.
-            # subject to change in the future
-            self._initializeSettings()
-            self._parser.configureParser()
-            return
-        else:
-            settingsReader = self.updateSettingsFromConfigStr
+        settingsReader = self.updateSettingsFromConfigStr
 
         settingsReader(settingsStr)
         self._parser.configureParser()

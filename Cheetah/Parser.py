@@ -1363,13 +1363,6 @@ class Parser(_LowLevelParser):
         startPos = self.pos()
         settingName = self.getIdentifier()
 
-        if settingName.lower() == 'reset':
-            self.getExpression()  # gobble whitespace & junk
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
-            self._initializeSettings()
-            self.configureParser()
-            return
-
         self.getWhiteSpace()
         if self.peek() == '=':
             self.advance()
@@ -1400,13 +1393,6 @@ class Parser(_LowLevelParser):
 
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
-        if 'reset' in keywords:
-            self._compiler._initializeSettings()
-            self.configureParser()
-            # @@TR: this implies a single-line #compiler-settings directive, and
-            # thus we should parse forward for an end directive.
-            # Subject to change in the future
-            return
         settingsStr = self._eatToThisEndDirective('compiler-settings')
         try:
             self._compiler.setCompilerSettings(keywords=keywords, settingsStr=settingsStr)
