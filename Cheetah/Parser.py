@@ -1718,26 +1718,7 @@ class Parser(_LowLevelParser):
         expressionParts = self.getExpressionParts(pyTokensToBreakAt=[':'])
         expr = ''.join(expressionParts).strip()
 
-        isTernaryExpr = ('then' in expressionParts and 'else' in expressionParts)
-        if isTernaryExpr:
-            conditionExpr = []
-            trueExpr = []
-            falseExpr = []
-            currentExpr = conditionExpr
-            for part in expressionParts:
-                if part.strip() == 'then':
-                    currentExpr = trueExpr
-                elif part.strip() == 'else':
-                    currentExpr = falseExpr
-                else:
-                    currentExpr.append(part)
-
-            conditionExpr = ''.join(conditionExpr)
-            trueExpr = ''.join(trueExpr)
-            falseExpr = ''.join(falseExpr)
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
-            self._compiler.addTernaryExpr(conditionExpr, trueExpr, falseExpr, lineCol=lineCol)
-        elif self.matchColonForSingleLineShortFormDirective():
+        if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
             self._compiler.addIf(expr, lineCol=lineCol)
             self.getWhiteSpace(max=1)

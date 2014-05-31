@@ -397,17 +397,6 @@ class MethodCompiler(GenUtils):
         """
         self.addIndentingDirective(expr, lineCol=lineCol)
 
-    def addTernaryExpr(self, conditionExpr, trueExpr, falseExpr, lineCol=None):
-        """For a single-lie #if ... then .... else ... directive
-        <condition> then <trueExpr> else <falseExpr>
-        """
-        self.addIndentingDirective(conditionExpr, lineCol=lineCol)
-        self.addFilteredChunk(trueExpr)
-        self.dedent()
-        self.addIndentingDirective('else')
-        self.addFilteredChunk(falseExpr)
-        self.dedent()
-
     def addElse(self, expr, dedent=True, lineCol=None):
         expr = re.sub(r'else[ \f\t]+if', 'elif', expr)
         self.addReIndentingDirective(expr, dedent=dedent, lineCol=lineCol)

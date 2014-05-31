@@ -1498,21 +1498,6 @@ class IfDirective(OutputTest):
         self.verify("#if $emptyString# $anInt#else#$anInt - $anInt#end if",
                     "1 - 1")
 
-    def test14(self):
-        """single-line #if: simple"""
-        self.verify("#if $emptyString then 'true' else 'false'",
-                    "false")
-
-    def test15(self):
-        """single-line #if: more complex"""
-        self.verify("#if $anInt then 'true' else 'false'",
-                    "true")
-
-    def test16(self):
-        """single-line #if: with the words 'else' and 'then' in the output """
-        self.verify("#if ($anInt and not $emptyString==''' else ''') then $str('then') else 'else'",
-                    "then")
-
     def test17(self):
         """single-line #if:  """
         self.verify("#if 1: foo\n#if 0: bar\n#if 1: foo",
