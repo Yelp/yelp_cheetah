@@ -12,7 +12,6 @@ import os
 import os.path
 import re
 import textwrap
-import time
 import warnings
 import copy
 
@@ -1012,29 +1011,13 @@ class Compiler(SettingsManager, GenUtils):
     parserClass = Parser
     classCompilerClass = ClassCompiler
 
-    def __init__(self,
-                 source,
-                 moduleName='DynamicallyCompiledCheetahTemplate',
-                 mainClassName=None,  # string
-                 mainMethodName=None,  # string
-                 baseclassName=None,  # string
-                 settings=None  # dict
-                 ):
+    def __init__(self, source, moduleName, settings=None):
         super(Compiler, self).__init__()
         if settings:
             self.updateSettings(settings)
 
-        self._compiled = False
         self._moduleName = moduleName
-        if not mainClassName:
-            self._mainClassName = moduleName
-        else:
-            self._mainClassName = mainClassName
-        self._mainMethodNameArg = mainMethodName
-        if mainMethodName:
-            self.setSetting('mainMethodName', mainMethodName)
-        self._baseclassName = baseclassName
-
+        self._mainClassName = moduleName
         self._filePath = None
 
         if self._filePath:
@@ -1069,11 +1052,6 @@ class Compiler(SettingsManager, GenUtils):
         self._activeClassesList = []
         self._finishedClassesList = []      # listed by ordered
         self._finishedClassIndex = {}  # listed by name
-        self._moduleDef = None
-        self._moduleEncoding = 'ascii'
-        self._moduleEncodingStr = ''
-        self._moduleHeaderLines = []
-        self._specialVars = {}
         self._importStatements = [
             "from Cheetah.DummyTransaction import DummyTransaction",
             "from Cheetah.NameMapper import NotFound",
@@ -1092,16 +1070,6 @@ class Compiler(SettingsManager, GenUtils):
             'NotFound',
             'Filters',
         ]
-
-    def compile(self):
-        classCompiler = self._spawnClassCompiler(self._mainClassName)
-        if self._baseclassName:
-            classCompiler.setBaseClass(self._baseclassName)
-        self._addActiveClassCompiler(classCompiler)
-        self._parser.parse()
-        self._swallowClassCompiler(self._popActiveClassCompiler())
-        self._compiled = True
-        self._parser.cleanup()
 
     def _spawnClassCompiler(self, className, klass=None):
         if klass is None:
@@ -1148,14 +1116,10 @@ class Compiler(SettingsManager, GenUtils):
     # methods for adding stuff to the module and class definitions
 
     def setBaseClass(self, baseClassName):
-        if self._mainMethodNameArg:
-            self.setMainMethodName(self._mainMethodNameArg)
-        else:
-            self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
+        self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
 
         if (
             not self.setting('autoImportForExtendsDirective') or
-            baseClassName == 'object' or
             baseClassName in self.importedVarNames()
         ):
             self._getActiveClassCompiler().setBaseClass(baseClassName)
@@ -1214,28 +1178,11 @@ class Compiler(SettingsManager, GenUtils):
         settingsReader(settingsStr)
         self._parser.configureParser()
 
-    def setModuleEncoding(self, encoding):
-        self._moduleEncoding = encoding
-
-    def getModuleEncoding(self):
-        return self._moduleEncoding
-
-    def addModuleHeader(self, line):
-        """Adds a header comment to the top of the generated module.
-        """
-        self._moduleHeaderLines.append(line)
-
     def addModuleGlobal(self, line):
         """Adds a line of global module code.  It is inserted after the import
         statements and Cheetah default module constants.
         """
         self._moduleConstants.append(line)
-
-    def addSpecialVar(self, basename, contents, includeUnderscores=True):
-        """Adds module __specialConstant__ to the module globals.
-        """
-        name = includeUnderscores and '__' + basename + '__' or basename
-        self._specialVars[name] = contents.strip()
 
     def addImportStatement(self, impStatement):
         settings = self.settings()
@@ -1263,16 +1210,12 @@ class Compiler(SettingsManager, GenUtils):
     # methods for module code wrapping
 
     def getModuleCode(self):
-        if not self._compiled:
-            self.compile()
-        if self._moduleDef:
-            return self._moduleDef
-        else:
-            return self.wrapModuleDef()
+        classCompiler = self._spawnClassCompiler(self._mainClassName)
+        self._addActiveClassCompiler(classCompiler)
+        self._parser.parse()
+        self._swallowClassCompiler(self._popActiveClassCompiler())
+        self._parser.cleanup()
 
-    __str__ = getModuleCode
-
-    def wrapModuleDef(self):
         if self._filePath:
             self.addModuleGlobal('__CHEETAH_src__ = %r' % self._filePath)
         else:
@@ -1280,20 +1223,15 @@ class Compiler(SettingsManager, GenUtils):
 
         moduleDef = textwrap.dedent(
             """
-            %(header)s
-
             %(imports)s
 
             %(constants)s
-            %(specialVars)s
 
             %(classes)s
 
             %(footer)s
             """
         ).strip() % {
-            'header': self.moduleHeader(),
-            'specialVars': self.specialVars(),
             'imports': self.importStatements(),
             'constants': self.moduleConstants(),
             'classes': self.classDefs(),
@@ -1301,30 +1239,7 @@ class Compiler(SettingsManager, GenUtils):
             'mainClassName': self._mainClassName,
         }
 
-        self._moduleDef = moduleDef
         return moduleDef
-
-    def timestamp(self):
-        return time.asctime(time.localtime(time.time()))
-
-    def moduleHeader(self):
-        header = self._moduleEncodingStr + '\n'
-        if self._moduleHeaderLines:
-            offSet = self.setting('commentOffset')
-
-            header += (
-                '#' + ' ' * offSet +
-                ('\n#' + ' ' * offSet).join(self._moduleHeaderLines) + '\n')
-
-        return header
-
-    def specialVars(self):
-        chunks = []
-        theVars = self._specialVars
-        keys = sorted(theVars.keys())
-        for key in keys:
-            chunks.append(key + ' = ' + repr(theVars[key]))
-        return '\n'.join(chunks)
 
     def importStatements(self):
         return '\n'.join(self._importStatements)
