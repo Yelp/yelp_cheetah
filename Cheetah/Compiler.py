@@ -27,14 +27,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
-    (
-        'prioritizeSearchListOverSelf',
-        False,
-        (
-            'When iterating the searchList, look into the searchList passed '
-            'into the initializer instead of Template members first'
-        ),
-    ),
 
     ('commentOffset', 1, ''),
     ('mainMethodName', 'respond', ''),
@@ -201,17 +193,47 @@ class MethodCompiler(GenUtils):
         self._pendingStrConstChunks = []
         self._methodSignature = None
         self._methodBodyChunks = []
-
         self._callRegionsStack = []
         self._filterRegionsStack = []
-
         self._hasReturnStatement = False
         self._isGenerator = False
+        self._argStringList = [("self", None)]
+        self._streamingEnabled = True
+        self._isClassMethod = None
+        self._isStaticMethod = None
 
     def cleanupState(self):
         """Called by the containing class compiler instance
         """
-        pass
+        self.commitStrConst()
+
+        if self._streamingEnabled:
+            kwargsName = None
+            positionalArgsListName = None
+            for argname, defval in self._argStringList:
+                if argname.strip().startswith('**'):
+                    kwargsName = argname.strip().replace('**', '')
+                    break
+                elif argname.strip().startswith('*'):
+                    positionalArgsListName = argname.strip().replace('*', '')
+
+            if not kwargsName and self._useKWsDictArgForPassingTrans():
+                kwargsName = 'KWS'
+                self.addMethArg('**KWS', None)
+            self._kwargsName = kwargsName
+
+            if not self._useKWsDictArgForPassingTrans():
+                if not kwargsName and not positionalArgsListName:
+                    self.addMethArg('trans', 'None')
+                else:
+                    self._streamingEnabled = False
+
+        self._indentLev = self.setting('initialMethIndentLevel')
+        mainBodyChunks = self._methodBodyChunks
+        self._methodBodyChunks = []
+        self._addAutoSetupCode()
+        self._methodBodyChunks.extend(mainBodyChunks)
+        self._addAutoCleanupCode()
 
     def methodName(self):
         return self._methodName
@@ -242,12 +264,6 @@ class MethodCompiler(GenUtils):
             self.methodBody())
         methodDef = ''.join(methodDefChunks)
         return methodDef
-
-    def methodSignature(self):
-        return self._indent + self._methodSignature + ':'
-
-    def setMethodSignature(self, signature):
-        self._methodSignature = signature
 
     def methodBody(self):
         return ''.join(self._methodBodyChunks)
@@ -543,20 +559,8 @@ class MethodCompiler(GenUtils):
                 self.dedent()
 
     def closeFilterBlock(self):
-        ID, filterDetails = self._filterRegionsStack.pop()
-        # self.addChunk('_filter = self._CHEETAH__initialFilter')
-        # self.addChunk('_filter = _orig_filter%(ID)s'%locals())
+        ID = self._filterRegionsStack.pop()[0]
         self.addChunk('_filter = self._CHEETAH__currentFilter = _orig_filter%(ID)s' % locals())
-
-
-class AutoMethodCompiler(MethodCompiler):
-
-    def _setupState(self):
-        MethodCompiler._setupState(self)
-        self._argStringList = [("self", None)]
-        self._streamingEnabled = True
-        self._isClassMethod = None
-        self._isStaticMethod = None
 
     def _useKWsDictArgForPassingTrans(self):
         alreadyHasTransArg = [
@@ -574,38 +578,6 @@ class AutoMethodCompiler(MethodCompiler):
         if self._isStaticMethod is None:
             self._isStaticMethod = '@staticmethod' in self._decorators
         return self._isStaticMethod
-
-    def cleanupState(self):
-        MethodCompiler.cleanupState(self)
-        self.commitStrConst()
-
-        if self._streamingEnabled:
-            kwargsName = None
-            positionalArgsListName = None
-            for argname, defval in self._argStringList:
-                if argname.strip().startswith('**'):
-                    kwargsName = argname.strip().replace('**', '')
-                    break
-                elif argname.strip().startswith('*'):
-                    positionalArgsListName = argname.strip().replace('*', '')
-
-            if not kwargsName and self._useKWsDictArgForPassingTrans():
-                kwargsName = 'KWS'
-                self.addMethArg('**KWS', None)
-            self._kwargsName = kwargsName
-
-            if not self._useKWsDictArgForPassingTrans():
-                if not kwargsName and not positionalArgsListName:
-                    self.addMethArg('trans', 'None')
-                else:
-                    self._streamingEnabled = False
-
-        self._indentLev = self.setting('initialMethIndentLevel')
-        mainBodyChunks = self._methodBodyChunks
-        self._methodBodyChunks = []
-        self._addAutoSetupCode()
-        self._methodBodyChunks.extend(mainBodyChunks)
-        self._addAutoCleanupCode()
 
     def _addAutoSetupCode(self):
         if self._initialMethodComment:
@@ -703,8 +675,7 @@ class AutoMethodCompiler(MethodCompiler):
 
 
 class ClassCompiler(GenUtils):
-    methodCompilerClass = AutoMethodCompiler
-    methodCompilerClassForInit = MethodCompiler
+    methodCompilerClass = MethodCompiler
 
     def __init__(self, className, mainMethodName='respond',
                  moduleCompiler=None,
@@ -748,24 +719,12 @@ class ClassCompiler(GenUtils):
         self._baseClass = 'Template'
         # printed after methods in the gen class def:
         self._generatedAttribs = []
-
         self._blockMetaData = {}
 
     def cleanupState(self):
         while self._activeMethodsList:
             methCompiler = self._popActiveMethodCompiler()
             self._swallowMethodCompiler(methCompiler)
-        self._setupInitMethod()
-
-    def _setupInitMethod(self):
-        __init__ = self._spawnMethodCompiler(
-            '__init__',
-            klass=self.methodCompilerClassForInit,
-        )
-        __init__.setMethodSignature("def __init__(self, *args, **KWs)")
-        __init__.addChunk('super(%s, self).__init__(*args, **KWs)' % self._className)
-        __init__.cleanupState()
-        self._swallowMethodCompiler(__init__, pos=0)
 
     def className(self):
         return self._className
@@ -814,12 +773,9 @@ class ClassCompiler(GenUtils):
     def _popActiveMethodCompiler(self):
         return self._activeMethodsList.pop()
 
-    def _swallowMethodCompiler(self, methodCompiler, pos=None):
+    def _swallowMethodCompiler(self, methodCompiler):
         methodCompiler.cleanupState()
-        if pos is None:
-            self._finishedMethodsList.append(methodCompiler)
-        else:
-            self._finishedMethodsList.insert(pos, methodCompiler)
+        self._finishedMethodsList.append(methodCompiler)
         return methodCompiler
 
     def startMethodDef(self, methodName, argsList, parserComment):
