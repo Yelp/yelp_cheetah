@@ -1109,14 +1109,8 @@ class Compiler(SettingsManager, GenUtils):
                         self.addImportStatement(importStatement)
                         self.addImportedVarNames([finalClassName])
 
-    def setCompilerSetting(self, key, valueExpr):
-        self.setSetting(key, eval(valueExpr))
-        self._parser.configureParser()
-
     def setCompilerSettings(self, keywords, settingsStr):
-        settingsReader = self.updateSettingsFromConfigStr
-
-        settingsReader(settingsStr)
+        self.updateSettingsFromConfigStr(settingsStr)
         self._parser.configureParser()
 
     def addModuleGlobal(self, line):

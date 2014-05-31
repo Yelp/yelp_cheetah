@@ -1,9 +1,8 @@
-import pytest
+from __future__ import unicode_literals
 
 from Cheetah.compile import compile_to_class
 
 
-@pytest.mark.xfail
 def test_Chep_2_Conditionalized_Import_Behavior_InlineImport():
     """Verify (new) inline import behavior works"""
     template = '''
@@ -16,7 +15,9 @@ def test_Chep_2_Conditionalized_Import_Behavior_InlineImport():
             #return urllib.quote($s)
         #end def
     '''
-    template = compile_to_class(template)
+    template = compile_to_class(
+        template, settings={'useLegacyImportMode': False}
+    )
     template = template()
     rc = template.funky('abc def')
-    assert rc == 'abc+def'
+    assert rc == 'abc%20def'

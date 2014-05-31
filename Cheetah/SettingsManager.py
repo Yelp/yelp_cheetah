@@ -5,10 +5,6 @@ from tokenize import Number
 
 
 numberRE = re.compile(Number)
-complexNumberRE = re.compile('[\(]*' + Number + r'[ \t]*\+[ \t]*' + Number + '[\)]*')
-
-##################################################
-# FUNCTIONS ##
 
 
 def mergeNestedDictionaries(dict1, dict2):
@@ -25,29 +21,25 @@ def mergeNestedDictionaries(dict1, dict2):
     return dict1
 
 
-def stringIsNumber(S):
+def stringIsNumber(s):
     """Return True if theString represents a Python number, False otherwise.
-    This also works for complex numbers and numbers with +/- in front."""
+    This also works for complex numbers and numbers with +/- in front.
+    """
+    s = s.strip()
 
-    S = S.strip()
+    if s[0] in '-+' and len(s) > 1:
+        s = s[1:].strip()
 
-    if S[0] in '-+' and len(S) > 1:
-        S = S[1:].strip()
-
-    match = complexNumberRE.match(S)
-    if not match:
-        match = numberRE.match(S)
-    if not match or (match.end() != len(S)):
-        return False
-    else:
-        return True
+    match = numberRE.match(s)
+    return bool(match) and match.end() == len(s)
 
 
 def convStringToNum(theString):
     """Convert a string representation of a Python number to the Python version"""
-
     if not stringIsNumber(theString):
-        raise Exception(theString + ' cannot be converted to a Python number')
+        raise AssertionError(
+            theString + ' cannot be converted to a Python number'
+        )
     return eval(theString, {}, {})
 
 
@@ -69,30 +61,20 @@ class _SettingsCollector(object):
 
     _ConfigParserClass = ConfigParserCaseSensitive
 
-    def readSettingsFromConfigFileObj(self, inFile, convert=True):
+    def readSettingsFromConfigFileObj(self, inFile):
         """Return the settings from a config file that uses the syntax accepted by
         Python's standard ConfigParser module (like Windows .ini files).
 
         NOTE:
-        this method maintains case unlike the ConfigParser module, unless this
-        class was initialized with the 'caseSensitive' keyword set to False.
+        this method maintains case unlike the ConfigParser module
 
-        All setting values are initially parsed as strings. However, If the
-        'convert' arg is True this method will do the following value
-        conversions:
+        All setting values are initially parsed as strings.
+        However, the following value conversions are applied:
 
         * all Python numeric literals will be coverted from string to number
-
-        * The string 'None' will be converted to the Python value None
-
         * The string 'True' will be converted to a Python truth value
-
         * The string 'False' will be converted to a Python false value
-
-        If a config section titled 'Globals' is present the options defined
-        under it will be treated as top-level settings.
         """
-
         p = self._ConfigParserClass()
         p.readfp(inFile)
         sects = p.sections()
@@ -104,27 +86,23 @@ class _SettingsCollector(object):
         for s in sects:
             newSettings[s] = {}
             for o in p.options(s):
-                if o != '__name__':
-                    newSettings[s][o] = p.get(s, o)
+                assert o != '__name__'
+                newSettings[s][o] = p.get(s, o)
 
         # loop through new settings -> deal with global settings, numbers,
-        # booleans and None ++ also deal with 'importSettings' commands
-
+        # booleans
         for sect, subDict in newSettings.items():
             for key, val in subDict.items():
-                if convert:
-                    if val.lower() == 'none':
-                        subDict[key] = None
-                    if val.lower() == 'true':
-                        subDict[key] = True
-                    if val.lower() == 'false':
-                        subDict[key] = False
-                    if stringIsNumber(val):
-                        subDict[key] = convStringToNum(val)
+                if val.lower() == 'true':
+                    subDict[key] = True
+                elif val.lower() == 'false':
+                    subDict[key] = False
+                elif stringIsNumber(val):
+                    subDict[key] = convStringToNum(val)
 
-            if sect.lower() == 'globals':
-                newSettings.update(newSettings[sect])
-                del newSettings[sect]
+            assert sect.lower() == 'globals'
+            newSettings.update(newSettings[sect])
+            del newSettings[sect]
 
         return newSettings
 
@@ -164,22 +142,14 @@ class SettingsManager(_SettingsCollector):
         """Return a reference to the settings dictionary"""
         return self._settings
 
-    def updateSettings(self, newSettings, merge=True):
+    def updateSettings(self, newSettings):
         """Update the settings with a selective merge or a complete overwrite."""
+        mergeNestedDictionaries(self._settings, newSettings)
 
-        if merge:
-            mergeNestedDictionaries(self._settings, newSettings)
-        else:
-            self._settings.update(newSettings)
-
-    # source specific update methods
-
-    def updateSettingsFromConfigStr(self, configStr, convert=True, merge=True):
+    def updateSettingsFromConfigStr(self, configStr):
         """See the docstring for .updateSettingsFromConfigFile()
         """
-
         configStr = '[globals]\n' + configStr
         inFile = StringIO(configStr)
-        newSettings = self.readSettingsFromConfigFileObj(inFile, convert=convert)
-        self.updateSettings(newSettings,
-                            merge=newSettings.get('mergeSettings', merge))
+        newSettings = self.readSettingsFromConfigFileObj(inFile)
+        self.updateSettings(newSettings)
