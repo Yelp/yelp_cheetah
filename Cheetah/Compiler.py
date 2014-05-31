@@ -270,8 +270,8 @@ class MethodCompiler(GenUtils):
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
             self.addChunk("_v = %s # %r" % (chunk, rawExpr))
-            if lineCol:
-                self.appendToPrevChunk(' on line %s, col %s' % lineCol)
+            assert lineCol
+            self.appendToPrevChunk(' on line %s, col %s' % lineCol)
         else:
             self.addChunk("_v = %s" % chunk)
 
@@ -331,7 +331,7 @@ class MethodCompiler(GenUtils):
         self.addChunk('#' + ' ' * offSet + comm)
 
     def addPlaceholder(self, expr, rawPlaceholder, lineCol):
-        self.addFilteredChunk(expr, rawPlaceholder, lineCol=lineCol)
+        self.addFilteredChunk(expr, rawPlaceholder, lineCol)
         self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
 
     def addSilent(self, expr):
@@ -867,7 +867,8 @@ class ClassCompiler(GenUtils):
         argString = ','.join(argStringChunks)
 
         self.addFilteredChunk(
-            'super(%(className)s, self).%(methodName)s(%(argString)s)' % locals())
+            'super(%(className)s, self).%(methodName)s(%(argString)s)' % locals()
+        )
 
     def closeDef(self):
         self.commitStrConst()
