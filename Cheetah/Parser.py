@@ -151,7 +151,6 @@ directiveNamesAndParsers = {
     'finally': None,
 
     # intructions to the parser and compiler
-    'compiler': 'eatCompiler',
     'compiler-settings': 'eatCompilerSettings',
 
     # misc
@@ -1351,36 +1350,6 @@ class Parser(_LowLevelParser):
         self.getWhiteSpace()
         encoding = self.readToEOL()
         self._compiler.setModuleEncoding(encoding.strip())
-
-    def eatCompiler(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLine = self.findEOL()
-        startPos = self.pos()
-        self.getDirectiveStartToken()
-        self.advance(len('compiler'))   # to end of 'compiler'
-        self.getWhiteSpace()
-
-        startPos = self.pos()
-        settingName = self.getIdentifier()
-
-        self.getWhiteSpace()
-        if self.peek() == '=':
-            self.advance()
-        else:
-            raise ParseError(self)
-        valueExpr = self.getExpression()
-        endPos = self.pos()
-
-        self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
-        try:
-            self._compiler.setCompilerSetting(settingName, valueExpr)
-        except Exception:
-            sys.stderr.write('An error occurred while processing the following #compiler directive.\n')
-            sys.stderr.write('----------------------------------------------------------------------\n')
-            sys.stderr.write('%s\n' % self[startPos:endPos])
-            sys.stderr.write('----------------------------------------------------------------------\n')
-            sys.stderr.write('Please check the syntax of these settings.\n\n')
-            raise
 
     def eatCompilerSettings(self):
         isLineClearToStartToken = self.isLineClearToStartToken()

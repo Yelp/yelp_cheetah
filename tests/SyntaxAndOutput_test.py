@@ -1363,8 +1363,14 @@ $testDict.two""",
 
     def test14(self):
         """simple #set without NameMapper on"""
-        self.verify("""#compiler useNameMapper = 0\n#set $testVar = 1 \n$testVar""",
-                    "1")
+        self.verify(
+            '#compiler-settings\n'
+            'useNameMapper = 0\n'
+            '#end compiler-settings\n'
+            '#set $testVar = 1\n'
+            '$testVar',
+            '1'
+        )
 
     def test15(self):
         """simple #set without $"""
@@ -1826,7 +1832,9 @@ class CompilerDirective(OutputTest):
         """overriding the commentStartToken
         """
         self.verify("""$anInt##comment
-#compiler commentStartToken = '//'
+#compiler-settings
+commentStartToken = //
+#end compiler-settings
 $anInt//comment
 """,
                     "1\n1\n")
@@ -1835,9 +1843,13 @@ $anInt//comment
         """overriding and resetting the commentStartToken
         """
         self.verify("""$anInt##comment
-#compiler commentStartToken = '//'
+#compiler-settings
+commentStartToken = //
+#end compiler-settings
 $anInt//comment
-#compiler commentStartToken = '##'
+#compiler-settings
+commentStartToken = '##'
+#end compiler-settings
 $anInt//comment
 """,
                     "1\n1\n1//comment\n")
