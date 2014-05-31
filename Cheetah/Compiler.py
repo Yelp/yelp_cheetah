@@ -1075,36 +1075,22 @@ class Compiler(SettingsManager, GenUtils):
         self._moduleHeaderLines = []
         self._specialVars = {}
         self._importStatements = [
-            "import sys",
-            "import os",
-            "import os.path",
-            'try:',
-            '    import builtins as builtin',
-            'except ImportError:',
-            '    import __builtin__ as builtin',
-            "from os.path import getmtime, exists",
-            "import types",
+            "from Cheetah.DummyTransaction import DummyTransaction",
+            "from Cheetah.NameMapper import NotFound",
+            "from Cheetah.NameMapper import valueForName as VFN",
+            "from Cheetah.NameMapper import valueFromSearchList as VFSL",
+            "from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL",
             "from Cheetah.Template import NO_CONTENT",
             "from Cheetah.Template import Template",
-            "from Cheetah.DummyTransaction import DummyTransaction",
-            "from Cheetah.NameMapper import NotFound, valueForName, valueFromSearchList, valueFromFrameOrSearchList",
-            "import Cheetah.Filters as Filters",
         ]
 
-        self._importedVarNames = ['sys',
-                                  'os',
-                                  'os.path',
-                                  'types',
-                                  'Template',
-                                  'DummyTransaction',
-                                  'NotFound',
-                                  'Filters',
-                                  ]
+        self._moduleConstants = []
 
-        self._moduleConstants = [
-            "VFFSL=valueFromFrameOrSearchList",
-            "VFSL=valueFromSearchList",
-            "VFN=valueForName",
+        self._importedVarNames = [
+            'Template',
+            'DummyTransaction',
+            'NotFound',
+            'Filters',
         ]
 
     def compile(self):
