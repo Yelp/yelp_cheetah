@@ -6,19 +6,11 @@ import Cheetah.compile
 from Cheetah import five
 
 
-CHEETAH_OPTS = dict(
-    allowNestedDefScopes=False,
-    # This strange fellow makes template functions write to the current buffer,
-    # rather than returning a flattened string (and losing the Markup blessing)
-    autoAssignDummyTransactionToSelf=True,
-)
-
-
 def compile_template(filename):
     if not isinstance(filename, five.text):
         filename = filename.decode('UTF-8')
 
-    return Cheetah.compile.compile_file(filename, settings=CHEETAH_OPTS)
+    return Cheetah.compile.compile_file(filename)
 
 
 def compile_all(filenames):

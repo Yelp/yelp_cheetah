@@ -25,19 +25,9 @@ from Cheetah.Parser import escapedNewlineRE
 # Settings format: (key, default, docstring)
 _DEFAULT_COMPILER_SETTINGS = [
     ('useNameMapper', True, 'Enable NameMapper for dotted notation and searchList support'),
-    (
-        'useSearchList',
-        True,
-        (
-            'Enable the searchList, requires useNameMapper=True, if disabled, '
-            'first portion of the $variable is a global, builtin, or local '
-            "variable that doesn't need looking up in the searchList"
-        ),
-    ),
     ('allowSearchListAsMethArg', True, ''),
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
-    ('alwaysFilterNone', True, 'Filter out None prior to calling the #filter'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     (
         'prioritizeSearchListOverSelf',
@@ -47,8 +37,6 @@ _DEFAULT_COMPILER_SETTINGS = [
             'into the initializer instead of Template members first'
         ),
     ),
-    ('autoAssignDummyTransactionToSelf', False, ''),
-    ('useKWsDictArgForPassingTrans', True, ''),
 
     ('commentOffset', 1, ''),
     ('mainMethodName', 'respond', ''),
@@ -66,7 +54,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
     ('gettextTokens', ["_", "N_", "ngettext"], ''),
-    ('allowNestedDefScopes', True, ''),
     ('macroDirectives', {}, 'For providing macros'),
 ]
 
@@ -167,31 +154,16 @@ class GenUtils(object):
         """
         defaultUseAC = self.setting('useAutocalling')
         useDottedNotation = self.setting('useDottedNotation')
-        useSearchList = self.setting('useSearchList')
 
         nameChunks.reverse()
         name, useAC, remainder = nameChunks.pop()
 
-        if not useSearchList:
-            firstDotIdx = name.find('.')
-            if firstDotIdx != -1 and firstDotIdx < len(name):
-                beforeFirstDot, afterDot = name[:firstDotIdx], name[firstDotIdx + 1:]
-                pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (
-                    beforeFirstDot,
-                    afterDot,
-                    defaultUseAC and useAC,
-                    useDottedNotation,
-                    remainder,
-                )
-            else:
-                pythonCode = name + remainder
-        else:
-            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
-                name,
-                defaultUseAC and useAC,
-                useDottedNotation,
-                remainder,
-            )
+        pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
+            name,
+            defaultUseAC and useAC,
+            useDottedNotation,
+            remainder,
+        )
 
         while nameChunks:
             name, useAC, remainder = nameChunks.pop()
@@ -295,21 +267,15 @@ class MethodCompiler(GenUtils):
     def addWriteChunk(self, chunk):
         self.addChunk('write(' + chunk + ')')
 
-    def addFilteredChunk(self, chunk, filterArgs=None, rawExpr=None, lineCol=None):
-        if filterArgs is None:
-            filterArgs = ''
-
-        if self.setting('alwaysFilterNone'):
-            if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
-                self.addChunk("_v = %s # %r" % (chunk, rawExpr))
-                if lineCol:
-                    self.appendToPrevChunk(' on line %s, col %s' % lineCol)
-            else:
-                self.addChunk("_v = %s" % chunk)
-
-            self.addChunk("if _v is not NO_CONTENT: write(_filter(_v%s))" % filterArgs)
+    def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
+        if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
+            self.addChunk("_v = %s # %r" % (chunk, rawExpr))
+            if lineCol:
+                self.appendToPrevChunk(' on line %s, col %s' % lineCol)
         else:
-            self.addChunk("write(_filter(%s%s))" % (chunk, filterArgs))
+            self.addChunk("_v = %s" % chunk)
+
+        self.addChunk("if _v is not NO_CONTENT: write(_filter(_v))")
 
     def _appendToPrevStrConst(self, strConst):
         if self._pendingStrConstChunks:
@@ -364,8 +330,8 @@ class MethodCompiler(GenUtils):
         offSet = self.setting('commentOffset')
         self.addChunk('#' + ' ' * offSet + comm)
 
-    def addPlaceholder(self, expr, filterArgs, rawPlaceholder, lineCol):
-        self.addFilteredChunk(expr, filterArgs, rawPlaceholder, lineCol=lineCol)
+    def addPlaceholder(self, expr, rawPlaceholder, lineCol):
+        self.addFilteredChunk(expr, rawPlaceholder, lineCol=lineCol)
         self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
 
     def addSilent(self, expr):
@@ -449,17 +415,6 @@ class MethodCompiler(GenUtils):
     def addElif(self, expr, dedent=True, lineCol=None):
         self.addElse(expr, dedent=dedent, lineCol=lineCol)
 
-    def addClosure(self, functionName, argsList, parserComment):
-        argStringChunks = []
-        for arg in argsList:
-            chunk = arg[0]
-            if arg[1] is not None:
-                chunk += '=' + arg[1]
-            argStringChunks.append(chunk)
-        signature = "def " + functionName + "(" + ','.join(argStringChunks) + "):"
-        self.addIndentingDirective(signature)
-        self.addChunk('#' + parserComment)
-
     def addTry(self, expr, lineCol=None):
         self.addIndentingDirective(expr, lineCol=lineCol)
 
@@ -538,12 +493,8 @@ class MethodCompiler(GenUtils):
                       + ' of ' + functionName
                       + ' at line %s, col %s' % lineCol + ' in the source.')
         self.addChunk('_orig_trans%(ID)s = trans' % locals())
-        self.addChunk('_wasBuffering%(ID)s = self._CHEETAH__isBuffering' % locals())
         self.addChunk('trans = _callCollector%(ID)s = DummyTransaction()' % locals())
-        if self.setting('autoAssignDummyTransactionToSelf'):
-            self.addChunk('self.transaction = trans')
-        else:
-            self.addChunk('self._CHEETAH__isBuffering = True')
+        self.addChunk('self.transaction = trans')
         self.addChunk('write = _callCollector%(ID)s.response().write' % locals())
 
     def endCallRegion(self, regionTitle='CALL'):
@@ -553,11 +504,8 @@ class MethodCompiler(GenUtils):
 
         def reset(ID=ID):
             self.addChunk('trans = _orig_trans%(ID)s' % locals())
-            if self.setting('autoAssignDummyTransactionToSelf'):
-                self.addChunk('self.transaction = trans')
+            self.addChunk('self.transaction = trans')
             self.addChunk('write = trans.response().write')
-            self.addChunk('self._CHEETAH__isBuffering = _wasBuffering%(ID)s ' % locals())
-            self.addChunk('del _wasBuffering%(ID)s' % locals())
             self.addChunk('del _orig_trans%(ID)s' % locals())
 
         reset()
@@ -624,11 +572,11 @@ class AutoMethodCompiler(MethodCompiler):
         self._isStaticMethod = None
 
     def _useKWsDictArgForPassingTrans(self):
-        alreadyHasTransArg = [argname for argname, defval in self._argStringList
-                              if argname == 'trans']
-        return (self.methodName() != 'respond'
-                and not alreadyHasTransArg
-                and self.setting('useKWsDictArgForPassingTrans'))
+        alreadyHasTransArg = [
+            argname for argname, defval in self._argStringList
+            if argname == 'trans'
+        ]
+        return self.methodName() != 'respond' and not alreadyHasTransArg
 
     def isClassMethod(self):
         if self._isClassMethod is None:
@@ -679,17 +627,14 @@ class AutoMethodCompiler(MethodCompiler):
         if self._streamingEnabled and not self.isClassMethod() and not self.isStaticMethod():
             if self._useKWsDictArgForPassingTrans() and self._kwargsName:
                 self.addChunk('trans = %s.get("trans")' % self._kwargsName)
-            self.addChunk('if (not trans and not self._CHEETAH__isBuffering'
-                          ' and not callable(self.transaction)):')
+            self.addChunk('if not trans:')
             self.indent()
             self.addChunk('trans = self.transaction'
                           ' # is None unless self.awake() was called')
             self.dedent()
             self.addChunk('if not trans:')
             self.indent()
-            self.addChunk('trans = DummyTransaction()')
-            if self.setting('autoAssignDummyTransactionToSelf'):
-                self.addChunk('self.transaction = trans')
+            self.addChunk('self.transaction = trans = DummyTransaction()')
             self.addChunk('_dummyTrans = True')
             self.dedent()
             self.addChunk('else: _dummyTrans = False')
@@ -728,11 +673,7 @@ class AutoMethodCompiler(MethodCompiler):
         self.addChunk('')
 
     def addStop(self, expr=None):
-        if self.setting('autoAssignDummyTransactionToSelf'):
-            no_content = 'NO_CONTENT'
-        else:
-            no_content = "''"
-
+        no_content = 'NO_CONTENT'
         self.addChunk('if _dummyTrans:')
         self.indent()
         self.addChunk('self.transaction = None')
