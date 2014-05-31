@@ -171,3 +171,18 @@ def test_parse_error_for_implements_argspec():
         '                    ^\n'
     ):
         compile_to_class('#implements foo(bar)')
+
+
+def test_parse_error_for_multiple_inheritance():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'yelp_cheetah does not support multiple inheritance\n'
+        'Line 1, column 33\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#extends Cheetah.Template, object\n'
+        '                                     ^\n'
+    ):
+        compile_to_class('#extends Cheetah.Template, object')

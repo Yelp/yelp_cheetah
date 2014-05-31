@@ -434,42 +434,6 @@ class _LowLevelParser(SourceReader):
         assert match
         return self.readTo(match.end())
 
-    def getCommaSeparatedSymbols(self):
-        """
-            Loosely based on getDottedName to pull out comma separated
-            named chunks
-        """
-        srcLen = len(self)
-        pieces = []
-        nameChunks = []
-
-        if not self.peek() in identchars:
-            raise ParseError(self)
-
-        while self.pos() < srcLen:
-            c = self.peek()
-            if c in namechars:
-                nameChunk = self.getIdentifier()
-                nameChunks.append(nameChunk)
-            elif c == '.':
-                if self.pos() + 1 < srcLen and self.peek(1) in identchars:
-                    nameChunks.append(self.getc())
-                else:
-                    break
-            elif c == ',':
-                self.getc()
-                pieces.append(''.join(nameChunks))
-                nameChunks = []
-            elif c in (' ', '\t'):
-                self.getc()
-            else:
-                break
-
-        if nameChunks:
-            pieces.append(''.join(nameChunks))
-
-        return pieces
-
     def getDottedName(self):
         srcLen = len(self)
         nameChunks = []
@@ -1596,10 +1560,14 @@ class Parser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len('extends'))
         self.getWhiteSpace()
-        baseName = self.getCommaSeparatedSymbols()
-        baseName = ', '.join(baseName)
+        basecls_name = self.readToEOL(gobble=False)
 
-        self._compiler.setBaseClass(baseName)  # in compiler
+        if ',' in basecls_name:
+            raise ParseError(
+                self, 'yelp_cheetah does not support multiple inheritance'
+            )
+
+        self._compiler.setBaseClass(basecls_name)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
     def eatImplements(self):
