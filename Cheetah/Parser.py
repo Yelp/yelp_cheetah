@@ -157,7 +157,7 @@ directiveNamesAndParsers = {
     'encoding': 'eatEncoding',
 
     'end': 'eatEndDirective',
-    }
+}
 
 endDirectiveNamesAndHandlers = {
     'def': 'handleEndDef',      # has short-form
@@ -168,59 +168,42 @@ endDirectiveNamesAndHandlers = {
     'for': None,                # has short-form
     'if': None,                 # has short-form
     'try': None,                # has short-form
-    }
-
-##################################################
-# CLASSES
+}
 
 
-# @@TR: SyntaxError doesn't call exception.__str__ for some reason!
-# class ParseError(SyntaxError):
 class ParseError(ValueError):
-    def __init__(self, stream, msg='Invalid Syntax', extMsg='', lineno=None, col=None):
+    def __init__(self, stream, msg='Invalid Syntax'):
         self.stream = stream
         if stream.pos() >= len(stream):
             stream.setPos(len(stream) - 1)
         self.msg = msg
-        self.extMsg = extMsg
-        self.lineno = lineno
-        self.col = col
 
     def __str__(self):
         return self.report()
 
     def report(self):
         stream = self.stream
-        if stream.filename():
-            f = " in file %s" % stream.filename()
-        else:
-            f = ''
         report = ''
-        if self.lineno:
-            lineno = self.lineno
-            row, col, line = (lineno, (self.col or 0),
-                              self.stream.splitlines()[lineno-1])
-        else:
-            row, col, line = self.stream.getRowColLine()
+        row, col, line = self.stream.getRowColLine()
 
         # get the surrounding lines
         lines = stream.splitlines()
         prevLines = []                  # (rowNum, content)
         for i in range(1, 4):
-            if row - 1 - i <= 0:
+            if row - 1 - i < 0:
                 break
             prevLines.append((row - i, lines[row - 1 - i]))
 
         nextLines = []                  # (rowNum, content)
         for i in range(1, 4):
-            if not row - 1 + i < len(lines):
+            if row - 1 + i >= len(lines):
                 break
             nextLines.append((row + i, lines[row - 1 + i]))
         nextLines.reverse()
 
         # print the main message
         report += "\n\n%s\n" % self.msg
-        report += "Line %i, column %i%s\n\n" % (row, col, f)
+        report += "Line %i, column %i\n\n" % (row, col)
         report += 'Line|Cheetah Code\n'
         report += '----|-------------------------------------------------------------\n'
         while prevLines:
@@ -232,9 +215,6 @@ class ParseError(ValueError):
         while nextLines:
             lineInfo = nextLines.pop()
             report += "%(row)-4d|%(line)s\n" % {'row': lineInfo[0], 'line': lineInfo[1]}
-        # add the extra msg
-        if self.extMsg:
-            report += self.extMsg + '\n'
 
         return report
 
@@ -428,8 +408,7 @@ class _LowLevelParser(SourceReader):
         srcLen = len(self)
         nameChunks = []
 
-        if not self.peek() in identchars:
-            raise ParseError(self)
+        assert self.peek() in identchars
 
         while self.pos() < srcLen:
             c = self.peek()
@@ -457,8 +436,7 @@ class _LowLevelParser(SourceReader):
 
     def matchAssignmentOperator(self):
         match = self.matchPyToken()
-        if match and match.group() not in assignmentOps:
-            match = None
+        assert match is None or match.group() in assignmentOps
         return match
 
     def getAssignmentOperator(self):
@@ -568,26 +546,6 @@ class _LowLevelParser(SourceReader):
         assert match
         return self.readTo(match.end())
 
-    def getTargetVarsList(self):
-        varnames = []
-        while not self.atEnd():
-            if self.peek() in ' \t\f':
-                self.getWhiteSpace()
-            elif self.peek() in '\r\n':
-                break
-            elif self.startswith(','):
-                self.advance()
-            elif self.startswith('in ') or self.startswith('in\t'):
-                break
-            elif self.matchCheetahVarInExpressionStartToken():
-                self.getCheetahVarStartToken()
-                varnames.append(self.getDottedName())
-            elif self.matchIdentifier():
-                varnames.append(self.getDottedName())
-            else:
-                break
-        return varnames
-
     def getCheetahVar(self, plain=False, skipStartToken=False):
         """This is called when parsing inside expressions.
         """
@@ -655,29 +613,16 @@ class _LowLevelParser(SourceReader):
 
         return chunks
 
-    def getCallArgString(self,
-                         enclosures=[],  # list of tuples (char, pos), where char is ({ or [
-                         useNameMapper=Unspecified):
-
-        """ Get a method/function call argument string.
+    def getCallArgString(self):
+        """Get a method/function call argument string.
 
         This method understands *arg, and **kw
         """
-
-        # @@TR: this settings mangling should be removed
-        if useNameMapper is not Unspecified:
-            useNameMapper_orig = self.setting('useNameMapper')
-            self.setSetting('useNameMapper', useNameMapper)
-
-        if enclosures:
-            pass
-        else:
-            if not self.peek() == '(':
-                raise ParseError(self, msg="Expected '('")
-            startPos = self.pos()
-            self.getc()
-            enclosures = [('(', startPos),
-                          ]
+        if not self.peek() == '(':
+            raise ParseError(self, msg="Expected '('")
+        startPos = self.pos()
+        self.getc()
+        enclosures = [('(', startPos)]
 
         argStringBits = ['(']
         addBit = argStringBits.append
@@ -731,14 +676,10 @@ class _LowLevelParser(SourceReader):
                     token = self.getExpression(enclosed=True)
                 addBit(token)
 
-        if useNameMapper is not Unspecified:
-            self.setSetting('useNameMapper', useNameMapper_orig)  # @@TR: see comment above
-
         return ''.join(argStringBits)
 
     def getDefArgList(self, exitPos=None, useNameMapper=False):
-
-        """ Get an argument list. Can be used for method/function definition
+        """Get an argument list. Can be used for method/function definition
         argument lists or for # directive argument lists. Returns a list of
         tuples in the form (argName, defVal=None) with one tuple for each arg
         name.
@@ -824,8 +765,7 @@ class _LowLevelParser(SourceReader):
                            pyTokensToBreakAt=None,  # only works if not enclosed
                            useNameMapper=Unspecified,
                            ):
-
-        """ Get a Cheetah expression that includes $CheetahVars and break at
+        """Get a Cheetah expression that includes $CheetahVars and break at
         directive end tokens, the end of an enclosure, or at a specified
         pyToken.
         """
@@ -992,8 +932,8 @@ class Parser(_LowLevelParser):
     sending state dependent code generation commands to
     Cheetah.Compiler.Compiler.
     """
-    def __init__(self, src, filename=None, compiler=None):
-        super(Parser, self).__init__(src, filename=filename)
+    def __init__(self, src, compiler=None):
+        super(Parser, self).__init__(src)
         self.setSettingsManager(compiler)
         self._compiler = compiler
         self.setupState()
@@ -1003,14 +943,6 @@ class Parser(_LowLevelParser):
         self._macros = {}
         self._macroDetails = {}
         self._openDirectivesStack = []
-
-    def cleanup(self):
-        """Cleanup to remove any possible reference cycles
-        """
-        self._macros.clear()
-        for macroname, macroDetails in self._macroDetails.items():
-            del macroDetails.template
-        self._macroDetails.clear()
 
     def configureParser(self):
         super(Parser, self).configureParser()
@@ -1042,8 +974,6 @@ class Parser(_LowLevelParser):
 
         self._endDirectiveNamesAndHandlers = {}
         for name, val in _endDirectiveNamesAndHandlers.items():
-            if val in (False, 0):
-                continue
             self._endDirectiveNamesAndHandlers[name] = normalizeHandlerVal(val)
 
         self._closeableDirectives = ['def', 'block',
@@ -1124,12 +1054,8 @@ class Parser(_LowLevelParser):
 
     def eatPSP(self):
         self.getPSPStartToken()
-        endToken = self.setting('PSPEndToken')
         startPos = self.pos()
-        while not self.atEnd():
-            if self.peek() == endToken[0]:
-                if self.matchPSPEndToken():
-                    break
+        while not self.matchPSPEndToken():
             self.advance()
         pspString = self.readTo(self.pos(), start=startPos).strip()
         self._compiler.addPSP(pspString)
@@ -1146,6 +1072,12 @@ class Parser(_LowLevelParser):
     _directiveHandlerNames = {'import': 'addImportStatement',
                               'from': 'addImportStatement', }
 
+    def _normalize_handler_name(self, directiveName):
+        return self._directiveHandlerNames.get(
+            directiveName,
+            'add{0}'.format(directiveName.capitalize())
+        )
+
     def eatDirective(self):
         directiveName = self.matchDirective()
 
@@ -1155,15 +1087,12 @@ class Parser(_LowLevelParser):
         if directiveParser:
             directiveParser()
         elif directiveName in self._simpleIndentingDirectives:
-            handlerName = self._directiveHandlerNames.get(directiveName)
-            if not handlerName:
-                handlerName = 'add' + directiveName.capitalize()
+            handlerName = self._normalize_handler_name(directiveName)
             handler = getattr(self._compiler, handlerName)
             self.eatSimpleIndentingDirective(directiveName, callback=handler)
-        elif directiveName in self._simpleExprDirectives:
-            handlerName = self._directiveHandlerNames.get(directiveName)
-            if not handlerName:
-                handlerName = 'add' + directiveName.capitalize()
+        else:
+            assert directiveName in self._simpleExprDirectives
+            handlerName = self._normalize_handler_name(directiveName)
             handler = getattr(self._compiler, handlerName)
             if directiveName == 'silent':
                 includeDirectiveNameInExpr = False
@@ -1309,22 +1238,22 @@ class Parser(_LowLevelParser):
         endOfFirstLinePos = self.findEOL()
         self.getExpression()  # eat in any extra comment-like crap
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-        if directiveName in self._closeableDirectives:
-            self.popFromOpenDirectivesStack(directiveName)
+        assert directiveName in self._closeableDirectives
+        self.popFromOpenDirectivesStack(directiveName)
 
         # subclasses can override the default behaviours here by providing an
         # end-directive handler in self._endDirectiveNamesAndHandlers[directiveName]
         if self._endDirectiveNamesAndHandlers.get(directiveName):
             handler = self._endDirectiveNamesAndHandlers[directiveName]
             handler()
-        elif directiveName in 'block call filter'.split():
-            if key == 'block':
-                self._compiler.closeBlock()
-            elif key == 'call':
-                self._compiler.endCallRegion()
-            elif key == 'filter':
-                self._compiler.closeFilterBlock()
-        elif directiveName in 'while for if try'.split():
+        elif key == 'block':
+            self._compiler.closeBlock()
+        elif key == 'call':
+            self._compiler.endCallRegion()
+        elif key == 'filter':
+            self._compiler.closeFilterBlock()
+        else:
+            assert directiveName in ['while', 'for', 'if', 'try']
             self._compiler.commitStrConst()
             self._compiler.dedent()
 
@@ -1340,7 +1269,6 @@ class Parser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len('compiler-settings'))   # to end of 'settings'
 
-        keywords = self.getTargetVarsList()
         self.getExpression()            # gobble any garbage
 
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
@@ -1348,7 +1276,7 @@ class Parser(_LowLevelParser):
         settingsStr = self._eatToThisEndDirective('compiler-settings')
         try:
             self._compiler.setCompilerSettings(keywords=keywords, settingsStr=settingsStr)
-        except:
+        except Exception:
             sys.stderr.write('An error occurred while processing the following compiler settings.\n')
             sys.stderr.write('----------------------------------------------------------------------\n')
             sys.stderr.write('%s\n' % settingsStr.strip())
@@ -1429,7 +1357,7 @@ class Parser(_LowLevelParser):
             if directiveName == 'def':
                 # @@TR: must come before _eatRestOfDirectiveTag ... for some reason
                 self._compiler.closeDef()
-            elif directiveName == 'block':
+            else:
                 self._compiler.closeBlock()
 
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)

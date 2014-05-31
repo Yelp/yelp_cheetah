@@ -8,12 +8,10 @@
     Compiler.compile, and Compiler.__getattr__.
 '''
 
-import os
-import os.path
+import copy
 import re
 import textwrap
 import warnings
-import copy
 
 from Cheetah import five
 from Cheetah.SettingsManager import SettingsManager
@@ -751,8 +749,6 @@ class ClassCompiler(GenUtils):
         # printed after methods in the gen class def:
         self._generatedAttribs = []
 
-        self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
-
         self._blockMetaData = {}
 
     def cleanupState(self):
@@ -949,18 +945,13 @@ class Compiler(SettingsManager, GenUtils):
 
         self._moduleName = moduleName
         self._mainClassName = moduleName
-        self._filePath = None
-
-        if self._filePath:
-            self._fileDirName, self._fileBaseName = os.path.split(self._filePath)
-            self._fileBaseNameRoot, self._fileBaseNameExt = os.path.splitext(self._fileBaseName)
 
         assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == "":
             warnings.warn("You supplied an empty string for the source!", )
 
-        self._parser = self.parserClass(source, filename=self._filePath, compiler=self)
+        self._parser = self.parserClass(source, compiler=self)
         self._setupCompilerState()
 
     def __getattr__(self, name):
@@ -1005,12 +996,12 @@ class Compiler(SettingsManager, GenUtils):
     def _spawnClassCompiler(self, className, klass=None):
         if klass is None:
             klass = self.classCompilerClass
-        classCompiler = klass(className,
-                              moduleCompiler=self,
-                              mainMethodName=self.setting('mainMethodName'),
-                              fileName=self._filePath,
-                              settingsManager=self,
-                              )
+        classCompiler = klass(
+            className,
+            moduleCompiler=self,
+            mainMethodName=self.setting('mainMethodName'),
+            settingsManager=self,
+        )
         return classCompiler
 
     def _addActiveClassCompiler(self, classCompiler):
@@ -1139,12 +1130,6 @@ class Compiler(SettingsManager, GenUtils):
         self._addActiveClassCompiler(classCompiler)
         self._parser.parse()
         self._swallowClassCompiler(self._popActiveClassCompiler())
-        self._parser.cleanup()
-
-        if self._filePath:
-            self.addModuleGlobal('__CHEETAH_src__ = %r' % self._filePath)
-        else:
-            self.addModuleGlobal('__CHEETAH_src__ = None')
 
         moduleDef = textwrap.dedent(
             """

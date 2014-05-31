@@ -7,9 +7,8 @@ EOLZre = re.compile(r'(?:\r\n|\r|\n|\Z)')
 
 
 class SourceReader(object):
-    def __init__(self, src, filename=None, encoding=None):
+    def __init__(self, src, encoding=None):
         self._src = src
-        self._filename = filename
         self._breakPoint = len(self._src)
         self._pos = 0
 
@@ -28,9 +27,6 @@ class SourceReader(object):
 
     def src(self):
         return self._src
-
-    def filename(self):
-        return self._filename
 
     def __len__(self):
         return self._breakPoint
