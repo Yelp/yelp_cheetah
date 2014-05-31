@@ -624,7 +624,7 @@ class NameMapper(OutputTest):
         self.verify("$aDict['nestedDict']['two']",
                     "nestedItem2")
 
-    @pytest.mark.xfail
+    @pytest.mark.xfail(reason='Issue #23')
     def test13(self):
         """nested dictionary access using method"""
         self.verify("$aDict.get('nestedDict')['two']",
