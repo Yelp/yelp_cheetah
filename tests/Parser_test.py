@@ -156,3 +156,33 @@ def test_invalid_nesting_directives():
             '#end if\n'
             '#end for\n'
         )
+
+
+def test_parse_error_for_implements_argspec():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'yelp_cheetah does not support argspecs for #implements\n'
+        'Line 1, column 16\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#implements foo(bar)\n'
+        '                    ^\n'
+    ):
+        compile_to_class('#implements foo(bar)')
+
+
+def test_parse_error_for_multiple_inheritance():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'yelp_cheetah does not support multiple inheritance\n'
+        'Line 1, column 33\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#extends Cheetah.Template, object\n'
+        '                                     ^\n'
+    ):
+        compile_to_class('#extends Cheetah.Template, object')
