@@ -1610,15 +1610,10 @@ class Parser(_LowLevelParser):
         self.getWhiteSpace()
         methodName = self.getIdentifier()
         if not self.atEnd() and self.peek() == '(':
-            argsList = self.getDefArgList()
-            self.advance()              # past the closing ')'
-            if argsList and argsList[0][0] == 'self':
-                del argsList[0]
-        else:
-            argsList = []
-
+            raise ParseError(
+                self, 'yelp_cheetah does not support argspecs for #implements',
+            )
         self._compiler.setMainMethodName(methodName)
-        self._compiler.setMainMethodArgs(argsList)
 
         self.getExpression()  # throw away and unwanted crap that got added in
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)

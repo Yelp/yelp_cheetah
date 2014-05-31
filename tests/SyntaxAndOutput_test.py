@@ -160,8 +160,6 @@ class EmptyTemplate(OutputTest):
 
         self.verify("#implements respond", "")
 
-        self.verify("#implements respond(foo=1234)", "")
-
         # Restore the old filters.
         warnings.filters[:] = filters_copy
 
@@ -1896,13 +1894,6 @@ $spacer()
 """,
                     '<img src="spacer.gif" width="1" height="1" alt="" />\n')
 
-        self.verify("""#from testing.templates.extends_test_template import extends_test_template
-#extends extends_test_template
-#implements respond(foo=1234)
-$spacer()$foo
-""",
-                    '<img src="spacer.gif" width="1" height="1" alt="" />1234\n')
-
     def test2(self):
         """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
         self.verify("""#extends testing.templates.extends_test_template
@@ -2153,6 +2144,11 @@ def test_nested_defs_with_calls():
     )
     ret = ' '.join(cls().respond().strip().split())
     assert ret == 'Arg fn1: Arg fn2: val'
+
+
+def test_trivial_implements_template():
+    cls = compile_to_class('#implements respond')
+    assert cls().respond() == ''
 
 
 # TODO: there's probably a pytest way to do this

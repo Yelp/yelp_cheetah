@@ -869,11 +869,6 @@ class ClassCompiler(GenUtils):
         del self._methodsIndex[self._mainMethodName]
         self._mainMethodName = methodName
 
-    def setMainMethodArgs(self, argsList):
-        mainMethodCompiler = self._methodsIndex[self._mainMethodName]
-        for argName, defVal in argsList:
-            mainMethodCompiler.addMethArg(argName, defVal)
-
     def _spawnMethodCompiler(self, methodName, klass=None,
                              initialMethodComment=None):
         if klass is None:
