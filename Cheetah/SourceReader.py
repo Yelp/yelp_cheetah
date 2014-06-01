@@ -35,11 +35,6 @@ class SourceReader(object):
     def __getitem__(self, i):
         return self._src[i]
 
-    def __getslice__(self, i, j):
-        i = max(i, 0)
-        j = max(j, 0)
-        return self._src[i:j]
-
     def splitlines(self):
         if not hasattr(self, '_srcLines'):
             self._srcLines = self._src.splitlines()
