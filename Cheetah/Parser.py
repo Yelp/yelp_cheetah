@@ -16,12 +16,10 @@ from Cheetah import five
 from Cheetah.SourceReader import SourceReader
 from Cheetah.Unspecified import Unspecified
 
-try:
-    # Python2
-    from itertools import izip_longest
-except ImportError:
-    # Python3
-    from itertools import zip_longest as izip_longest
+if five.PY2:
+    from itertools import izip_longest  # pragma: no cover
+else:
+    from itertools import zip_longest as izip_longest  # pragma: no cover
 
 
 python_token_re = re.compile(PseudoToken)

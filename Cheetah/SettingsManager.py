@@ -4,12 +4,12 @@ import re
 from io import StringIO
 from tokenize import Number
 
-try:
-    # Python2
-    from ConfigParser import ConfigParser
-except ImportError:
-    # Python3
-    from configparser import ConfigParser
+from Cheetah import five
+
+if five.PY2:
+    from ConfigParser import ConfigParser  # pragma: no cover
+else:
+    from configparser import ConfigParser  # pragma: no cover
 
 
 numberRE = re.compile(Number)
