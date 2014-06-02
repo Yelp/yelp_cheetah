@@ -6,14 +6,6 @@ from Cheetah.NameMapper import valueFromFrameOrSearchList
 from Cheetah.NameMapper import valueFromSearchList
 
 
-def xfail_if_coverage(func):
-    """These tests fail while running under coverage."""
-    if 'coverage' in sys.modules:
-        return pytest.mark.xfail(func)
-    else:
-        return func  # pragma: no cover -- the other branch is with coverage
-
-
 class NameSpaceObject(object):
     class foo(object):
         class bar(object):
@@ -30,7 +22,6 @@ class NameSpaceObject2(object):
     foo.bar.baz = foo
 
 
-@xfail_if_coverage
 @pytest.mark.parametrize('namespace', (NameSpaceObject, NameSpaceObject2))
 @pytest.mark.parametrize(
     ('getter_func', 'style'),
@@ -81,12 +72,13 @@ def test_refcounting(getter_func, namespace, style):
         if refcount_before == refcount_after:
             pass
         else:
-            failures.append((name, refcount_before, refcount_after))
+            failures.append(  # pragma: no cover
+                (name, refcount_before, refcount_after),
+            )
 
     assert not failures, failures
 
 
-@xfail_if_coverage
 def test_get_refcount_tree_1():
     """Demonstrate what that thing does."""
     t1 = get_refcount_tree(NameSpaceObject)
@@ -99,7 +91,6 @@ def test_get_refcount_tree_1():
     assert t1['<global>.foo.bar.baz'][0] == 7
 
 
-@xfail_if_coverage
 def test_get_refcount_tree_2():
     t1 = get_refcount_tree(NameSpaceObject2)
 
