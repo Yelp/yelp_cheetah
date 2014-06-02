@@ -37,7 +37,7 @@ def test_compile_source_returns_text():
 def test_compile_source_with_encoding_returns_text():
     ret = compile_source('#encoding utf-8\n\nHello, world! ☃')
     assert type(ret) is five.text
-    if sys.version_info < (3,):
+    if five.PY2:
         assert "write('''\nHello, world! \\u2603''')" in ret
     else:
         assert "write('''\nHello, world! ☃''')" in ret

@@ -7,10 +7,10 @@ from __future__ import unicode_literals
 import os
 import os.path
 import pytest
-import sys
 import unittest
 import warnings
 
+from Cheetah import five
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
@@ -2060,7 +2060,7 @@ def test_class_macros(macro_name):
         settings=MACRO_SETTINGS,
     )
 
-    if sys.version_info < (3,):
+    if five.PY2:
         assert cls().respond() == (
             'before\n'
             'Hello from {0}\n'
