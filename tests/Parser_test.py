@@ -145,6 +145,7 @@ def test_invalid_nesting_directives():
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
+        '1   |#if True\n'
         '2   |#for i in range(5)\n'
         '3   |#end if\n'
         '4   |#end for\n'
@@ -186,3 +187,24 @@ def test_parse_error_for_multiple_inheritance():
         '                                     ^\n'
     ):
         compile_to_class('#extends Cheetah.Template, object')
+
+
+def test_parse_error_long_file():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "EOF was reached before a matching ')' was found for the '('\n"
+        'Line 5, column 5\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '2   |2\n'
+        '3   |3\n'
+        '4   |4\n'
+        '5   |$foo(\n'
+        '         ^\n'
+        '6   |6\n'
+        '7   |7\n'
+        '8   |8\n'
+    ):
+        compile_to_class('1\n2\n3\n4\n$foo(\n6\n7\n8\n')

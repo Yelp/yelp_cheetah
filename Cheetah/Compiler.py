@@ -8,12 +8,10 @@
     Compiler.compile, and Compiler.__getattr__.
 '''
 
-import os
-import os.path
+import copy
 import re
 import textwrap
 import warnings
-import copy
 
 from Cheetah import five
 from Cheetah.SettingsManager import SettingsManager
@@ -29,14 +27,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
-    (
-        'prioritizeSearchListOverSelf',
-        False,
-        (
-            'When iterating the searchList, look into the searchList passed '
-            'into the initializer instead of Template members first'
-        ),
-    ),
 
     ('commentOffset', 1, ''),
     ('mainMethodName', 'respond', ''),
@@ -203,17 +193,47 @@ class MethodCompiler(GenUtils):
         self._pendingStrConstChunks = []
         self._methodSignature = None
         self._methodBodyChunks = []
-
         self._callRegionsStack = []
         self._filterRegionsStack = []
-
         self._hasReturnStatement = False
         self._isGenerator = False
+        self._argStringList = [("self", None)]
+        self._streamingEnabled = True
+        self._isClassMethod = None
+        self._isStaticMethod = None
 
     def cleanupState(self):
         """Called by the containing class compiler instance
         """
-        pass
+        self.commitStrConst()
+
+        if self._streamingEnabled:
+            kwargsName = None
+            positionalArgsListName = None
+            for argname, defval in self._argStringList:
+                if argname.strip().startswith('**'):
+                    kwargsName = argname.strip().replace('**', '')
+                    break
+                elif argname.strip().startswith('*'):
+                    positionalArgsListName = argname.strip().replace('*', '')
+
+            if not kwargsName and self._useKWsDictArgForPassingTrans():
+                kwargsName = 'KWS'
+                self.addMethArg('**KWS', None)
+            self._kwargsName = kwargsName
+
+            if not self._useKWsDictArgForPassingTrans():
+                if not kwargsName and not positionalArgsListName:
+                    self.addMethArg('trans', 'None')
+                else:
+                    self._streamingEnabled = False
+
+        self._indentLev = self.setting('initialMethIndentLevel')
+        mainBodyChunks = self._methodBodyChunks
+        self._methodBodyChunks = []
+        self._addAutoSetupCode()
+        self._methodBodyChunks.extend(mainBodyChunks)
+        self._addAutoCleanupCode()
 
     def methodName(self):
         return self._methodName
@@ -245,12 +265,6 @@ class MethodCompiler(GenUtils):
         methodDef = ''.join(methodDefChunks)
         return methodDef
 
-    def methodSignature(self):
-        return self._indent + self._methodSignature + ':'
-
-    def setMethodSignature(self, signature):
-        self._methodSignature = signature
-
     def methodBody(self):
         return ''.join(self._methodBodyChunks)
 
@@ -270,8 +284,8 @@ class MethodCompiler(GenUtils):
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
             self.addChunk("_v = %s # %r" % (chunk, rawExpr))
-            if lineCol:
-                self.appendToPrevChunk(' on line %s, col %s' % lineCol)
+            assert lineCol
+            self.appendToPrevChunk(' on line %s, col %s' % lineCol)
         else:
             self.addChunk("_v = %s" % chunk)
 
@@ -331,7 +345,7 @@ class MethodCompiler(GenUtils):
         self.addChunk('#' + ' ' * offSet + comm)
 
     def addPlaceholder(self, expr, rawPlaceholder, lineCol):
-        self.addFilteredChunk(expr, rawPlaceholder, lineCol=lineCol)
+        self.addFilteredChunk(expr, rawPlaceholder, lineCol)
         self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
 
     def addSilent(self, expr):
@@ -396,17 +410,6 @@ class MethodCompiler(GenUtils):
         """For a full #if ... #end if directive
         """
         self.addIndentingDirective(expr, lineCol=lineCol)
-
-    def addTernaryExpr(self, conditionExpr, trueExpr, falseExpr, lineCol=None):
-        """For a single-lie #if ... then .... else ... directive
-        <condition> then <trueExpr> else <falseExpr>
-        """
-        self.addIndentingDirective(conditionExpr, lineCol=lineCol)
-        self.addFilteredChunk(trueExpr)
-        self.dedent()
-        self.addIndentingDirective('else')
-        self.addFilteredChunk(falseExpr)
-        self.dedent()
 
     def addElse(self, expr, dedent=True, lineCol=None):
         expr = re.sub(r'else[ \f\t]+if', 'elif', expr)
@@ -556,20 +559,8 @@ class MethodCompiler(GenUtils):
                 self.dedent()
 
     def closeFilterBlock(self):
-        ID, filterDetails = self._filterRegionsStack.pop()
-        # self.addChunk('_filter = self._CHEETAH__initialFilter')
-        # self.addChunk('_filter = _orig_filter%(ID)s'%locals())
+        ID = self._filterRegionsStack.pop()[0]
         self.addChunk('_filter = self._CHEETAH__currentFilter = _orig_filter%(ID)s' % locals())
-
-
-class AutoMethodCompiler(MethodCompiler):
-
-    def _setupState(self):
-        MethodCompiler._setupState(self)
-        self._argStringList = [("self", None)]
-        self._streamingEnabled = True
-        self._isClassMethod = None
-        self._isStaticMethod = None
 
     def _useKWsDictArgForPassingTrans(self):
         alreadyHasTransArg = [
@@ -587,38 +578,6 @@ class AutoMethodCompiler(MethodCompiler):
         if self._isStaticMethod is None:
             self._isStaticMethod = '@staticmethod' in self._decorators
         return self._isStaticMethod
-
-    def cleanupState(self):
-        MethodCompiler.cleanupState(self)
-        self.commitStrConst()
-
-        if self._streamingEnabled:
-            kwargsName = None
-            positionalArgsListName = None
-            for argname, defval in self._argStringList:
-                if argname.strip().startswith('**'):
-                    kwargsName = argname.strip().replace('**', '')
-                    break
-                elif argname.strip().startswith('*'):
-                    positionalArgsListName = argname.strip().replace('*', '')
-
-            if not kwargsName and self._useKWsDictArgForPassingTrans():
-                kwargsName = 'KWS'
-                self.addMethArg('**KWS', None)
-            self._kwargsName = kwargsName
-
-            if not self._useKWsDictArgForPassingTrans():
-                if not kwargsName and not positionalArgsListName:
-                    self.addMethArg('trans', 'None')
-                else:
-                    self._streamingEnabled = False
-
-        self._indentLev = self.setting('initialMethIndentLevel')
-        mainBodyChunks = self._methodBodyChunks
-        self._methodBodyChunks = []
-        self._addAutoSetupCode()
-        self._methodBodyChunks.extend(mainBodyChunks)
-        self._addAutoCleanupCode()
 
     def _addAutoSetupCode(self):
         if self._initialMethodComment:
@@ -716,8 +675,7 @@ class AutoMethodCompiler(MethodCompiler):
 
 
 class ClassCompiler(GenUtils):
-    methodCompilerClass = AutoMethodCompiler
-    methodCompilerClassForInit = MethodCompiler
+    methodCompilerClass = MethodCompiler
 
     def __init__(self, className, mainMethodName='respond',
                  moduleCompiler=None,
@@ -761,26 +719,12 @@ class ClassCompiler(GenUtils):
         self._baseClass = 'Template'
         # printed after methods in the gen class def:
         self._generatedAttribs = []
-
-        self._generatedAttribs.append('_CHEETAH_src = __CHEETAH_src__')
-
         self._blockMetaData = {}
 
     def cleanupState(self):
         while self._activeMethodsList:
             methCompiler = self._popActiveMethodCompiler()
             self._swallowMethodCompiler(methCompiler)
-        self._setupInitMethod()
-
-    def _setupInitMethod(self):
-        __init__ = self._spawnMethodCompiler(
-            '__init__',
-            klass=self.methodCompilerClassForInit,
-        )
-        __init__.setMethodSignature("def __init__(self, *args, **KWs)")
-        __init__.addChunk('super(%s, self).__init__(*args, **KWs)' % self._className)
-        __init__.cleanupState()
-        self._swallowMethodCompiler(__init__, pos=0)
 
     def className(self):
         return self._className
@@ -829,12 +773,9 @@ class ClassCompiler(GenUtils):
     def _popActiveMethodCompiler(self):
         return self._activeMethodsList.pop()
 
-    def _swallowMethodCompiler(self, methodCompiler, pos=None):
+    def _swallowMethodCompiler(self, methodCompiler):
         methodCompiler.cleanupState()
-        if pos is None:
-            self._finishedMethodsList.append(methodCompiler)
-        else:
-            self._finishedMethodsList.insert(pos, methodCompiler)
+        self._finishedMethodsList.append(methodCompiler)
         return methodCompiler
 
     def startMethodDef(self, methodName, argsList, parserComment):
@@ -878,7 +819,8 @@ class ClassCompiler(GenUtils):
         argString = ','.join(argStringChunks)
 
         self.addFilteredChunk(
-            'super(%(className)s, self).%(methodName)s(%(argString)s)' % locals())
+            'super(%(className)s, self).%(methodName)s(%(argString)s)' % locals()
+        )
 
     def closeDef(self):
         self.commitStrConst()
@@ -959,18 +901,13 @@ class Compiler(SettingsManager, GenUtils):
 
         self._moduleName = moduleName
         self._mainClassName = moduleName
-        self._filePath = None
-
-        if self._filePath:
-            self._fileDirName, self._fileBaseName = os.path.split(self._filePath)
-            self._fileBaseNameRoot, self._fileBaseNameExt = os.path.splitext(self._fileBaseName)
 
         assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == "":
             warnings.warn("You supplied an empty string for the source!", )
 
-        self._parser = self.parserClass(source, filename=self._filePath, compiler=self)
+        self._parser = self.parserClass(source, compiler=self)
         self._setupCompilerState()
 
     def __getattr__(self, name):
@@ -1015,12 +952,12 @@ class Compiler(SettingsManager, GenUtils):
     def _spawnClassCompiler(self, className, klass=None):
         if klass is None:
             klass = self.classCompilerClass
-        classCompiler = klass(className,
-                              moduleCompiler=self,
-                              mainMethodName=self.setting('mainMethodName'),
-                              fileName=self._filePath,
-                              settingsManager=self,
-                              )
+        classCompiler = klass(
+            className,
+            moduleCompiler=self,
+            mainMethodName=self.setting('mainMethodName'),
+            settingsManager=self,
+        )
         return classCompiler
 
     def _addActiveClassCompiler(self, classCompiler):
@@ -1109,14 +1046,8 @@ class Compiler(SettingsManager, GenUtils):
                         self.addImportStatement(importStatement)
                         self.addImportedVarNames([finalClassName])
 
-    def setCompilerSetting(self, key, valueExpr):
-        self.setSetting(key, eval(valueExpr))
-        self._parser.configureParser()
-
     def setCompilerSettings(self, keywords, settingsStr):
-        settingsReader = self.updateSettingsFromConfigStr
-
-        settingsReader(settingsStr)
+        self.updateSettingsFromConfigStr(settingsStr)
         self._parser.configureParser()
 
     def addModuleGlobal(self, line):
@@ -1155,12 +1086,6 @@ class Compiler(SettingsManager, GenUtils):
         self._addActiveClassCompiler(classCompiler)
         self._parser.parse()
         self._swallowClassCompiler(self._popActiveClassCompiler())
-        self._parser.cleanup()
-
-        if self._filePath:
-            self.addModuleGlobal('__CHEETAH_src__ = %r' % self._filePath)
-        else:
-            self.addModuleGlobal('__CHEETAH_src__ = None')
 
         moduleDef = textwrap.dedent(
             """

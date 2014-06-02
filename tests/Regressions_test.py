@@ -126,28 +126,12 @@ class Mantis_Issue_11_Regression_Test(unittest.TestCase):
             s = s.replace("&", "&") # Must be done first!
     '''
     def test_RequestInSearchList(self):
-        import cgi
         # This used to break because Cheetah.Servlet.request used to be a class property that
         # was None and came up earlier in VFSSL than the things in the search list.
         # Currently, request is available when being passed through the search list.
-        template = compile_to_class("$escape($request)")
-        template = template(
-            searchList=[{'escape': cgi.escape, 'request': 'foobar'}],
-        )
-        assert template
-        assert template.respond()
-
-    def test_FailingBehaviorWithSetting(self):
-        import cgi
-        template = compile_to_class(
-            "$escape($request)",
-            settings={'prioritizeSearchListOverSelf': True},
-        )
-        template = template(
-            searchList=[{'escape': cgi.escape, 'request': 'foobar'}],
-        )
-        assert template
-        assert template.respond()
+        template = compile_to_class("$request")
+        template = template(searchList=[{'request': 'foobar'}])
+        assert template.respond() == 'foobar'
 
 
 class Mantis_Issue_21_Regression_Test(unittest.TestCase):
