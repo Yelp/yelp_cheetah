@@ -75,7 +75,7 @@
         if (namespace_decref) {\
             Py_DECREF(nameSpace);\
         }\
-        if (wrapInternalNotFoundException(name, nameSpace)) {\
+        if (wrapInternalNotFoundException(name)) {\
             theValue = NULL;\
         }\
         goto done;\

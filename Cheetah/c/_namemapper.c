@@ -32,7 +32,7 @@ static PyObject* pprintMod_pformat; /* used for exception formatting */
 /* First the c versions of the functions */
 /* *************************************************************************** */
 
-static void setNotFoundException(char *key, PyObject *namespace)
+static void setNotFoundException(char *key)
 {
     PyObject *exceptionStr = NULL;
     exceptionStr = PyUnicode_FromFormat("cannot find \'%s\'", key);
@@ -40,7 +40,7 @@ static void setNotFoundException(char *key, PyObject *namespace)
     Py_XDECREF(exceptionStr);
 }
 
-static int wrapInternalNotFoundException(char *fullName, PyObject *namespace)
+static int wrapInternalNotFoundException(char *fullName)
 {
     PyObject *excType, *excValue, *excTraceback, *isAlreadyWrapped = NULL;
     PyObject *newExcValue = NULL;
@@ -158,7 +158,7 @@ static PyObject *PyNamemapper_valueForKey(PyObject *obj, char *key)
     } else if (PyObject_HasAttrString(obj, key)) {
         theValue = PyObject_GetAttrString(obj, key);
     } else {
-        setNotFoundException(key, obj);
+        setNotFoundException(key);
     }
     return theValue;
 }
@@ -192,7 +192,7 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
             if (exc != NULL) {
                 // if exception == AttributeError, report our own exception
                 if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-                    setNotFoundException(currentKey, currentVal);
+                    setNotFoundException(currentKey);
                 }
                 // any exceptions results in failure
                 if (i > 0) {
@@ -202,7 +202,7 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
             }
 
             if (nextVal == NULL) {
-                setNotFoundException(currentKey, currentVal);
+                setNotFoundException(currentKey);
                 // any exceptions results in failure
                 if (i > 0) {
                     Py_DECREF(currentVal);
@@ -272,7 +272,7 @@ static PyObject *namemapper_valueForName(PYARGS)
 
     theValue = PyNamemapper_valueForName(obj, nameChunks, numChunks, executeCallables, useDottedNotation);
     free(nameCopy);
-    if (wrapInternalNotFoundException(name, obj)) {
+    if (wrapInternalNotFoundException(name)) {
         theValue = NULL;
     }
 
@@ -324,7 +324,7 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
         goto done;
     }
 
-    setNotFoundException(nameChunks[0], searchList);
+    setNotFoundException(nameChunks[0]);
 
 done:
     Py_XDECREF(iterator);
@@ -351,7 +351,6 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     PyObject *nameSpace = NULL;
     PyObject *theValue = NULL;
     PyObject *theValue_tmp = NULL;
-    PyObject *excString = NULL;
     PyObject *iterator = NULL;
 
     static char *kwlist[] = {"searchList", "name",  "executeCallables", "useDottedNotation", NULL};
@@ -390,9 +389,7 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     nameSpace = PyEval_GetBuiltins();
     checkForNameInNameSpaceAndReturnIfFound(FALSE);
 
-    excString = Py_BuildValue("s", "[locals()]+searchList+[globals(), __builtins__]");
-    setNotFoundException(nameChunks[0], excString);
-    Py_DECREF(excString);
+    setNotFoundException(nameChunks[0]);
 
 done:
     Py_XDECREF(iterator);
@@ -419,7 +416,6 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
     PyObject *nameSpace = NULL;
     PyObject *theValue = NULL;
     PyObject *theValue_tmp = NULL;
-    PyObject *excString = NULL;
 
     static char *kwlist[] = {"name", "executeCallables", "useDottedNotation", NULL};
 
@@ -438,9 +434,7 @@ static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObj
     nameSpace = PyEval_GetBuiltins();
     checkForNameInNameSpaceAndReturnIfFound(FALSE);
 
-    excString = Py_BuildValue("s", "[locals(), globals(), __builtins__]");
-    setNotFoundException(nameChunks[0], excString);
-    Py_DECREF(excString);
+    setNotFoundException(nameChunks[0]);
 done:
     free(nameCopy);
 
