@@ -4,6 +4,8 @@ from __future__ import unicode_literals
 import io
 import os.path
 
+from Cheetah.compile import compile_source
+from Cheetah.compile import _create_module_from_source
 from Cheetah.cheetah_compile import compile_template
 from testing.util import run_python
 
@@ -22,3 +24,9 @@ def test_templates_runnable_using_env(tmpdir):
 
     ret = run_python(tmpl_py_filename, env={'foo': 'herp', 'bar': 'derp'})
     assert ret.strip() == 'herp\nderp'
+
+
+def test_template_exposes_global():
+    src = compile_source('Hello World')
+    module = _create_module_from_source(src)
+    assert module.__YELP_CHEETAH__ is True
