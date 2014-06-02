@@ -1092,6 +1092,9 @@ class Compiler(SettingsManager, GenUtils):
             from __future__ import unicode_literals
             %(imports)s
 
+            # This is compiled yelp_cheetah sourcecode
+            __YELP_CHEETAH__ = True
+
             %(constants)s
 
             %(classes)s
