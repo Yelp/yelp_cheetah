@@ -1,3 +1,4 @@
+import gc
 import pytest
 import sys
 
@@ -117,6 +118,8 @@ def get_refcount_tree(obj):
         else:
             seen.add(obj)
 
+        # Force a gc before getting the refcount
+        gc.collect()
         refcounts[name] = sys.getrefcount(obj), id(obj)
 
         for attr, obj in vars(obj).items():

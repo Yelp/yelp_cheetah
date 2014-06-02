@@ -1,8 +1,9 @@
-'''
-    Filters for the #filter directive
+"""Base filter for the #filter directive.
+Filters post-process template variables.
+"""
+from __future__ import unicode_literals
 
-    #filter results in output filters Cheetah's $placeholders .
-'''
+from Cheetah import five
 
 
 class BaseFilter(object):
@@ -17,19 +18,15 @@ class BaseFilter(object):
         """
         self.template = template
 
-    def filter(self, val, encoding=None, str=str, **kw):
-        '''
-            Pass Unicode strings through unmolested, unless an encoding is specified.
-        '''
+    def filter(self, val):
+        """Pass Unicode strings through unmolested, unless an encoding is
+        specified.
+        """
         if val is None:
-            return u''
-        if isinstance(val, unicode):
-            # ignore the encoding and return the unicode object
+            return ''
+        elif isinstance(val, five.text):
             return val
+        elif isinstance(val, bytes):
+            return val.decode('utf-8')
         else:
-            try:
-                return unicode(val)
-            except UnicodeDecodeError:
-                # we could put more fallbacks here, but we'll just pass the str
-                # on and let DummyTransaction worry about it
-                return str(val)
+            return five.text(val)

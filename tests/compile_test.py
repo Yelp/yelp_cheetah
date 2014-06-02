@@ -31,13 +31,16 @@ def test_compile_source_cls_name_requires_text():
 def test_compile_source_returns_text():
     ret = compile_source('Hello, world!')
     assert type(ret) is five.text
-    assert "write(u'''Hello, world!''')" in ret
+    assert "write('''Hello, world!''')" in ret
 
 
 def test_compile_source_with_encoding_returns_text():
     ret = compile_source('#encoding utf-8\n\nHello, world! ☃')
     assert type(ret) is five.text
-    assert "write(u'''\nHello, world! \\u2603''')" in ret
+    if five.PY2:
+        assert "write('''\nHello, world! \\u2603''')" in ret
+    else:
+        assert "write('''\nHello, world! ☃''')" in ret
 
 
 def test_compile_cls_name_in_output():
@@ -110,7 +113,7 @@ def test_compile_file_destination(tmpfile, tmpdir):
     assert os.path.exists(output_file)
     python_file_contents = io.open(output_file).read()
     assert 'class temp(' in python_file_contents
-    assert "write(u'''Hello, world!''')" in python_file_contents
+    assert "write('''Hello, world!''')" in python_file_contents
 
 
 def test_compile_file_as_script(tmpfile):
@@ -202,7 +205,7 @@ def test_compile_to_class_traceback():
   File ".+/tests/compile_test\.py", line \d*, in test_compile_to_class_traceback
     ret\(\).respond\(\)
   File "<generated cheetah module>", line \d*, in respond
-ZeroDivisionError: integer division or modulo by zero''', traceback)
+ZeroDivisionError: (integer )?division( or modulo)? by zero''', traceback)
 
 
 def test_compile_is_deterministic():

@@ -63,7 +63,7 @@ def compile_file(filename, target=None, **kwargs):
         target = os.path.join(dirname, '{0}.py'.format(cls_name))
 
     with io.open(target, 'w', encoding='UTF-8') as target_file:
-        target_file.write('# -*- coding: UTF-8 -*-\n\n')
+        target_file.write('# -*- coding: UTF-8 -*-\n')
         target_file.write(compiled_source)
 
     return target

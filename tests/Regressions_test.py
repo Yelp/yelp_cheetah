@@ -199,7 +199,7 @@ class Mantis_Issue_22_Regression_Test(unittest.TestCase):
             _dummyTrans = True
             write = trans.response().write
             SL = [KWS]
-            _filter = lambda x, **kwargs: unicode(x)
+            _filter = lambda x, **kwargs: five.text(x)
 
             ########################################
             ## START - generated method body

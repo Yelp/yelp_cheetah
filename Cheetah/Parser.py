@@ -6,16 +6,23 @@ Classes:
   _LowLevelParser(Cheetah.SourceReader.SourceReader), basically a lexer
   Parser(_LowLevelParser)
 """
+from __future__ import unicode_literals
 
-import sys
 import re
-import types
-from tokenize import pseudoprog
-import inspect
+import sys
+from tokenize import PseudoToken
 
+from Cheetah import five
 from Cheetah.SourceReader import SourceReader
 from Cheetah.Unspecified import Unspecified
 
+if five.PY2:
+    from itertools import izip_longest  # pragma: no cover
+else:
+    from itertools import zip_longest as izip_longest  # pragma: no cover
+
+
+python_token_re = re.compile(PseudoToken)
 
 SET_LOCAL = 0
 SET_GLOBAL = 1
@@ -245,8 +252,8 @@ class ArgList(object):
         self.defaults[count] += token
 
     def merge(self):
-        defaults = (isinstance(d, basestring) and d.strip() or None for d in self.defaults)
-        return list(map(None, (a.strip() for a in self.arguments), defaults))
+        defaults = (isinstance(d, five.text) and d.strip() or None for d in self.defaults)
+        return list(izip_longest((a.strip() for a in self.arguments), defaults))
 
 
 class _LowLevelParser(SourceReader):
@@ -380,7 +387,7 @@ class _LowLevelParser(SourceReader):
         return match
 
     def matchPyToken(self):
-        match = pseudoprog.match(self.src(), self.pos())
+        match = python_token_re.match(self.src(), self.pos())
 
         if match and match.group() in tripleQuotedStringStarts:
             TQSmatch = tripleQuotedStringREs[match.group()].match(self.src(), self.pos())
@@ -950,7 +957,7 @@ class Parser(_LowLevelParser):
 
     def _initDirectives(self):
         def normalizeParserVal(val):
-            if isinstance(val, (str, unicode)):
+            if isinstance(val, five.text):
                 handler = getattr(self, val)
             elif isinstance(val, type):
                 handler = val(self)
@@ -1501,64 +1508,31 @@ class Parser(_LowLevelParser):
         if hasattr(macro, 'parse'):
             return macro.parse(parser=self, startPos=startPos)
 
-        if hasattr(macro, 'parseArgs'):
-            args = macro.parseArgs(parser=self, startPos=startPos)
-        else:
-            self.getWhiteSpace()
-            args = self.getExpression(useNameMapper=False,
-                                      pyTokensToBreakAt=[':']).strip()
+        self.getWhiteSpace()
+        args = self.getExpression(
+            useNameMapper=False, pyTokensToBreakAt=[':']
+        ).strip()
 
         if self.matchColonForSingleLineShortFormDirective():
-            isShortForm = True
             self.advance()  # skip over :
             self.getWhiteSpace(max=1)
             srcBlock = self.readToEOL(gobble=False)
-            EOLCharsInShortForm = self.readToEOL(gobble=True)
+            self.readToEOL(gobble=True)
             # self.readToEOL(gobble=False)
         else:
-            isShortForm = False
             if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             srcBlock = self._eatToThisEndDirective(macroName)
 
-        if hasattr(macro, 'convertArgStrToDict'):
-            kwArgs = macro.convertArgStrToDict(args, parser=self, startPos=startPos)
-        else:
-            def getArgs(*pargs, **kws):
-                return pargs, kws
-            exec('positionalArgs, kwArgs = getArgs(%(args)s)' % locals())
+        def getArgs(*pargs, **kws):
+            return pargs, kws
+        positionalArgs, kwArgs = eval('getArgs({0})'.format(args))
 
         assert 'src' not in kwArgs
         kwArgs['src'] = srcBlock
-
-        if isinstance(macro, types.MethodType):
-            co = macro.im_func.func_code
-        elif (hasattr(macro, '__call__')
-              and hasattr(macro.__call__, 'im_func')):
-            co = macro.__call__.im_func.func_code
-        else:
-            co = macro.func_code
-        availableKwArgs = inspect.getargs(co)[0]
-
-        if 'parser' in availableKwArgs:
-            kwArgs['parser'] = self
-        if 'macros' in availableKwArgs:
-            kwArgs['macros'] = self._macros
-        if 'compilerSettings' in availableKwArgs:
-            kwArgs['compilerSettings'] = self.settings()
-        if 'isShortForm' in availableKwArgs:
-            kwArgs['isShortForm'] = isShortForm
-        if isShortForm and 'EOLCharsInShortForm' in availableKwArgs:
-            kwArgs['EOLCharsInShortForm'] = EOLCharsInShortForm
-
-        if 'startPos' in availableKwArgs:
-            kwArgs['startPos'] = startPos
-        if 'endPos' in availableKwArgs:
-            kwArgs['endPos'] = self.pos()
-
-        srcFromMacroOutput = macro(**kwArgs)
+        srcFromMacroOutput = macro(*positionalArgs, **kwArgs)
 
         origParseSrc = self._src
         origBreakPoint = self.breakPoint()

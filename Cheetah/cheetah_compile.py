@@ -1,16 +1,16 @@
 # -*- coding: UTF-8 -*-
+from __future__ import unicode_literals
 
 import sys
 
-import Cheetah.compile
 from Cheetah import five
+from Cheetah.compile import compile_file
 
 
 def compile_template(filename):
     if not isinstance(filename, five.text):
         filename = filename.decode('UTF-8')
-
-    return Cheetah.compile.compile_file(filename)
+    return compile_file(filename)
 
 
 def compile_all(filenames):
