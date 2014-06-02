@@ -49,7 +49,7 @@ defaultTestNameSpace = {
     'aStr': 'blarg',
     'anInt': 1,
     'aFloat': 1.5,
-    'aList': ['item0', 'item1', 'item2'],
+    'aList': [str('item0'), str('item1'), str('item2')],
     'aDict': {
         'one': 'item1',
         'two': 'item2',
@@ -370,14 +370,7 @@ class Placeholders_Vals(OutputTest):
 
     def test6(self):
         """list"""
-        if sys.version_info < (3,):
-            self.verify(  # pragma: no cover
-                "$aList", "[u'item0', u'item1', u'item2']"
-            )
-        else:
-            self.verify(  # pragma: no cover
-                "$aList", "['item0', 'item1', 'item2']"
-            )
+        self.verify("$aList", "['item0', 'item1', 'item2']")
 
     def test7(self):
         """None
@@ -608,14 +601,7 @@ class NameMapper(OutputTest):
 
     def test4(self):
         """list slicing"""
-        if sys.version_info < (3,):
-            self.verify(  # pragma: no cover
-                "$aList[:2]", "[u'item0', u'item1']"
-            )
-        else:
-            self.verify(  # pragma: no cover
-                "$aList[:2]", "['item0', 'item1']"
-            )
+        self.verify("$aList[:2]", "['item0', 'item1']")
 
     def test5(self):
         """list slicing and subcription combined"""
