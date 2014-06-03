@@ -44,6 +44,8 @@ class SourceReader(object):
         for i in range(len(self._BOLs)):
             if pos >= self._BOLs[i] and pos <= self._EOLs[i]:
                 return i
+        else:
+            raise AssertionError('unknown position: {0}'.format(pos))
 
     def getRowCol(self, pos=None):
         if pos is None:
