@@ -1191,8 +1191,6 @@ class Parser(_LowLevelParser):
             self.advance(len(directiveName))
         expr = self.getExpression().strip()
         directiveName = expr.split()[0]
-        if directiveName in self._closeableDirectives:
-            self.pushToOpenDirectivesStack(directiveName)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         return expr
 
@@ -1202,8 +1200,7 @@ class Parser(_LowLevelParser):
         endOfFirstLinePos = self.findEOL()
         lineCol = self.getRowCol()
         self.getDirectiveStartToken()
-        if directiveName not in 'else elif for while try except finally'.split():
-            self.advance(len(directiveName))
+        assert directiveName in 'else elif for while try except finally'.split()
 
         self.getWhiteSpace()
 
@@ -1501,12 +1498,9 @@ class Parser(_LowLevelParser):
     def eatMacroCall(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
-        startPos = self.pos()
         self.getDirectiveStartToken()
         macroName = self.getIdentifier()
         macro = self._macros[macroName]
-        if hasattr(macro, 'parse'):
-            return macro.parse(parser=self, startPos=startPos)
 
         self.getWhiteSpace()
         args = self.getExpression(

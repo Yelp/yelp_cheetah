@@ -2050,7 +2050,7 @@ MACRO_SETTINGS = {
 
 
 @pytest.mark.parametrize('macro_name', ('ClassMacro', 'func_macro'))
-def test_class_macros(macro_name):
+def test_macros(macro_name):
     cls = compile_to_class(
         'before\n'
         '#{0} hello="world"\n'
@@ -2074,6 +2074,33 @@ def test_class_macros(macro_name):
             'Hello from {0}\n'
             "arglist: hello='world'\n"
             'source: macro source\n\n'
+            'after\n'.format(macro_name)
+        )
+
+
+@pytest.mark.parametrize('macro_name', ('ClassMacro', 'func_macro'))
+def test_short_form_macros(macro_name):
+    cls = compile_to_class(
+        'before\n'
+        '#{0} a="b": macro source\n'
+        'after\n'.format(macro_name),
+        settings=MACRO_SETTINGS,
+    )
+
+    if five.PY2:
+        assert cls().respond() == (
+            'before\n'
+            'Hello from {0}\n'
+            "arglist: a=u'b'\n"
+            'source: macro source\n'
+            'after\n'.format(macro_name)
+        )
+    else:
+        assert cls().respond() == (
+            'before\n'
+            'Hello from {0}\n'
+            "arglist: a='b'\n"
+            'source: macro source\n'
             'after\n'.format(macro_name)
         )
 
