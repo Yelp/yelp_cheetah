@@ -1300,6 +1300,12 @@ class Parser(_LowLevelParser):
         self.getWhiteSpace()
         self.getAssignmentOperator()
         expr = self.getExpression()
+        if 'VFN(' in expr or 'VFFSL(' in expr:
+            raise ParseError(
+                self,
+                'Invalid #attr directive. '
+                'It should contain simple Python literals.'
+            )
         self._compiler.addAttribute(attribName, expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 

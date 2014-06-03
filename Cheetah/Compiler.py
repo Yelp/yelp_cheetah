@@ -16,7 +16,7 @@ import warnings
 
 from Cheetah import five
 from Cheetah.SettingsManager import SettingsManager
-from Cheetah.Parser import Parser, ParseError
+from Cheetah.Parser import Parser
 from Cheetah.Parser import SET_GLOBAL, SET_MODULE
 from Cheetah.Parser import escapedNewlineRE
 
@@ -797,13 +797,6 @@ class ClassCompiler(GenUtils):
         self._decoratorsForNextMethod.append(decoratorExpr)
 
     def addAttribute(self, attribExpr):
-        # first test to make sure that the user hasn't used any fancy Cheetah syntax
-        # (placeholders, directives, etc.) inside the expression
-        if attribExpr.find('VFN(') != -1 or attribExpr.find('VFFSL(') != -1:
-            raise ParseError(self,
-                             'Invalid #attr directive.' +
-                             ' It should only contain simple Python literals.')
-        # now add the attribute
         self._generatedAttribs.append(attribExpr)
 
     def addSuper(self, argsList, parserComment=None):

@@ -208,3 +208,33 @@ def test_parse_error_long_file():
         '8   |8\n'
     ):
         compile_to_class('1\n2\n3\n4\n$foo(\n6\n7\n8\n')
+
+
+def test_unclosed_enclosure():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "EOF was reached before a matching '}' was found for the '{'\n"
+        'Line 1, column 2\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |${hai +\n'
+        '      ^\n'
+    ):
+        compile_to_class('${hai +')
+
+
+def test_parse_error_on_attr_with_var():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Invalid #attr directive. It should contain simple Python literals.\n'
+        'Line 1, column 18\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#attr $foo = $bar\n'
+        '                      ^\n'
+    ):
+        compile_to_class('#attr $foo = $bar\n')
