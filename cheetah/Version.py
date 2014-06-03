@@ -1,8 +1,8 @@
-Version = '0.0.0'
-VersionTuple = (0, 0, 0)
+Version = '0.0.1'
+VersionTuple = (0, 0, 1)
 
-MinCompatibleVersion = '0.0.0'
-MinCompatibleVersionTuple = (0, 0, 0)
+MinCompatibleVersion = '0.0.1'
+MinCompatibleVersionTuple = (0, 0, 1)
 
 ####
 def convertVersionStringToTuple(s):

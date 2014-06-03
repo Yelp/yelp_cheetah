@@ -58,9 +58,7 @@ data_files = ['recursive: cheetah *.tmpl *.txt LICENSE README TODO CHANGES',]
 if not os.getenv('CHEETAH_INSTALL_WITHOUT_SETUPTOOLS'):
     try:
         from setuptools import setup
-        install_requires = [
-                "Markdown >= 2.0.1",
-        ]
+        install_requires = []
         if sys.platform == 'win32':
             # use 'entry_points' instead of 'scripts'
             del scripts
