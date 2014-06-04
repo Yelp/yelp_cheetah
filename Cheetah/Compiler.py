@@ -35,9 +35,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('indentationStep', ' ' * 4, ''),
     ('initialMethIndentLevel', 2, ''),
 
-    # Customizing the #extends directive
-    ('autoImportForExtendsDirective', True, ''),
-
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
     ('directiveStartToken', '#', ''),
@@ -989,10 +986,7 @@ class Compiler(SettingsManager, GenUtils):
     def setBaseClass(self, baseClassName):
         self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
 
-        if (
-            not self.setting('autoImportForExtendsDirective') or
-            baseClassName in self.importedVarNames()
-        ):
+        if baseClassName in self.importedVarNames():
             self._getActiveClassCompiler().setBaseClass(baseClassName)
             # no need to import
         else:
