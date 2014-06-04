@@ -1387,6 +1387,32 @@ $testDict['two']""",
                     "123")
 
 
+class GlobalSetClass(object):
+    pass
+
+
+GLOBAL_SET_SL = [{'global_set_cls': GlobalSetClass}]
+
+
+def test_global_set_directive():
+    # Eventually I'd like to remove global set, but for now it'd be better
+    # if it is tested.
+    cls = compile_to_class(
+        '#set global foo = {}\n'
+        "#set global foo['bar'] = $global_set_cls()\n"
+        "#set global foo['bar'].baz = 'herp'\n"
+        "$foo['bar'].baz\n"
+        '#set global bar = $global_set_cls()\n'
+        "#set global bar.baz = 'derp'\n"
+        '$bar.baz\n'
+        '#set global baz = $global_set_cls()\n'
+        '#set global baz.herp = {}\n'
+        "#set global baz.herp['derp'] = 'harpdarp'\n"
+        "$baz.herp['derp']\n"
+    )
+    assert cls(searchList=GLOBAL_SET_SL).respond() == 'herp\nderp\nharpdarp\n'
+
+
 def test_del_directive():
     cls = compile_to_class(
         "#set foo = {'a': '1', 'b': '2'}\n"
