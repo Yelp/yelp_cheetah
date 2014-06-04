@@ -199,7 +199,6 @@ class MethodCompiler(GenUtils):
         self._hasReturnStatement = False
         self._isGenerator = False
         self._argStringList = [("self", None)]
-        self._streamingEnabled = True
         self._isClassMethod = None
         self._isStaticMethod = None
 
@@ -208,26 +207,23 @@ class MethodCompiler(GenUtils):
         """
         self.commitStrConst()
 
-        if self._streamingEnabled:
-            kwargsName = None
-            positionalArgsListName = None
-            for argname, defval in self._argStringList:
-                if argname.strip().startswith('**'):
-                    kwargsName = argname.strip().replace('**', '')
-                    break
-                elif argname.strip().startswith('*'):
-                    positionalArgsListName = argname.strip().replace('*', '')
+        kwargsName = None
+        positionalArgsListName = None
+        for argname, defval in self._argStringList:
+            if argname.strip().startswith('**'):
+                kwargsName = argname.strip().replace('**', '')
+                break
+            elif argname.strip().startswith('*'):
+                positionalArgsListName = argname.strip().replace('*', '')
 
-            if not kwargsName and self._useKWsDictArgForPassingTrans():
-                kwargsName = 'KWS'
-                self.addMethArg('**KWS', None)
-            self._kwargsName = kwargsName
+        if not kwargsName and self._useKWsDictArgForPassingTrans():
+            kwargsName = 'KWS'
+            self.addMethArg('**KWS', None)
+        self._kwargsName = kwargsName
 
-            if not self._useKWsDictArgForPassingTrans():
-                if not kwargsName and not positionalArgsListName:
-                    self.addMethArg('trans', 'None')
-                else:
-                    self._streamingEnabled = False
+        if not self._useKWsDictArgForPassingTrans():
+            assert not kwargsName and not positionalArgsListName
+            self.addMethArg('trans', 'None')
 
         self._indentLev = self.setting('initialMethIndentLevel')
         mainBodyChunks = self._methodBodyChunks
@@ -577,7 +573,7 @@ class MethodCompiler(GenUtils):
     def _addAutoSetupCode(self):
         self.addChunk(self._initialMethodComment)
 
-        if self._streamingEnabled and not self.isClassMethod() and not self.isStaticMethod():
+        if not self.isClassMethod() and not self.isStaticMethod():
             if self._useKWsDictArgForPassingTrans() and self._kwargsName:
                 self.addChunk('trans = %s.get("trans")' % self._kwargsName)
             self.addChunk('if not trans:')
@@ -726,13 +722,6 @@ class ClassCompiler(GenUtils):
         mainMethod.setMethodName(methodName)
         self._methodsIndex[methodName] = mainMethod
 
-        # make sure that fileUpdate code still works properly:
-        chunkToChange = ('write(self.' + self._mainMethodName + '(trans=trans))')
-        chunks = mainMethod._methodBodyChunks
-        if chunkToChange in chunks:
-            for i in range(len(chunks)):
-                if chunks[i] == chunkToChange:
-                    chunks[i] = ('write(self.' + methodName + '(trans=trans))')
         # get rid of the old reference and update self._mainMethodName
         del self._methodsIndex[self._mainMethodName]
         self._mainMethodName = methodName
