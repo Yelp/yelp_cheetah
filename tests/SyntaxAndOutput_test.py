@@ -2134,6 +2134,41 @@ def test_short_form_macros(macro_name):
         )
 
 
+def test_macros_with_directives_inside():
+    cls = compile_to_class(
+        'before\n'
+        '#func_macro\n'
+        '#if True\n'
+        'Truthy!\n'
+        '#end if\n'
+        '#end func_macro\n'
+        'after\n',
+        settings=MACRO_SETTINGS,
+    )
+    assert cls().respond() == (
+        'before\n'
+        'Hello from func_macro\n'
+        'arglist: \n'
+        'source: \n'
+        'Truthy!\n\n'
+        'after\n'
+    )
+
+
+def test_long_macros_with_colon():
+    cls = compile_to_class(
+        '#func_macro:\n'
+        'contents\n'
+        '#end func_macro\n',
+        settings=MACRO_SETTINGS,
+    )
+    assert cls().respond() == (
+        'Hello from func_macro\n'
+        'arglist: \n'
+        'source: contents\n\n'
+    )
+
+
 def test_comment_directive_ambiguity():
     cls = compile_to_class(
         '#set $foo = 1##set $bar = 2\n'
@@ -2177,3 +2212,43 @@ def test_trivial_implements_template():
 def test_bytes():
     cls = compile_to_class("#set foo = b'bar'\n$foo")
     assert cls().respond() == 'bar'
+
+
+def test_default_argument_multipart_expression():
+    cls = compile_to_class(
+        '#def foo(bar=1 + 1)\n'
+        '$bar\n'
+        '#end def\n'
+        '$foo()'
+    )
+    assert cls().respond() == '2\n'
+
+
+def test_default_argument_boolean_expression():
+    cls = compile_to_class(
+        '#set herp = "derp"\n'
+        '#def foo(bar)\n'
+        '$bar\n'
+        '#end def\n'
+        '$foo("baz" if $herp == "derp" else "buz")'
+    )
+    assert cls().respond() == 'baz\n'
+
+
+def test_default_is_dict():
+    cls = compile_to_class(
+        '#def foo(bar={"baz": "womp"})\n'
+        "$bar['baz']\n"
+        '#end def\n'
+        '$foo()'
+    )
+    assert cls().respond() == 'womp\n'
+
+
+def test_line_continuation():
+    cls = compile_to_class(
+        '#set foo = "bar baz " + \\\n'
+        '    "womp"\n'
+        '$foo'
+    )
+    assert cls().respond() == 'bar baz womp'

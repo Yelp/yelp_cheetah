@@ -238,3 +238,18 @@ def test_parse_error_on_attr_with_var():
         '                      ^\n'
     ):
         compile_to_class('#attr $foo = $bar\n')
+
+
+def test_invalid_line_continuation():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Line ending expected\n'
+        'Line 1, column 21\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#set foo = "bar" + \\hi, not a new line\n'
+        '                         ^\n'
+    ):
+        compile_to_class('#set foo = "bar" + \\hi, not a new line')
