@@ -1861,15 +1861,6 @@ $anInt//comment
 
 class ExtendsDirective(OutputTest):
 
-    def test1(self):
-        """#extends testing.templates.extends_test_template"""
-        self.verify("""#from testing.templates.extends_test_template import extends_test_template
-#extends extends_test_template
-#implements respond
-$spacer()
-""",
-                    '<img src="spacer.gif" width="1" height="1" alt="" />\n')
-
     def test2(self):
         """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
         self.verify("""#extends testing.templates.extends_test_template

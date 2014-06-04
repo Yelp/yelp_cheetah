@@ -987,51 +987,50 @@ class Compiler(SettingsManager, GenUtils):
         self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
 
         if baseClassName in self.importedVarNames():
-            self._getActiveClassCompiler().setBaseClass(baseClassName)
-            # no need to import
-        else:
-            ##################################################
-            # If the #extends directive contains a classname or modulename that isn't
-            # in self.importedVarNames() already, we assume that we need to add
-            # an implied 'from ModName import ClassName' where ModName == ClassName.
-            # - This is the case in WebKit servlet modules.
-            # - We also assume that the final . separates the classname from the
-            #   module name.  This might break if people do something really fancy
-            #   with their dots and namespaces.
-            baseclasses = baseClassName.split(',')
-            for klass in baseclasses:
-                chunks = klass.split('.')
-                if len(chunks) == 1:
-                    self._getActiveClassCompiler().setBaseClass(klass)
-                    if klass not in self.importedVarNames():
-                        modName = klass
+            raise AssertionError(
+                'yelp_cheetah only supports extends by module name'
+            )
+
+        # If the #extends directive contains a classname or modulename that isn't
+        # in self.importedVarNames() already, we assume that we need to add
+        # an implied 'from ModName import ClassName' where ModName == ClassName.
+        # - We also assume that the final . separates the classname from the
+        #   module name.  This might break if people do something really fancy
+        #   with their dots and namespaces.
+        baseclasses = baseClassName.split(',')
+        for klass in baseclasses:
+            chunks = klass.split('.')
+            if len(chunks) == 1:
+                self._getActiveClassCompiler().setBaseClass(klass)
+                if klass not in self.importedVarNames():
+                    modName = klass
+                    # we assume the class name to be the module name
+                    # and that it's not a builtin:
+                    importStatement = "from %s import %s" % (modName, klass)
+                    self.addImportStatement(importStatement)
+                    self.addImportedVarNames((klass,))
+            else:
+                needToAddImport = True
+                modName = chunks[0]
+                # print chunks, ':', self.importedVarNames()
+                for chunk in chunks[1:-1]:
+                    if modName in self.importedVarNames():
+                        needToAddImport = False
+                        finalBaseClassName = klass.replace(modName + '.', '')
+                        self._getActiveClassCompiler().setBaseClass(finalBaseClassName)
+                        break
+                    else:
+                        modName += '.' + chunk
+                if needToAddImport:
+                    modName, finalClassName = '.'.join(chunks[:-1]), chunks[-1]
+                    # if finalClassName != chunks[:-1][-1]:
+                    if finalClassName != chunks[-2]:
                         # we assume the class name to be the module name
-                        # and that it's not a builtin:
-                        importStatement = "from %s import %s" % (modName, klass)
-                        self.addImportStatement(importStatement)
-                        self.addImportedVarNames((klass,))
-                else:
-                    needToAddImport = True
-                    modName = chunks[0]
-                    # print chunks, ':', self.importedVarNames()
-                    for chunk in chunks[1:-1]:
-                        if modName in self.importedVarNames():
-                            needToAddImport = False
-                            finalBaseClassName = klass.replace(modName + '.', '')
-                            self._getActiveClassCompiler().setBaseClass(finalBaseClassName)
-                            break
-                        else:
-                            modName += '.' + chunk
-                    if needToAddImport:
-                        modName, finalClassName = '.'.join(chunks[:-1]), chunks[-1]
-                        # if finalClassName != chunks[:-1][-1]:
-                        if finalClassName != chunks[-2]:
-                            # we assume the class name to be the module name
-                            modName = '.'.join(chunks)
-                        self._getActiveClassCompiler().setBaseClass(finalClassName)
-                        importStatement = "from %s import %s" % (modName, finalClassName)
-                        self.addImportStatement(importStatement)
-                        self.addImportedVarNames([finalClassName])
+                        modName = '.'.join(chunks)
+                    self._getActiveClassCompiler().setBaseClass(finalClassName)
+                    importStatement = "from %s import %s" % (modName, finalClassName)
+                    self.addImportStatement(importStatement)
+                    self.addImportedVarNames([finalClassName])
 
     def setCompilerSettings(self, keywords, settingsStr):
         self.updateSettingsFromConfigStr(settingsStr)
