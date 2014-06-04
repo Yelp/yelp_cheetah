@@ -1887,6 +1887,18 @@ $g $numOne
                     'Hello 1\n')
 
 
+def test_extends_with_partial_baseclass_import():
+    cls = compile_to_class(
+        '#import testing\n'
+        '#extends testing.templates.extends_test_template\n'
+        '#implements respond\n'
+        '$spacer()\n'
+    )
+    assert cls().respond() == (
+        '<img src="spacer.gif" width="1" height="1" alt="" />\n'
+    )
+
+
 def test_super_directive(tmpdir):
     compile_file(
         os.path.join('testing', 'templates', 'src', 'super_base.tmpl')

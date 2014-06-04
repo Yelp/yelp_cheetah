@@ -310,7 +310,7 @@ class MethodCompiler(GenUtils):
         reprstr = repr(strConst)
         i = 0
         out = []
-        if reprstr.startswith('u'):
+        if reprstr.startswith('u'):  # pragma: no cover (only in py2 case)
             reprstr = reprstr[1:]
         body = escapedNewlineRE.sub('\\1\n', reprstr[i+1:-1])
 
@@ -384,23 +384,23 @@ class MethodCompiler(GenUtils):
         self.addIndentingDirective(expr, lineCol=lineCol)
 
     def addIndentingDirective(self, expr, lineCol=None):
-        if expr and not expr[-1] == ':':
-            expr = expr + ':'
+        assert expr and expr[-1] != ':'
+        expr = expr + ':'
         self.addChunk(expr)
-        if lineCol:
-            self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
+        assert lineCol
+        self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
         self.indent()
 
     def addReIndentingDirective(self, expr, dedent=True, lineCol=None):
         self.commitStrConst()
         if dedent:
             self.dedent()
-        if not expr[-1] == ':':
-            expr = expr + ':'
+        assert expr[-1] != ':'
+        expr = expr + ':'
 
         self.addChunk(expr)
-        if lineCol:
-            self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
+        assert lineCol
+        self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
         self.indent()
 
     def addIf(self, expr, lineCol=None):
@@ -525,35 +525,30 @@ class MethodCompiler(GenUtils):
     def nextFilterRegionID(self):
         return self.nextCacheID()
 
-    def setFilter(self, theFilter, isKlass):
+    def setFilter(self, theFilter):
         class FilterDetails:
             pass
         filterDetails = FilterDetails()
         filterDetails.ID = ID = self.nextFilterRegionID()
         filterDetails.theFilter = theFilter
-        filterDetails.isKlass = isKlass
         self._filterRegionsStack.append((ID, filterDetails))  # attrib of current methodCompiler
 
         self.addChunk('_orig_filter%(ID)s = _filter' % locals())
-        if isKlass:
-            self.addChunk('_filter = self._CHEETAH__currentFilter = ' + theFilter.strip() +
-                          '(self).filter')
+        if theFilter.lower() == 'none':
+            self.addChunk('_filter = self._CHEETAH__initialFilter')
         else:
-            if theFilter.lower() == 'none':
-                self.addChunk('_filter = self._CHEETAH__initialFilter')
-            else:
-                # is string representing the name of a builtin filter
-                self.addChunk('filterName = ' + repr(theFilter))
-                self.addChunk('if {0!r} in self._CHEETAH__filters:'.format(theFilter))
-                self.indent()
-                self.addChunk('_filter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName]')
-                self.dedent()
-                self.addChunk('else:')
-                self.indent()
-                self.addChunk('_filter = self._CHEETAH__currentFilter'
-                              + ' = \\\n\t\t\tself._CHEETAH__filters[filterName] = '
-                              + 'getattr(self._CHEETAH__filtersLib, filterName)(self).filter')
-                self.dedent()
+            # is string representing the name of a builtin filter
+            self.addChunk('filterName = ' + repr(theFilter))
+            self.addChunk('if {0!r} in self._CHEETAH__filters:'.format(theFilter))
+            self.indent()
+            self.addChunk('_filter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName]')
+            self.dedent()
+            self.addChunk('else:')
+            self.indent()
+            self.addChunk('_filter = self._CHEETAH__currentFilter'
+                          + ' = \\\n\t\t\tself._CHEETAH__filters[filterName] = '
+                          + 'getattr(self._CHEETAH__filtersLib, filterName)(self).filter')
+            self.dedent()
 
     def closeFilterBlock(self):
         ID = self._filterRegionsStack.pop()[0]
@@ -701,12 +696,9 @@ class ClassCompiler(GenUtils):
 
         WARNING: Use .setMethods to assign the attributes of the MethodCompiler
         from the methods of this class!!! or you will be assigning to attributes
-        of this object instead."""
-
-        if self._activeMethodsList and hasattr(self._activeMethodsList[-1], name):
-            return getattr(self._activeMethodsList[-1], name)
-        else:
-            raise AttributeError(name)
+        of this object instead.
+        """
+        return getattr(self._activeMethodsList[-1], name)
 
     def _setupState(self):
         self._decoratorsForNextMethod = []
@@ -748,11 +740,8 @@ class ClassCompiler(GenUtils):
         del self._methodsIndex[self._mainMethodName]
         self._mainMethodName = methodName
 
-    def _spawnMethodCompiler(self, methodName, klass=None,
-                             initialMethodComment=None):
-        if klass is None:
-            klass = self.methodCompilerClass
-
+    def _spawnMethodCompiler(self, methodName, initialMethodComment=None):
+        klass = self.methodCompilerClass
         decorators = self._decoratorsForNextMethod or []
         self._decoratorsForNextMethod = []
         methodCompiler = klass(methodName, classCompiler=self,
@@ -908,10 +897,7 @@ class Compiler(SettingsManager, GenUtils):
         from the methods of this class!!! or you will be assigning to attributes
         of this object instead.
         """
-        if self._activeClassesList and hasattr(self._activeClassesList[-1], name):
-            return getattr(self._activeClassesList[-1], name)
-        else:
-            raise AttributeError(name)
+        return getattr(self._activeClassesList[-1], name)
 
     def _initializeSettings(self):
         self.updateSettings(copy.deepcopy(DEFAULT_COMPILER_SETTINGS))
@@ -939,9 +925,8 @@ class Compiler(SettingsManager, GenUtils):
             'Filters',
         ]
 
-    def _spawnClassCompiler(self, className, klass=None):
-        if klass is None:
-            klass = self.classCompilerClass
+    def _spawnClassCompiler(self, className):
+        klass = self.classCompilerClass
         classCompiler = klass(
             className,
             moduleCompiler=self,
@@ -997,40 +982,25 @@ class Compiler(SettingsManager, GenUtils):
         # - We also assume that the final . separates the classname from the
         #   module name.  This might break if people do something really fancy
         #   with their dots and namespaces.
-        baseclasses = baseClassName.split(',')
-        for klass in baseclasses:
-            chunks = klass.split('.')
-            if len(chunks) == 1:
-                self._getActiveClassCompiler().setBaseClass(klass)
-                if klass not in self.importedVarNames():
-                    modName = klass
-                    # we assume the class name to be the module name
-                    # and that it's not a builtin:
-                    importStatement = "from %s import %s" % (modName, klass)
-                    self.addImportStatement(importStatement)
-                    self.addImportedVarNames((klass,))
-            else:
-                needToAddImport = True
-                modName = chunks[0]
-                # print chunks, ':', self.importedVarNames()
-                for chunk in chunks[1:-1]:
-                    if modName in self.importedVarNames():
-                        needToAddImport = False
-                        finalBaseClassName = klass.replace(modName + '.', '')
-                        self._getActiveClassCompiler().setBaseClass(finalBaseClassName)
-                        break
-                    else:
-                        modName += '.' + chunk
-                if needToAddImport:
-                    modName, finalClassName = '.'.join(chunks[:-1]), chunks[-1]
-                    # if finalClassName != chunks[:-1][-1]:
-                    if finalClassName != chunks[-2]:
-                        # we assume the class name to be the module name
-                        modName = '.'.join(chunks)
-                    self._getActiveClassCompiler().setBaseClass(finalClassName)
-                    importStatement = "from %s import %s" % (modName, finalClassName)
-                    self.addImportStatement(importStatement)
-                    self.addImportedVarNames([finalClassName])
+        chunks = baseClassName.split('.')
+        if len(chunks) == 1:
+            self._getActiveClassCompiler().setBaseClass(baseClassName)
+            modName = baseClassName
+            # we assume the class name to be the module name
+            # and that it's not a builtin:
+            importStatement = "from %s import %s" % (modName, baseClassName)
+            self.addImportStatement(importStatement)
+            self.addImportedVarNames((baseClassName,))
+        else:
+            modName, finalClassName = '.'.join(chunks[:-1]), chunks[-1]
+            # if finalClassName != chunks[:-1][-1]:
+            if finalClassName != chunks[-2]:
+                # we assume the class name to be the module name
+                modName = '.'.join(chunks)
+            self._getActiveClassCompiler().setBaseClass(finalClassName)
+            importStatement = "from %s import %s" % (modName, finalClassName)
+            self.addImportStatement(importStatement)
+            self.addImportedVarNames([finalClassName])
 
     def setCompilerSettings(self, keywords, settingsStr):
         self.updateSettingsFromConfigStr(settingsStr)

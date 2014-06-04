@@ -1590,17 +1590,15 @@ class Parser(_LowLevelParser):
         self.advance(len('filter'))
         self.getWhiteSpace()
         if self.matchCheetahVarStart():
-            isKlass = True
-            theFilter = self.getExpression(pyTokensToBreakAt=[':'])
-        else:
-            isKlass = False
-            theFilter = self.getIdentifier()
-            self.getWhiteSpace()
+            raise ParseError(self, 'Filters should be in the filterLib')
+
+        theFilter = self.getIdentifier()
+        self.getWhiteSpace()
 
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
             self.getWhiteSpace(max=1)
-            self._compiler.setFilter(theFilter, isKlass)
+            self._compiler.setFilter(theFilter)
             self.parse(breakPoint=self.findEOL(gobble=False))
             self._compiler.closeFilterBlock()
         else:
@@ -1609,7 +1607,7 @@ class Parser(_LowLevelParser):
             self.getWhiteSpace()
             self.pushToOpenDirectivesStack("filter")
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            self._compiler.setFilter(theFilter, isKlass)
+            self._compiler.setFilter(theFilter)
 
     def eatIf(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
