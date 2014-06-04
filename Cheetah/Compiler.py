@@ -24,7 +24,6 @@ from Cheetah.Parser import escapedNewlineRE
 # Settings format: (key, default, docstring)
 _DEFAULT_COMPILER_SETTINGS = [
     ('useNameMapper', True, 'Enable NameMapper for dotted notation and searchList support'),
-    ('allowSearchListAsMethArg', True, ''),
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
@@ -170,9 +169,13 @@ class GenUtils(object):
 
 
 class MethodCompiler(GenUtils):
-    def __init__(self, methodName, classCompiler,
-                 initialMethodComment=None,
-                 decorators=None):
+    def __init__(
+            self,
+            methodName,
+            classCompiler,
+            initialMethodComment,
+            decorators=None,
+    ):
         self._next_variable_id = 0
         self._settingsManager = classCompiler
         self._classCompiler = classCompiler
@@ -572,8 +575,7 @@ class MethodCompiler(GenUtils):
         return self._isStaticMethod
 
     def _addAutoSetupCode(self):
-        if self._initialMethodComment:
-            self.addChunk(self._initialMethodComment)
+        self.addChunk(self._initialMethodComment)
 
         if self._streamingEnabled and not self.isClassMethod() and not self.isStaticMethod():
             if self._useKWsDictArgForPassingTrans() and self._kwargsName:
@@ -594,16 +596,10 @@ class MethodCompiler(GenUtils):
             self.addChunk('_dummyTrans = True')
         self.addChunk('write = trans.response().write')
         if self.setting('useNameMapper'):
-            argNames = [arg[0] for arg in self._argStringList]
-            allowSearchListAsMethArg = self.setting('allowSearchListAsMethArg')
-            if allowSearchListAsMethArg and 'SL' in argNames:
-                pass
-            elif allowSearchListAsMethArg and 'searchList' in argNames:
-                self.addChunk('SL = searchList')
-            elif not self.isClassMethod() and not self.isStaticMethod():
+            if not self.isClassMethod() and not self.isStaticMethod():
                 self.addChunk('SL = self._CHEETAH__searchList')
             else:
-                self.addChunk('SL = [KWS]')
+                self.addChunk('SL = []')
         if self.isClassMethod() or self.isStaticMethod():
             self.addChunk('_filter = lambda x, **kwargs: unicode(x)')
         else:
@@ -682,7 +678,8 @@ class ClassCompiler(GenUtils):
         self._setupState()
         methodCompiler = self._spawnMethodCompiler(
             mainMethodName,
-            initialMethodComment='## CHEETAH: main method generated for this template')
+            '## CHEETAH: main method generated for this template'
+        )
 
         self._setActiveMethodCompiler(methodCompiler)
 
@@ -740,13 +737,16 @@ class ClassCompiler(GenUtils):
         del self._methodsIndex[self._mainMethodName]
         self._mainMethodName = methodName
 
-    def _spawnMethodCompiler(self, methodName, initialMethodComment=None):
+    def _spawnMethodCompiler(self, methodName, initialMethodComment):
         klass = self.methodCompilerClass
         decorators = self._decoratorsForNextMethod or []
         self._decoratorsForNextMethod = []
-        methodCompiler = klass(methodName, classCompiler=self,
-                               decorators=decorators,
-                               initialMethodComment=initialMethodComment)
+        methodCompiler = klass(
+            methodName,
+            classCompiler=self,
+            initialMethodComment=initialMethodComment,
+            decorators=decorators,
+        )
         self._methodsIndex[methodName] = methodCompiler
         return methodCompiler
 
@@ -766,7 +766,8 @@ class ClassCompiler(GenUtils):
 
     def startMethodDef(self, methodName, argsList, parserComment):
         methodCompiler = self._spawnMethodCompiler(
-            methodName, initialMethodComment=parserComment)
+            methodName, parserComment,
+        )
         self._setActiveMethodCompiler(methodCompiler)
         for argName, defVal in argsList:
             methodCompiler.addMethArg(argName, defVal)
