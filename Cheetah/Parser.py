@@ -645,8 +645,7 @@ class _LowLevelParser(SourceReader):
 
             c = self.peek()
             if c in ")}]":  # get the ending enclosure and break
-                if not enclosures:
-                    raise ParseError(self)
+                assert enclosures
                 c = self.getc()
                 open = closurePairs[c]
                 if enclosures[-1][0] == open:
@@ -806,8 +805,7 @@ class _LowLevelParser(SourceReader):
             elif enclosed and not enclosures:
                 break
             elif c in "])}":
-                if not enclosures:
-                    raise ParseError(self)
+                assert enclosures
                 open = closurePairs[c]
                 if enclosures[-1][0] == open:
                     enclosures.pop()
@@ -821,7 +819,7 @@ class _LowLevelParser(SourceReader):
                         self, msg="A '" + c + "' was found at line " + str(row) +
                         ", col " + str(col) +
                         " before a matching '" + close +
-                        "' was found\nfor the '" + open + "'")
+                        "' was found for the '" + open + "'")
                 self.advance()
 
             elif c in " \f\t":

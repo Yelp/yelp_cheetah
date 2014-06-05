@@ -690,7 +690,7 @@ class NameMapper(OutputTest):
 class CallDirective(OutputTest):
     def test1(self):
         r"""simple #call """
-        self.verify("#call int\n$anInt#end call",
+        self.verify("#call int:\n$anInt#end call",
                     "1")
         # single line version
         self.verify("#call int: $anInt",
@@ -1967,7 +1967,7 @@ class FilterDirective(OutputTest):
 
     def test2(self):
         """#filter ReplaceNone with WS"""
-        self.verify("#filter BaseFilter  \n$none#end filter",
+        self.verify("#filter BaseFilter:  \n$none#end filter",
                     "")
 
 

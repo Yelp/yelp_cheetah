@@ -253,3 +253,48 @@ def test_invalid_line_continuation():
         '                         ^\n'
     ):
         compile_to_class('#set foo = "bar" + \\hi, not a new line')
+
+
+def test_close_wrong_enclosure():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "A ']' was found at line 1, col 4 before a matching '}' was found for the '{'\n"
+        'Line 1, column 2\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |${a]\n'
+        '      ^\n'
+    ):
+        compile_to_class('${a]')
+
+
+def test_reach_eof():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "EOF was reached before a matching ')' was found for the '('\n"
+        'Line 1, column 7\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#super(\n'
+        '           ^\n'
+    ):
+        compile_to_class('#super(')
+
+
+def test_filter_with_variable():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Filters should be in the filterLib\n"
+        'Line 1, column 9\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#filter $MyFilter\n'
+        '             ^\n'
+    ):
+        compile_to_class('#filter $MyFilter')
