@@ -687,6 +687,15 @@ class NameMapper(OutputTest):
                     "nestedItem2")
 
 
+def test_one_line_compiler_settings():
+    cls = compile_to_class(
+        '#compiler-settings# useDottedNotation = True #end compiler-settings#foo\n'
+        '#set foo = {"bar": "baz"}\n'
+        '$foo.bar\n'
+    )
+    assert cls().respond() == 'foo\nbaz\n'
+
+
 class CallDirective(OutputTest):
     def test1(self):
         r"""simple #call """

@@ -298,3 +298,19 @@ def test_filter_with_variable():
         '             ^\n'
     ):
         compile_to_class('#filter $MyFilter')
+
+
+def test_non_ending_compiler_settings():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Unexpected EOF while searching for #end compiler-settings\n"
+        'Line 2, column 24\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#compiler-settings\n'
+        '2   |useDottedNotation = True\n'
+        '                            ^\n'
+    ):
+        compile_to_class('#compiler-settings\nuseDottedNotation = True')
