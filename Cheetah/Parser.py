@@ -9,7 +9,6 @@ Classes:
 from __future__ import unicode_literals
 
 import re
-import sys
 from tokenize import PseudoToken
 
 from Cheetah import five
@@ -652,7 +651,12 @@ class _LowLevelParser(SourceReader):
                     addBit(')')
                     break
                 else:
-                    raise ParseError(self)
+                    raise ParseError(
+                        self,
+                        "Expected a '{0}' before an end '{1}'".format(
+                            closurePairsRev[enclosures[-1][0]], c,
+                        )
+                    )
             elif c in " \t\f\r\n":
                 addBit(self.getc())
             elif self.matchCheetahVarInExpressionStartToken():
@@ -716,8 +720,6 @@ class _LowLevelParser(SourceReader):
             c = self.peek()
             if c == ")" or self.matchDirectiveEndToken():
                 break
-            elif c == ":":
-                break
             elif c in " \t\f\r\n":
                 if onDefVal:
                     argList.add_default(c)
@@ -750,11 +752,11 @@ class _LowLevelParser(SourceReader):
                 if self.peek() == '*':
                     varName += self.getc()
                 if not self.matchIdentifier():
-                    raise ParseError(self)
+                    raise ParseError(self, 'Expected an identifier.')
                 varName += self.getIdentifier()
                 argList.add_argument(varName)
             else:
-                raise ParseError(self)
+                raise ParseError(self, 'Unexpected character.')
 
         self.setSetting('useNameMapper', useNameMapper_orig)  # @@TR: see comment above
         return argList.merge()
@@ -910,14 +912,14 @@ class _LowLevelParser(SourceReader):
                     self.getc()
                 else:
                     restOfExpr = self.getExpression(enclosed=True, enclosures=enclosures)
-                    if restOfExpr[-1] == closurePairsRev[enclosureOpenChar]:
-                        restOfExpr = restOfExpr[:-1]
+                    assert restOfExpr[-1] == closurePairsRev[enclosureOpenChar]
+                    restOfExpr = restOfExpr[:-1]
                     expr += restOfExpr
             rawPlaceholder = self[startPos: self.pos()]
         else:
             expr = self.getExpression(enclosed=True, enclosures=enclosures)
-            if expr[-1] == closurePairsRev[enclosureOpenChar]:
-                expr = expr[:-1]
+            assert expr[-1] == closurePairsRev[enclosureOpenChar]
+            expr = expr[:-1]
             rawPlaceholder = self[startPos: self.pos()]
 
         return (expr, rawPlaceholder, lineCol)
@@ -1165,8 +1167,8 @@ class Parser(_LowLevelParser):
         else:
             assert (
                 isLineClearToStartToken and
-                not self.atEnd()
-                and self.peek() in '\r\n'
+                not self.atEnd() and
+                self.peek() in '\r\n'
             )
             self.readToEOL(gobble=True)
 
@@ -1272,12 +1274,15 @@ class Parser(_LowLevelParser):
         try:
             self._compiler.setCompilerSettings(keywords=keywords, settingsStr=settingsStr)
         except Exception:
-            sys.stderr.write('An error occurred while processing the following compiler settings.\n')
-            sys.stderr.write('----------------------------------------------------------------------\n')
-            sys.stderr.write('%s\n' % settingsStr.strip())
-            sys.stderr.write('----------------------------------------------------------------------\n')
-            sys.stderr.write('Please check the syntax of these settings.\n\n')
-            raise
+            raise ParseError(
+                self,
+                'An error occurred while parsing the settings:\n'
+                '---------------------------------------------\n'
+                '{0}\n'
+                '---------------------------------------------'.format(
+                    settingsStr.strip()
+                )
+            )
 
     def eatAttr(self):
         isLineClearToStartToken = self.isLineClearToStartToken()

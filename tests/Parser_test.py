@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
@@ -314,3 +315,106 @@ def test_non_ending_compiler_settings():
         '                            ^\n'
     ):
         compile_to_class('#compiler-settings\nuseDottedNotation = True')
+
+
+def test_weird_close_call():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Expected a ')' before an end '}'\n"
+        'Line 1, column 6\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |$foo(}\n'
+        '          ^\n'
+    ):
+        compile_to_class('$foo(}')
+
+
+def test_invalid_syntax_in_super():
+    # I'm not sure this error is actually correct
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Long-form placeholders - ${}, $(), $[], etc. are not valid inside "
+        "expressions. Use them in top-level $placeholders only.\n"
+        'Line 1, column 12\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#super(foo=${bar})\n'
+        '                ^\n'
+    ):
+        compile_to_class('#super(foo=${bar})')
+
+
+def test_invalid_syntax_in_call():
+    # I'm not sure this error is actually correct
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Long-form placeholders - ${}, $(), $[], etc. are not valid inside "
+        "expressions. Use them in top-level $placeholders only.\n"
+        'Line 1, column 11\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |$herp(foo=${bar})\n'
+        '               ^\n'
+    ):
+        compile_to_class('$herp(foo=${bar})')
+
+
+def test_expected_identifier_after_star():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Expected an identifier.\n'
+        'Line 1, column 9\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#super(*)\n'
+        '             ^\n'
+    ):
+        compile_to_class('#super(*)')
+
+
+def test_unexpected_character_parse_error():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Unexpected character.\n'
+        'Line 1, column 8\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#super(☃)\n'
+        '            ^\n'
+    ):
+        compile_to_class('#super(☃)')
+
+
+def test_malformed_compiler_settings():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'An error occurred while parsing the settings:\n'
+        '---------------------------------------------\n'
+        '==\n'
+        '---------------------------------------------\n'
+        'Line 3, column 23\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#compiler-settings\n'
+        '2   |==\n'
+        '3   |#end compiler-settings\n'
+        '                           ^\n'
+    ):
+        compile_to_class(
+            '#compiler-settings\n'
+            '==\n'
+            '#end compiler-settings\n'
+        )
