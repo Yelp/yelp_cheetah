@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
@@ -208,3 +209,212 @@ def test_parse_error_long_file():
         '8   |8\n'
     ):
         compile_to_class('1\n2\n3\n4\n$foo(\n6\n7\n8\n')
+
+
+def test_unclosed_enclosure():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "EOF was reached before a matching '}' was found for the '{'\n"
+        'Line 1, column 2\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |${hai +\n'
+        '      ^\n'
+    ):
+        compile_to_class('${hai +')
+
+
+def test_parse_error_on_attr_with_var():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Invalid #attr directive. It should contain simple Python literals.\n'
+        'Line 1, column 18\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#attr $foo = $bar\n'
+        '                      ^\n'
+    ):
+        compile_to_class('#attr $foo = $bar\n')
+
+
+def test_invalid_line_continuation():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Line ending expected\n'
+        'Line 1, column 21\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#set foo = "bar" + \\hi, not a new line\n'
+        '                         ^\n'
+    ):
+        compile_to_class('#set foo = "bar" + \\hi, not a new line')
+
+
+def test_close_wrong_enclosure():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "A ']' was found at line 1, col 4 before a matching '}' was found for the '{'\n"
+        'Line 1, column 2\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |${a]\n'
+        '      ^\n'
+    ):
+        compile_to_class('${a]')
+
+
+def test_reach_eof():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "EOF was reached before a matching ')' was found for the '('\n"
+        'Line 1, column 7\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#super(\n'
+        '           ^\n'
+    ):
+        compile_to_class('#super(')
+
+
+def test_filter_with_variable():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Filters should be in the filterLib\n"
+        'Line 1, column 9\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#filter $MyFilter\n'
+        '             ^\n'
+    ):
+        compile_to_class('#filter $MyFilter')
+
+
+def test_non_ending_compiler_settings():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Unexpected EOF while searching for #end compiler-settings\n"
+        'Line 2, column 24\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#compiler-settings\n'
+        '2   |useDottedNotation = True\n'
+        '                            ^\n'
+    ):
+        compile_to_class('#compiler-settings\nuseDottedNotation = True')
+
+
+def test_weird_close_call():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Expected a ')' before an end '}'\n"
+        'Line 1, column 6\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |$foo(}\n'
+        '          ^\n'
+    ):
+        compile_to_class('$foo(}')
+
+
+def test_invalid_syntax_in_super():
+    # I'm not sure this error is actually correct
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Long-form placeholders - ${}, $(), $[], etc. are not valid inside "
+        "expressions. Use them in top-level $placeholders only.\n"
+        'Line 1, column 12\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#super(foo=${bar})\n'
+        '                ^\n'
+    ):
+        compile_to_class('#super(foo=${bar})')
+
+
+def test_invalid_syntax_in_call():
+    # I'm not sure this error is actually correct
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "Long-form placeholders - ${}, $(), $[], etc. are not valid inside "
+        "expressions. Use them in top-level $placeholders only.\n"
+        'Line 1, column 11\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |$herp(foo=${bar})\n'
+        '               ^\n'
+    ):
+        compile_to_class('$herp(foo=${bar})')
+
+
+def test_expected_identifier_after_star():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Expected an identifier.\n'
+        'Line 1, column 9\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#super(*)\n'
+        '             ^\n'
+    ):
+        compile_to_class('#super(*)')
+
+
+def test_unexpected_character_parse_error():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Unexpected character.\n'
+        'Line 1, column 8\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#super(☃)\n'
+        '            ^\n'
+    ):
+        compile_to_class('#super(☃)')
+
+
+def test_malformed_compiler_settings():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'An error occurred while parsing the settings:\n'
+        '---------------------------------------------\n'
+        '==\n'
+        '---------------------------------------------\n'
+        'Line 3, column 23\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#compiler-settings\n'
+        '2   |==\n'
+        '3   |#end compiler-settings\n'
+        '                           ^\n'
+    ):
+        compile_to_class(
+            '#compiler-settings\n'
+            '==\n'
+            '#end compiler-settings\n'
+        )

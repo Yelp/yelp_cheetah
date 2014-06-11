@@ -687,10 +687,19 @@ class NameMapper(OutputTest):
                     "nestedItem2")
 
 
+def test_one_line_compiler_settings():
+    cls = compile_to_class(
+        '#compiler-settings# useDottedNotation = True #end compiler-settings#foo\n'
+        '#set foo = {"bar": "baz"}\n'
+        '$foo.bar\n'
+    )
+    assert cls().respond() == 'foo\nbaz\n'
+
+
 class CallDirective(OutputTest):
     def test1(self):
         r"""simple #call """
-        self.verify("#call int\n$anInt#end call",
+        self.verify("#call int:\n$anInt#end call",
                     "1")
         # single line version
         self.verify("#call int: $anInt",
@@ -1387,6 +1396,32 @@ $testDict['two']""",
                     "123")
 
 
+class GlobalSetClass(object):
+    pass
+
+
+GLOBAL_SET_SL = [{'global_set_cls': GlobalSetClass}]
+
+
+def test_global_set_directive():
+    # Eventually I'd like to remove global set, but for now it'd be better
+    # if it is tested.
+    cls = compile_to_class(
+        '#set global foo = {}\n'
+        "#set global foo['bar'] = $global_set_cls()\n"
+        "#set global foo['bar'].baz = 'herp'\n"
+        "$foo['bar'].baz\n"
+        '#set global bar = $global_set_cls()\n'
+        "#set global bar.baz = 'derp'\n"
+        '$bar.baz\n'
+        '#set global baz = $global_set_cls()\n'
+        '#set global baz.herp = {}\n'
+        "#set global baz.herp['derp'] = 'harpdarp'\n"
+        "$baz.herp['derp']\n"
+    )
+    assert cls(searchList=GLOBAL_SET_SL).respond() == 'herp\nderp\nharpdarp\n'
+
+
 def test_del_directive():
     cls = compile_to_class(
         "#set foo = {'a': '1', 'b': '2'}\n"
@@ -1861,15 +1896,6 @@ $anInt//comment
 
 class ExtendsDirective(OutputTest):
 
-    def test1(self):
-        """#extends testing.templates.extends_test_template"""
-        self.verify("""#from testing.templates.extends_test_template import extends_test_template
-#extends extends_test_template
-#implements respond
-$spacer()
-""",
-                    '<img src="spacer.gif" width="1" height="1" alt="" />\n')
-
     def test2(self):
         """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
         self.verify("""#extends testing.templates.extends_test_template
@@ -1894,6 +1920,18 @@ $spacer()
 $g $numOne
 """,
                     'Hello 1\n')
+
+
+def test_extends_with_partial_baseclass_import():
+    cls = compile_to_class(
+        '#import testing\n'
+        '#extends testing.templates.extends_test_template\n'
+        '#implements respond\n'
+        '$spacer()\n'
+    )
+    assert cls().respond() == (
+        '<img src="spacer.gif" width="1" height="1" alt="" />\n'
+    )
 
 
 def test_super_directive(tmpdir):
@@ -1938,7 +1976,7 @@ class FilterDirective(OutputTest):
 
     def test2(self):
         """#filter ReplaceNone with WS"""
-        self.verify("#filter BaseFilter  \n$none#end filter",
+        self.verify("#filter BaseFilter:  \n$none#end filter",
                     "")
 
 
@@ -2050,7 +2088,7 @@ MACRO_SETTINGS = {
 
 
 @pytest.mark.parametrize('macro_name', ('ClassMacro', 'func_macro'))
-def test_class_macros(macro_name):
+def test_macros(macro_name):
     cls = compile_to_class(
         'before\n'
         '#{0} hello="world"\n'
@@ -2076,6 +2114,68 @@ def test_class_macros(macro_name):
             'source: macro source\n\n'
             'after\n'.format(macro_name)
         )
+
+
+@pytest.mark.parametrize('macro_name', ('ClassMacro', 'func_macro'))
+def test_short_form_macros(macro_name):
+    cls = compile_to_class(
+        'before\n'
+        '#{0} a="b": macro source\n'
+        'after\n'.format(macro_name),
+        settings=MACRO_SETTINGS,
+    )
+
+    if five.PY2:
+        assert cls().respond() == (
+            'before\n'
+            'Hello from {0}\n'
+            "arglist: a=u'b'\n"
+            'source: macro source\n'
+            'after\n'.format(macro_name)
+        )
+    else:
+        assert cls().respond() == (
+            'before\n'
+            'Hello from {0}\n'
+            "arglist: a='b'\n"
+            'source: macro source\n'
+            'after\n'.format(macro_name)
+        )
+
+
+def test_macros_with_directives_inside():
+    cls = compile_to_class(
+        'before\n'
+        '#func_macro\n'
+        '#if True\n'
+        'Truthy!\n'
+        '#end if\n'
+        '#end func_macro\n'
+        'after\n',
+        settings=MACRO_SETTINGS,
+    )
+    assert cls().respond() == (
+        'before\n'
+        'Hello from func_macro\n'
+        'arglist: \n'
+        'source: \n'
+        'Truthy!\n\n'
+        'after\n'
+    )
+
+
+def test_long_macros_with_colon():
+    cls = compile_to_class(
+        '#func_macro:\n'
+        'contents\n'
+        '#end func_macro\n',
+        settings=MACRO_SETTINGS,
+    )
+    assert cls().respond() == (
+        'Hello from func_macro\n'
+        'arglist: \n'
+        'source: contents\n\n'
+    )
 
 
 def test_comment_directive_ambiguity():
@@ -2121,3 +2221,43 @@ def test_trivial_implements_template():
 def test_bytes():
     cls = compile_to_class("#set foo = b'bar'\n$foo")
     assert cls().respond() == 'bar'
+
+
+def test_default_argument_multipart_expression():
+    cls = compile_to_class(
+        '#def foo(bar=1 + 1)\n'
+        '$bar\n'
+        '#end def\n'
+        '$foo()'
+    )
+    assert cls().respond() == '2\n'
+
+
+def test_default_argument_boolean_expression():
+    cls = compile_to_class(
+        '#set herp = "derp"\n'
+        '#def foo(bar)\n'
+        '$bar\n'
+        '#end def\n'
+        '$foo("baz" if $herp == "derp" else "buz")'
+    )
+    assert cls().respond() == 'baz\n'
+
+
+def test_default_is_dict():
+    cls = compile_to_class(
+        '#def foo(bar={"baz": "womp"})\n'
+        "$bar['baz']\n"
+        '#end def\n'
+        '$foo()'
+    )
+    assert cls().respond() == 'womp\n'
+
+
+def test_line_continuation():
+    cls = compile_to_class(
+        '#set foo = "bar baz " + \\\n'
+        '    "womp"\n'
+        '$foo'
+    )
+    assert cls().respond() == 'bar baz womp'

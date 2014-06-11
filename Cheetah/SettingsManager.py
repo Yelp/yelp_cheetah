@@ -147,7 +147,7 @@ class SettingsManager(_SettingsCollector):
     def updateSettingsFromConfigStr(self, configStr):
         """See the docstring for .updateSettingsFromConfigFile()
         """
-        configStr = '[globals]\n' + configStr
+        configStr = '[globals]\n' + configStr.strip()
         inFile = StringIO(configStr)
         newSettings = self.readSettingsFromConfigFileObj(inFile)
         self.updateSettings(newSettings)

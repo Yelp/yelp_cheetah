@@ -49,7 +49,7 @@ def test_TryExceptImportTestFailCase():
 def test_ClassMethodSupport_BasicDecorator():
     template = '''
         #@classmethod
-        #def myClassMethod()
+        #def myClassMethod(foo)
             #return '$foo = %s' % $foo
         #end def
     '''
@@ -61,7 +61,7 @@ def test_ClassMethodSupport_BasicDecorator():
 def test_StaticMethodSupport_BasicDecorator():
     template = '''
         #@staticmethod
-        #def myStaticMethod()
+        #def myStaticMethod(foo)
             #return '$foo = %s' % $foo
         #end def
     '''

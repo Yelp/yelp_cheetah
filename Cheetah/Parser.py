@@ -9,7 +9,6 @@ Classes:
 from __future__ import unicode_literals
 
 import re
-import sys
 from tokenize import PseudoToken
 
 from Cheetah import five
@@ -625,8 +624,7 @@ class _LowLevelParser(SourceReader):
 
         This method understands *arg, and **kw
         """
-        if not self.peek() == '(':
-            raise ParseError(self, msg="Expected '('")
+        assert self.peek() == '('
         startPos = self.pos()
         self.getc()
         enclosures = [('(', startPos)]
@@ -645,8 +643,7 @@ class _LowLevelParser(SourceReader):
 
             c = self.peek()
             if c in ")}]":  # get the ending enclosure and break
-                if not enclosures:
-                    raise ParseError(self)
+                assert enclosures
                 c = self.getc()
                 open = closurePairs[c]
                 if enclosures[-1][0] == open:
@@ -654,7 +651,12 @@ class _LowLevelParser(SourceReader):
                     addBit(')')
                     break
                 else:
-                    raise ParseError(self)
+                    raise ParseError(
+                        self,
+                        "Expected a '{0}' before an end '{1}'".format(
+                            closurePairsRev[enclosures[-1][0]], c,
+                        )
+                    )
             elif c in " \t\f\r\n":
                 addBit(self.getc())
             elif self.matchCheetahVarInExpressionStartToken():
@@ -700,10 +702,8 @@ class _LowLevelParser(SourceReader):
 
         This method understands *arg, and **kw
         """
-        if self.peek() == '(':
-            self.advance()
-        else:
-            exitPos = self.findEOL()  # it's a directive so break at the EOL
+        assert self.peek() == '('
+        self.advance()
         argList = ArgList()
         onDefVal = False
 
@@ -717,13 +717,8 @@ class _LowLevelParser(SourceReader):
                     self, msg="EOF was reached before a matching ')'" +
                     " was found for the '('")
 
-            if self.pos() == exitPos:
-                break
-
             c = self.peek()
             if c == ")" or self.matchDirectiveEndToken():
-                break
-            elif c == ":":
                 break
             elif c in " \t\f\r\n":
                 if onDefVal:
@@ -757,11 +752,11 @@ class _LowLevelParser(SourceReader):
                 if self.peek() == '*':
                     varName += self.getc()
                 if not self.matchIdentifier():
-                    raise ParseError(self)
+                    raise ParseError(self, 'Expected an identifier.')
                 varName += self.getIdentifier()
                 argList.add_argument(varName)
             else:
-                raise ParseError(self)
+                raise ParseError(self, 'Unexpected character.')
 
         self.setSetting('useNameMapper', useNameMapper_orig)  # @@TR: see comment above
         return argList.merge()
@@ -806,8 +801,7 @@ class _LowLevelParser(SourceReader):
             elif enclosed and not enclosures:
                 break
             elif c in "])}":
-                if not enclosures:
-                    raise ParseError(self)
+                assert enclosures
                 open = closurePairs[c]
                 if enclosures[-1][0] == open:
                     enclosures.pop()
@@ -821,7 +815,7 @@ class _LowLevelParser(SourceReader):
                         self, msg="A '" + c + "' was found at line " + str(row) +
                         ", col " + str(col) +
                         " before a matching '" + close +
-                        "' was found\nfor the '" + open + "'")
+                        "' was found for the '" + open + "'")
                 self.advance()
 
             elif c in " \f\t":
@@ -887,15 +881,12 @@ class _LowLevelParser(SourceReader):
     def _raiseErrorAboutInvalidCheetahVarSyntaxInExpr(self):
         match = self.matchCheetahVarStart()
         groupdict = match.groupdict()
-        if groupdict.get('enclosure'):
-            raise ParseError(
-                self,
-                msg='Long-form placeholders - ${}, $(), $[], etc. are not valid inside expressions. '
-                'Use them in top-level $placeholders only.')
-        else:
-            raise ParseError(
-                self,
-                msg='This form of $placeholder syntax is not valid here.')
+        assert 'enclosure' in groupdict, groupdict
+        raise ParseError(
+            self,
+            'Long-form placeholders - ${}, $(), $[], etc. are not valid inside expressions. '
+            'Use them in top-level $placeholders only.'
+        )
 
     def getPlaceholder(self, plain=False):
         startPos = self.pos()
@@ -921,14 +912,14 @@ class _LowLevelParser(SourceReader):
                     self.getc()
                 else:
                     restOfExpr = self.getExpression(enclosed=True, enclosures=enclosures)
-                    if restOfExpr[-1] == closurePairsRev[enclosureOpenChar]:
-                        restOfExpr = restOfExpr[:-1]
+                    assert restOfExpr[-1] == closurePairsRev[enclosureOpenChar]
+                    restOfExpr = restOfExpr[:-1]
                     expr += restOfExpr
             rawPlaceholder = self[startPos: self.pos()]
         else:
             expr = self.getExpression(enclosed=True, enclosures=enclosures)
-            if expr[-1] == closurePairsRev[enclosureOpenChar]:
-                expr = expr[:-1]
+            assert expr[-1] == closurePairsRev[enclosureOpenChar]
+            expr = expr[:-1]
             rawPlaceholder = self[startPos: self.pos()]
 
         return (expr, rawPlaceholder, lineCol)
@@ -958,16 +949,12 @@ class Parser(_LowLevelParser):
     def _initDirectives(self):
         def normalizeParserVal(val):
             if isinstance(val, five.text):
-                handler = getattr(self, val)
+                return getattr(self, val)
             elif isinstance(val, type):
-                handler = val(self)
-            elif hasattr(val, '__call__'):
-                handler = val
-            elif val is None:
-                handler = val
+                return val(self)
             else:
-                raise Exception('Invalid parser/handler value %r for %s' % (val, name))
-            return handler
+                assert val is None or callable(val), val
+                return val
 
         normalizeHandlerVal = normalizeParserVal
 
@@ -983,19 +970,13 @@ class Parser(_LowLevelParser):
         for name, val in _endDirectiveNamesAndHandlers.items():
             self._endDirectiveNamesAndHandlers[name] = normalizeHandlerVal(val)
 
-        self._closeableDirectives = ['def', 'block',
-                                     'call',
-                                     'filter',
-                                     'if',
-                                     'for', 'while',
-                                     'try',
-                                     ]
+        self._closeableDirectives = [
+            'def', 'block', 'call', 'filter', 'if', 'for', 'while', 'try',
+        ]
 
         for macroName, callback in self.setting('macroDirectives').items():
-            if isinstance(callback, type):
-                callback = callback(parser=self)
             assert callback
-            self._macros[macroName] = callback
+            self._macros[macroName] = normalizeParserVal(callback)
             self._directiveNamesAndParsers[macroName] = self.eatMacroCall
 
     # main parse loop
@@ -1151,7 +1132,14 @@ class Parser(_LowLevelParser):
         finalPos = endRawPos = startPos = self.pos()
         directiveChar = self.setting('directiveStartToken')[0]
         isLineClearToStartToken = False
-        while not self.atEnd():
+        while True:
+            if self.atEnd():
+                raise ParseError(
+                    self,
+                    'Unexpected EOF while searching for #end {0}'.format(
+                        directiveName,
+                    )
+                )
             if self.peek() == directiveChar:
                 if self.matchDirective() == 'end':
                     endRawPos = self.pos()
@@ -1176,7 +1164,12 @@ class Parser(_LowLevelParser):
 
         if self.matchDirectiveEndToken():
             self.getDirectiveEndToken()
-        elif isLineClearToStartToken and (not self.atEnd()) and self.peek() in '\r\n':
+        else:
+            assert (
+                isLineClearToStartToken and
+                not self.atEnd() and
+                self.peek() in '\r\n'
+            )
             self.readToEOL(gobble=True)
 
         if isLineClearToStartToken and self.pos() > endOfFirstLinePos:
@@ -1191,8 +1184,6 @@ class Parser(_LowLevelParser):
             self.advance(len(directiveName))
         expr = self.getExpression().strip()
         directiveName = expr.split()[0]
-        if directiveName in self._closeableDirectives:
-            self.pushToOpenDirectivesStack(directiveName)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         return expr
 
@@ -1202,8 +1193,7 @@ class Parser(_LowLevelParser):
         endOfFirstLinePos = self.findEOL()
         lineCol = self.getRowCol()
         self.getDirectiveStartToken()
-        if directiveName not in 'else elif for while try except finally'.split():
-            self.advance(len(directiveName))
+        assert directiveName in 'else elif for while try except finally'.split()
 
         self.getWhiteSpace()
 
@@ -1284,12 +1274,15 @@ class Parser(_LowLevelParser):
         try:
             self._compiler.setCompilerSettings(keywords=keywords, settingsStr=settingsStr)
         except Exception:
-            sys.stderr.write('An error occurred while processing the following compiler settings.\n')
-            sys.stderr.write('----------------------------------------------------------------------\n')
-            sys.stderr.write('%s\n' % settingsStr.strip())
-            sys.stderr.write('----------------------------------------------------------------------\n')
-            sys.stderr.write('Please check the syntax of these settings.\n\n')
-            raise
+            raise ParseError(
+                self,
+                'An error occurred while parsing the settings:\n'
+                '---------------------------------------------\n'
+                '{0}\n'
+                '---------------------------------------------'.format(
+                    settingsStr.strip()
+                )
+            )
 
     def eatAttr(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
@@ -1303,6 +1296,12 @@ class Parser(_LowLevelParser):
         self.getWhiteSpace()
         self.getAssignmentOperator()
         expr = self.getExpression()
+        if 'VFN(' in expr or 'VFFSL(' in expr:
+            raise ParseError(
+                self,
+                'Invalid #attr directive. '
+                'It should contain simple Python literals.'
+            )
         self._compiler.addAttribute(attribName, expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 
@@ -1501,12 +1500,9 @@ class Parser(_LowLevelParser):
     def eatMacroCall(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
-        startPos = self.pos()
         self.getDirectiveStartToken()
         macroName = self.getIdentifier()
         macro = self._macros[macroName]
-        if hasattr(macro, 'parse'):
-            return macro.parse(parser=self, startPos=startPos)
 
         self.getWhiteSpace()
         args = self.getExpression(
@@ -1590,17 +1586,15 @@ class Parser(_LowLevelParser):
         self.advance(len('filter'))
         self.getWhiteSpace()
         if self.matchCheetahVarStart():
-            isKlass = True
-            theFilter = self.getExpression(pyTokensToBreakAt=[':'])
-        else:
-            isKlass = False
-            theFilter = self.getIdentifier()
-            self.getWhiteSpace()
+            raise ParseError(self, 'Filters should be in the filterLib')
+
+        theFilter = self.getIdentifier()
+        self.getWhiteSpace()
 
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
             self.getWhiteSpace(max=1)
-            self._compiler.setFilter(theFilter, isKlass)
+            self._compiler.setFilter(theFilter)
             self.parse(breakPoint=self.findEOL(gobble=False))
             self._compiler.closeFilterBlock()
         else:
@@ -1609,7 +1603,7 @@ class Parser(_LowLevelParser):
             self.getWhiteSpace()
             self.pushToOpenDirectivesStack("filter")
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            self._compiler.setFilter(theFilter, isKlass)
+            self._compiler.setFilter(theFilter)
 
     def eatIf(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
