@@ -42,6 +42,8 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('PSPEndToken', '%>', ''),
     ('gettextTokens', ["_", "N_", "ngettext"], ''),
     ('macroDirectives', {}, 'For providing macros'),
+
+    ('future_unicode_literals', True, 'from __future__ import unicode_literals'),
 ]
 
 DEFAULT_COMPILER_SETTINGS = dict([(v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS])
@@ -307,20 +309,22 @@ class MethodCompiler(GenUtils):
             return
 
         reprstr = repr(strConst)
-        i = 0
-        out = []
-        if reprstr.startswith('u'):  # pragma: no cover (only in py2 case)
-            reprstr = reprstr[1:]
-        body = escapedNewlineRE.sub('\\1\n', reprstr[i+1:-1])
 
-        if reprstr[i] == "'":
-            out.append("'''")
-            out.append(body)
-            out.append("'''")
+        if self.setting('future_unicode_literals'):
+            out = []
         else:
-            out.append('"""')
-            out.append(body)
-            out.append('"""')
+            out = ['u']
+
+        # If our repr starts with u, trim it off
+        if reprstr.startswith('u'):  # pragma: no cover (py2 only)
+            reprstr = reprstr[1:]
+
+        body = escapedNewlineRE.sub('\\1\n', reprstr[1:-1])
+
+        if reprstr[0] == "'":
+            out.extend(["'''", body, "'''"])
+        else:
+            out.extend(['"""', body, '"""'])
         self.addWriteChunk(''.join(out))
 
     def handleWSBeforeDirective(self):
@@ -1033,9 +1037,13 @@ class Compiler(SettingsManager, GenUtils):
         self._parser.parse()
         self._swallowClassCompiler(self._popActiveClassCompiler())
 
+        futures = ''
+        if self.setting('future_unicode_literals'):
+            futures += 'from __future__ import unicode_literals\n'
+
         moduleDef = textwrap.dedent(
             """
-            from __future__ import unicode_literals
+            %(futures)s
             %(imports)s
 
             # This is compiled yelp_cheetah sourcecode
@@ -1048,6 +1056,7 @@ class Compiler(SettingsManager, GenUtils):
             %(footer)s
             """
         ).strip() % {
+            'futures': futures,
             'imports': self.importStatements(),
             'constants': self.moduleConstants(),
             'classes': self.classDefs(),
