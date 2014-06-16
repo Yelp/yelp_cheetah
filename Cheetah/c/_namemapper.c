@@ -76,7 +76,7 @@ static int wrapInternalNotFoundException(char *fullName)
 static int isInstanceOrClass(PyObject *nextVal) {
 #ifndef IS_PYTHON3
     /* old style classes or instances */
-    if((PyInstance_Check(nextVal)) || (PyClass_Check(nextVal))) {
+    if ((PyInstance_Check(nextVal)) || (PyClass_Check(nextVal))) {
         return 1;
     }
 #endif
@@ -117,7 +117,7 @@ static int getNameChunks(char *nameChunks[], char *name, char *nameCopy)
     int currChunkNum = 0;
 
     currChunk = nameCopy;
-    while ('\0' != (c = *nameCopy)){
+    while ('\0' != (c = *nameCopy)) {
     if ('.' == c) {
         if (currChunkNum >= (MAXCHUNKS-2)) { /* avoid overflowing nameChunks[] */
             PyErr_SetString(TooManyPeriods, name);
@@ -314,7 +314,7 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
     while ((nameSpace = PyIter_Next(iterator))) {
         checkForNameInNameSpaceAndReturnIfFound(TRUE);
         Py_DECREF(nameSpace);
-        if(PyErr_CheckSignals()) {
+        if (PyErr_CheckSignals()) {
         theValue = NULL;
         goto done;
         }
@@ -370,10 +370,10 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
         PyErr_SetString(PyExc_TypeError, "This searchList is not iterable!");
         goto done;
     }
-    while ( (nameSpace = PyIter_Next(iterator)) ) {
+    while ((nameSpace = PyIter_Next(iterator))) {
         checkForNameInNameSpaceAndReturnIfFound(TRUE);
         Py_DECREF(nameSpace);
-        if(PyErr_CheckSignals()) {
+        if (PyErr_CheckSignals()) {
             theValue = NULL;
             goto done;
         }

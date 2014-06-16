@@ -63,7 +63,7 @@
 }
 
 #define checkForNameInNameSpaceAndReturnIfFound(namespace_decref) { \
-    if ( PyNamemapper_hasKey(nameSpace, nameChunks[0]) ) {\
+    if (PyNamemapper_hasKey(nameSpace, nameChunks[0])) {\
         /* We always do the first lookup with useDottedNotation = 1, because
          * otherwise looking up locals and globals (from the dicts locals() and
          * globals()) would always fail. */ \
