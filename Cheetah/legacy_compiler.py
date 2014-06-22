@@ -15,10 +15,11 @@ import textwrap
 import warnings
 
 from Cheetah import five
+from Cheetah.legacy_parser import LegacyParser
+from Cheetah.legacy_parser import SET_GLOBAL
+from Cheetah.legacy_parser import SET_MODULE
+from Cheetah.legacy_parser import escapedNewlineRE
 from Cheetah.SettingsManager import SettingsManager
-from Cheetah.Parser import Parser
-from Cheetah.Parser import SET_GLOBAL, SET_MODULE
-from Cheetah.Parser import escapedNewlineRE
 
 
 # Settings format: (key, default, docstring)
@@ -52,8 +53,8 @@ DEFAULT_COMPILER_SETTINGS = dict([(v[0], v[1]) for v in _DEFAULT_COMPILER_SETTIN
 class GenUtils(object):
     """An abstract baseclass for the Compiler classes that provides methods that
     perform generic utility functions or generate pieces of output code from
-    information passed in by the Parser baseclass.  These methods don't do any
-    parsing themselves.
+    information passed in by the LegacyParser baseclass.  These methods don't
+    do any parsing themselves.
     """
 
     def genCheetahVar(self, nameChunks, plain=False):
@@ -863,12 +864,12 @@ class ClassCompiler(GenUtils):
 # MODULE COMPILERS
 
 
-class Compiler(SettingsManager, GenUtils):
-    parserClass = Parser
+class LegacyCompiler(SettingsManager, GenUtils):
+    parserClass = LegacyParser
     classCompilerClass = ClassCompiler
 
     def __init__(self, source, moduleName, settings=None):
-        super(Compiler, self).__init__()
+        super(LegacyCompiler, self).__init__()
         if settings:
             self.updateSettings(settings)
 

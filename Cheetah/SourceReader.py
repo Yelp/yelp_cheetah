@@ -1,4 +1,4 @@
-"""SourceReader class for Cheetah's Parser and CodeGenerator"""
+"""SourceReader class for Cheetah's LegacyParser and CodeGenerator"""
 from __future__ import unicode_literals
 
 import re

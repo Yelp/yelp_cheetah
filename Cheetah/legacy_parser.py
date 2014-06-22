@@ -1,10 +1,10 @@
 """
-Parser classes for Cheetah's Compiler
+Parser classes for Cheetah's LegacyCompiler
 
 Classes:
   ParseError(Exception)
   _LowLevelParser(Cheetah.SourceReader.SourceReader), basically a lexer
-  Parser(_LowLevelParser)
+  LegacyParser(_LowLevelParser)
 """
 from __future__ import unicode_literals
 
@@ -925,13 +925,13 @@ class _LowLevelParser(SourceReader):
         return (expr, rawPlaceholder, lineCol)
 
 
-class Parser(_LowLevelParser):
+class LegacyParser(_LowLevelParser):
     """This class is a StateMachine for parsing Cheetah source and
     sending state dependent code generation commands to
-    Cheetah.Compiler.Compiler.
+    Cheetah.legacy_compiler.LegacyCompiler
     """
     def __init__(self, src, compiler=None):
-        super(Parser, self).__init__(src)
+        super(LegacyParser, self).__init__(src)
         self.setSettingsManager(compiler)
         self._compiler = compiler
         self.setupState()
@@ -943,7 +943,7 @@ class Parser(_LowLevelParser):
         self._openDirectivesStack = []
 
     def configureParser(self):
-        super(Parser, self).configureParser()
+        super(LegacyParser, self).configureParser()
         self._initDirectives()
 
     def _initDirectives(self):

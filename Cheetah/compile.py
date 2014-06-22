@@ -5,20 +5,20 @@ import io
 import os.path
 
 from Cheetah import five
-from Cheetah.Compiler import Compiler
+from Cheetah.legacy_compiler import LegacyCompiler
 
 
 def compile_source(
         source,
         cls_name='DynamicallyCompiledTemplate',
         settings=None,
-        compiler_cls=Compiler,
+        compiler_cls=LegacyCompiler,
 ):
     """The general case for compiling from source.
 
     :param text source: Text representing the cheetah source.
     :param text cls_name: Classname for the generated module.
-    :param dict settings: Compiler settings
+    :param dict settings: Compile settings
     :param type compiler_cls: Class to use for the compiler.
     :return: The compiled output.
     :rtype: text

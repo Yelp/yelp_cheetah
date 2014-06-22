@@ -13,8 +13,8 @@ import warnings
 from Cheetah import five
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
+from Cheetah.legacy_parser import ParseError
 from Cheetah.NameMapper import NotFound
-from Cheetah.Parser import ParseError
 
 
 class Unspecified(object):
