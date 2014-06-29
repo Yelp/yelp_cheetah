@@ -1193,8 +1193,6 @@ class LegacyParser(_LowLevelParser):
         endOfFirstLinePos = self.findEOL()
         lineCol = self.getRowCol()
         self.getDirectiveStartToken()
-        assert directiveName in 'else elif for while try except finally'.split()
-
         self.getWhiteSpace()
 
         expr = self.getExpression(pyTokensToBreakAt=[':'])
