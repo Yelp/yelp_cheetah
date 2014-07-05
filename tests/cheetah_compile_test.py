@@ -46,7 +46,7 @@ def test_compile_template(template_writer):
 def test_compile_template_with_bytes(template_writer):
     """argv passes bytes in py2"""
     tmpl_file = template_writer.write('Hello world')
-    filename = tmpl_file.encode('utf-8')
+    filename = tmpl_file.encode('UTF-8')
     assert isinstance(filename, bytes)
     _test_compile_template(filename)
 

@@ -19,14 +19,11 @@ class BaseFilter(object):
         self.template = template
 
     def filter(self, val):
-        """Pass Unicode strings through unmolested, unless an encoding is
-        specified.
-        """
         if val is None:
             return ''
         elif isinstance(val, five.text):
             return val
         elif isinstance(val, bytes):
-            return val.decode('utf-8')
+            return val.decode('UTF-8')
         else:
             return five.text(val)

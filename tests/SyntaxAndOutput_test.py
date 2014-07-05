@@ -272,8 +272,7 @@ class Comments_SingleLine(OutputTest):
                     "")
 
     def test11(self):
-        """## containing #for directive
-        """
+        """## containing #for directive"""
         self.verify("##for $i in range(15)",
                     "")
 
@@ -357,60 +356,22 @@ class Placeholders_Vals(OutputTest):
         self.verify("$none", "")
 
     def test8(self):
-        """True, False
-        """
+        """True, False"""
         self.verify("$True $False", "%s %s" % (repr(True), repr(False)))
 
     def test9(self):
-        """$_
-        """
+        """$_"""
         self.verify("$_('foo')", "Translated: foo")
 
 
 class UnicodeStrings(OutputTest):
     def test1(self):
-        """unicode data in placeholder
-        """
+        """unicode data in placeholder"""
         self.verify(u"$unicodeData", defaultTestNameSpace['unicodeData'])
 
     def test2(self):
-        """unicode data in body
-        """
+        """unicode data in body"""
         self.verify(u"aoeu12345\u1234", u"aoeu12345\u1234")
-        # self.verify(u"#encoding utf8#aoeu12345\u1234", u"aoeu12345\u1234")
-
-
-class EncodingDirective(OutputTest):
-    def test1(self):
-        """basic #encoding """
-        self.verify("#encoding utf-8\n1234",
-                    "1234")
-
-    def test2(self):
-        """basic #encoding """
-        self.verify("#encoding ascii\n1234",
-                    "1234")
-
-    def test3(self):
-        """basic #encoding """
-        self.verify(b"#encoding utf-8\n\xe1\x88\xb4".decode('utf-8'),
-                    '\u1234')
-
-    def test4(self):
-        """basic #encoding """
-        self.verify("#encoding latin-1\n\xe1\x88\xb4",
-                    u"\xe1\x88\xb4")
-
-    def test5(self):
-        """basic #encoding """
-        self.verify("#encoding latin-1\nAndr\202",
-                    'Andr\202')
-
-    def test6(self):
-        '''Using #encoding on the second line'''
-        self.verify(b"""### Comments on the first line
-#encoding utf-8\n\xe1\x88\xb4""".decode('utf-8'),
-                    '\u1234')
 
 
 class Placeholders_Esc(OutputTest):
@@ -600,8 +561,7 @@ class NameMapper(OutputTest):
     @pytest.mark.xfail(reason='Issue #23')
     def test13(self):
         """nested dictionary access using method"""
-        self.verify("$aDict.get('nestedDict')['two']",
-                    "nestedItem2")
+        self.verify("$aDict.get('nestedDict')['two']", "nestedItem2")
 
     def test14(self):
         self.verify("$aDict['nestedDict']['two'].upper()",
@@ -2229,3 +2189,11 @@ def test_line_continuation():
         '$foo'
     )
     assert cls().respond() == 'bar baz womp'
+
+
+def test_identifier_ending_in_dot():
+    cls = compile_to_class(
+        '#set foo = "bar"\n'
+        '$foo.'
+    )
+    assert cls().respond() == 'bar.'

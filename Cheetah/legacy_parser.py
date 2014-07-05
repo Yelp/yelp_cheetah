@@ -149,6 +149,8 @@ directiveNamesAndParsers = {
     'return': None,
     'yield': None,
 
+    'end': 'eatEndDirective',
+
     # error handling
     'assert': None,
     'raise': None,
@@ -158,11 +160,6 @@ directiveNamesAndParsers = {
 
     # intructions to the parser and compiler
     'compiler-settings': 'eatCompilerSettings',
-
-    # misc
-    'encoding': 'eatEncoding',
-
-    'end': 'eatEndDirective',
 }
 
 endDirectiveNamesAndHandlers = {
@@ -1253,10 +1250,6 @@ class LegacyParser(_LowLevelParser):
             self._compiler.dedent()
 
     # specific directive eat methods
-
-    def eatEncoding(self):
-        # eatEncoding is now a noop
-        self.readToEOL()
 
     def eatCompilerSettings(self):
         isLineClearToStartToken = self.isLineClearToStartToken()

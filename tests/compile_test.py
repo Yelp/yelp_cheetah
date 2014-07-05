@@ -38,12 +38,12 @@ def test_compile_source_returns_text():
 
 
 def test_compile_source_with_encoding_returns_text():
-    ret = compile_source('#encoding utf-8\n\nHello, world! ☃')
+    ret = compile_source('Hello, world! ☃')
     assert type(ret) is five.text
     if five.PY2:
-        assert "write('''\nHello, world! \\u2603''')" in ret
+        assert "write('''Hello, world! \\u2603''')" in ret
     else:
-        assert "write('''\nHello, world! ☃''')" in ret
+        assert "write('''Hello, world! ☃''')" in ret
 
 
 def test_compile_cls_name_in_output():
@@ -129,7 +129,7 @@ def test_compile_file_as_script(tmpfile):
     assert 'Hello, world!' == result
 
 
-def test_non_utf8_in_first_line_raises_error(tmpfile):
+def test_non_utf8_raises_error(tmpfile):
     non_utf8_string = b'\x97\n'
 
     # Try and decode it
@@ -214,7 +214,6 @@ ZeroDivisionError: (integer )?division( or modulo)? by zero''', traceback)
 def test_compile_is_deterministic():
     # This crazy template uses all of the currently supported directives
     MEGA_TEMPLATE = """
-#encoding utf-8
 #compiler-settings
 useDottedNotation = True
 #end compiler-settings
