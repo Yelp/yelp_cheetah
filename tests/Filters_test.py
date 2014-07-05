@@ -1,7 +1,5 @@
 from __future__ import unicode_literals
 
-import unittest
-
 import Cheetah.Template
 import Cheetah.Filters
 from Cheetah.compile import compile_to_class
@@ -13,51 +11,44 @@ class UniqueFilter(Cheetah.Filters.BaseFilter):
     """
     count = 0
 
-    def filter(self, s, rawExpr=None):
+    def filter(self, s):
         self.count += 1
         return '<%i>%s</%i>' % (self.count, s, self.count)
 
 
-class SingleTransactionModeTest(unittest.TestCase):
-    """Ensure that filters are only run once on any given block of text when
-    using a single transaction.
-    """
+def render_tmpl(template_source):
+    scope = dict(
+        # Dummy variable
+        foo='bar',
+        # No-op function, for use with #call
+        identity=lambda body: body,
+    )
 
-    def render(self, template_source):
-        scope = dict(
-            # Dummy variable
-            foo='bar',
+    template_cls = compile_to_class(template_source)
+    template = template_cls(filter=UniqueFilter, searchList=[scope])
 
-            # No-op function, for use with #call
-            identity=lambda body: body,
-        )
+    return template.respond().strip()
 
-        template_cls = compile_to_class(template_source)
-        template = template_cls(
-            filter=UniqueFilter,
-            searchList=[scope],
-        )
 
-        return template.respond().strip()
+def test_def_only_filter_once():
+    output = render_tmpl("""
+        #def print_foo: $foo
 
-    def test_def(self):
-        output = self.render("""
-            #def print_foo: $foo
+        $print_foo()
+    """)
 
-            $print_foo()
-        """)
+    expected = '<1>bar</1>'
+    assert output == expected
 
-        expected = '<1>bar</1>'
-        assert output == expected, "%r should be %r" % (output, expected)
 
-    def test_naive_call(self):
-        # This will be filtered twice because $foo is substituted and filtered
-        # inside the #call block, the function is run, and then the return
-        # value (still containing $foo) is filtered again
-        output = self.render("""
-            #def print_foo: $foo
+def test_transactional_filtering_naive_call():
+    # This will be filtered twice because $foo is substituted and filtered
+    # inside the #call block, the function is run, and then the return
+    # value (still containing $foo) is filtered again
+    output = render_tmpl("""
+        #def print_foo: $foo
 
-            #call $identity # [$print_foo()] #end call
-        """)
-        expected = '<2> [<1>bar</1>] </2>'
-        assert output == expected, "%r should be %r" % (output, expected)
+        #call $identity # [$print_foo()] #end call
+    """)
+    expected = '<2> [<1>bar</1>] </2>'
+    assert output == expected

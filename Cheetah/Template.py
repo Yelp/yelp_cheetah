@@ -41,10 +41,10 @@ class Template(object):
     """
 
     def __init__(
-        self,
-        searchList=None,
-        filter=u'BaseFilter',
-        filtersLib=Filters,
+            self,
+            searchList=None,
+            filter=u'BaseFilter',
+            filtersLib=Filters,
     ):
         """Instantiates an existing template.
 
@@ -100,8 +100,8 @@ class Template(object):
         if searchList:
             for namespace in searchList:
                 if (
-                    isinstance(namespace, dict) and
-                    self.Reserved_SearchList & set(namespace)
+                        isinstance(namespace, dict) and
+                        self.Reserved_SearchList & set(namespace)
                 ):
                     raise AssertionError(
                         'The following keys are members of the Template class '
@@ -115,7 +115,32 @@ class Template(object):
                         )
                     )
 
-        self._initCheetahInstance(searchList, filter, filtersLib)
+        if searchList is not None and not isinstance(searchList, (list, tuple)):
+            raise AssertionError(
+                'Expected searchList to be `None`, `list`, or `tuple` '
+                'but got {0}'.format(type(searchList))
+            )
+
+        self._CHEETAH__globalSetVars = {}
+
+        # create our own searchList
+        self._CHEETAH__searchList = [self._CHEETAH__globalSetVars, self]
+        if searchList is not None:
+            self._CHEETAH__searchList.extend(list(searchList))
+
+        # @@TR: consider allowing simple callables as the filter argument
+        self._CHEETAH__filtersLib = filtersLib
+        self._CHEETAH__filters = {}
+        if isinstance(filter, five.text):
+            filterName = filter
+            klass = getattr(self._CHEETAH__filtersLib, filterName)
+        else:
+            klass = filter
+            filterName = klass.__name__
+        self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName] = klass(self).filter
+        self._CHEETAH__initialFilter = self._CHEETAH__currentFilter
+
+        self.transaction = None
 
     def searchList(self):
         """Return a reference to the searchlist
@@ -148,47 +173,6 @@ class Template(object):
             return False
 
     hasVar = varExists
-
-    ##################################################
-    # internal methods -- not to be called by end-users
-
-    def _initCheetahInstance(self, searchList, filter, filtersLib):
-        """Sets up the instance attributes that cheetah templates use at
-        run-time.
-
-        This is automatically called by the __init__ method of compiled
-        templates.
-
-        Note that the names of instance attributes used by Cheetah are prefixed
-        with '_CHEETAH__' (2 underscores), where class attributes are prefixed
-        with '_CHEETAH_' (1 underscore).
-        """
-        if searchList is not None and not isinstance(searchList, (list, tuple)):
-            raise AssertionError(
-                'Expected searchList to be `None`, `list`, or `tuple` '
-                'but got {0}'.format(type(searchList))
-            )
-
-        self._CHEETAH__globalSetVars = {}
-
-        # create our own searchList
-        self._CHEETAH__searchList = [self._CHEETAH__globalSetVars, self]
-        if searchList is not None:
-            self._CHEETAH__searchList.extend(list(searchList))
-
-        # @@TR: consider allowing simple callables as the filter argument
-        self._CHEETAH__filtersLib = filtersLib
-        self._CHEETAH__filters = {}
-        if isinstance(filter, five.text):
-            filterName = filter
-            klass = getattr(self._CHEETAH__filtersLib, filterName)
-        else:
-            klass = filter
-            filterName = klass.__name__
-        self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName] = klass(self).filter
-        self._CHEETAH__initialFilter = self._CHEETAH__currentFilter
-
-        self.transaction = None
 
     def respond(self):
         raise NotImplementedError
