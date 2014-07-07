@@ -212,7 +212,7 @@ class MethodCompiler(GenUtils):
 
         kwargsName = None
         positionalArgsListName = None
-        for argname, defval in self._argStringList:
+        for argname, _ in self._argStringList:
             if argname.strip().startswith('**'):
                 kwargsName = argname.strip().replace('**', '')
                 break

@@ -18,6 +18,9 @@ from Cheetah.NameMapper import NotFound
 from Cheetah.Template import Template
 
 
+# pylint:disable=redefined-outer-name
+
+
 def test_compile_source_requires_text():
     with pytest.raises(TypeError):
         compile_source(b'not text')
@@ -133,8 +136,8 @@ def test_non_utf8_in_first_line_raises_error(tmpfile):
     with pytest.raises(UnicodeDecodeError):
         non_utf8_string.decode('UTF-8')
 
-    with io.open(tmpfile, 'wb') as file:
-        file.write(b'\x97\n')
+    with io.open(tmpfile, 'wb') as file_obj:
+        file_obj.write(b'\x97\n')
 
     with pytest.raises(UnicodeDecodeError):
         compile_file(tmpfile)

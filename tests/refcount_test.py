@@ -6,21 +6,23 @@ from Cheetah.NameMapper import valueFromFrame
 from Cheetah.NameMapper import valueFromFrameOrSearchList
 from Cheetah.NameMapper import valueFromSearchList
 
+# pylint:disable=star-args
+
 
 class NameSpaceObject(object):
-    class foo(object):
-        class bar(object):
-            class baz(object):
+    class ns1(object):
+        class ns2(object):
+            class ns3(object):
                 pass
 
 
 class NameSpaceObject2(object):
     """Exercise an edge case wherein the first reference is also the last."""
-    class foo(object):
-        class bar(object):
+    class ns1(object):
+        class ns2(object):
             pass
 
-    foo.bar.baz = foo
+    ns1.ns2.ns3 = ns1
 
 
 @pytest.mark.parametrize('namespace', (NameSpaceObject, NameSpaceObject2))
@@ -48,9 +50,9 @@ def test_refcounting(getter_func, namespace, style):
 
     # VFF has a differrent signature
     if SL is not None:
-        args = (SL, 'foo.bar.baz', True, False)
+        args = (SL, 'ns1.ns2.ns3', True, False)
     else:
-        args = ('foo.bar.baz', True, False)
+        args = ('ns1.ns2.ns3', True, False)
 
     # Collect refcounts before
     refcounts_before = get_refcount_tree(namespace)
@@ -87,9 +89,9 @@ def test_get_refcount_tree_1():
     assert len(t1) == 4, t1.keys()
 
     assert t1['<global>'][0] == 17
-    assert t1['<global>.foo'][0] == 7
-    assert t1['<global>.foo.bar'][0] == 7
-    assert t1['<global>.foo.bar.baz'][0] == 7
+    assert t1['<global>.ns1'][0] == 7
+    assert t1['<global>.ns1.ns2'][0] == 7
+    assert t1['<global>.ns1.ns2.ns3'][0] == 7
 
 
 def test_get_refcount_tree_2():
@@ -98,8 +100,8 @@ def test_get_refcount_tree_2():
     assert len(t1) == 3, t1.keys()
 
     assert t1['<global>'][0] == 17
-    assert t1['<global>.foo'][0] == 8
-    assert t1['<global>.foo.bar'][0] == 7
+    assert t1['<global>.ns1'][0] == 8
+    assert t1['<global>.ns1.ns2'][0] == 7
 
 
 def get_refcount_tree(obj):

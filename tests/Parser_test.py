@@ -2,8 +2,6 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import pytest
-
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ArgList
 from Cheetah.legacy_parser import UnknownDirectiveError
@@ -11,23 +9,20 @@ from Cheetah.legacy_parser import ParseError
 from testing.util import assert_raises_exactly
 
 
-@pytest.yield_fixture
-def arglist():
-    yield ArgList()
-
-
-def test_ArgList_merge1(arglist):
+def test_ArgList_merge1():
     """Testing the ArgList case results from
     Template.Preprocessors.test_complexUsage
     """
+    arglist = ArgList()
     arglist.add_argument('arg')
     assert arglist.merge() == [('arg', None)]
 
 
-def test_ArgList_merge2(arglist):
+def test_ArgList_merge2():
     """Testing the ArgList case results from
     SyntaxAndOutput.BlockDirective.test4
     """
+    arglist = ArgList()
     arglist.add_argument('a')
     arglist.add_default('999')
     arglist.next()
@@ -37,10 +32,11 @@ def test_ArgList_merge2(arglist):
     assert arglist.merge() == [('a', '999'), ('b', '444')]
 
 
-def test_merge3(arglist):
+def test_merge3():
     """Testing the ArgList case results
     from SyntaxAndOutput.BlockDirective.test13
     """
+    arglist = ArgList()
     arglist.add_argument('arg')
     arglist.add_default("'This is my block'")
     assert arglist.merge() == [('arg', "'This is my block'")]

@@ -10,6 +10,9 @@ from Cheetah.cheetah_compile import compile_all
 from testing.util import run_python
 
 
+# pylint:disable=redefined-outer-name
+
+
 @pytest.yield_fixture
 def template_writer(tmpdir):
     class TemplateWriter(object):

@@ -1,9 +1,18 @@
 [MESSAGES CONTROL]
-disable=missing-docstring,redefined-outer-name,redefined-builtin
-[TYPECHECK]
-ignored-modules=pytest
+disable=locally-disabled,fixme,missing-docstring,abstract-method,invalid-name
+
+[REPORTS]
+output-format=colorized
+reports=no
+
+[BASIC]
+const-rgx=(([A-Za-z_][A-Za-z0-9_]*)|(__.*__))$
+
 [FORMAT]
 max-line-length=131
-[BASIC]
-function-rgx=[a-z_][a-z0-9_]{2,60}$
-# vim:ft=dosini
+
+[TYPECHECK]
+ignored-classes=pytest
+
+[DESIGN]
+min-public-methods=0

@@ -2,8 +2,6 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-"""Syntax and Output tests."""
-
 import os
 import os.path
 import pytest
@@ -25,8 +23,8 @@ def dummydecorator(func):
     return func
 
 
-class DummyClass:
-    _called = False
+class DummyClass(object):
+    callArg = None
 
     def meth(self, arg="arff"):
         return str(arg)
@@ -38,8 +36,7 @@ class DummyClass:
         return str(arg1)
 
     def callIt(self, arg=1234):
-        self._called = True
-        self._callArg = arg
+        self.callArg = arg
 
 
 def dummyFunc(arg="Scooby"):
@@ -103,9 +100,6 @@ Template output mismatch:
     Actual Output =
 %(actual)s%(end)s'''
 
-    convertEOLs = True
-    _EOLreplacement = '\n'
-
     _searchList = [defaultTestNameSpace]
 
     def searchList(self):
@@ -114,37 +108,24 @@ Template output mismatch:
     def _getCompilerSettings(self):
         return {}
 
-    def verify(self, input, expectedOutput,
-               inputEncoding=None,
-               outputEncoding=None,
-               convertEOLs=Unspecified):
-        if convertEOLs is Unspecified:
-            convertEOLs = self.convertEOLs
-        if convertEOLs:
-            input = input.replace('\n', self._EOLreplacement)
-            expectedOutput = expectedOutput.replace('\n', self._EOLreplacement)
-
-        self._input = input
-
+    def verify(self, input_str, expectedOutput):
         templateClass = compile_to_class(
-            input, settings=self._getCompilerSettings(),
+            input_str, settings=self._getCompilerSettings(),
         )
         searchList = self.searchList() or self._searchList
-        self.template = templateObj = templateClass(searchList=searchList)
+        templateObj = templateClass(searchList=searchList)
 
         output = templateObj.respond()
         if output != expectedOutput:
             raise AssertionError(self.report % {
-                'template': self._input.replace(self._EOLreplacement, '*eol*'),
-                'expected': expectedOutput.replace(self._EOLreplacement, '*eol*'),
-                'actual': output.replace(self._EOLreplacement, '*eol*'),
+                'template': input_str.replace('\n', '*eol*'),
+                'expected': expectedOutput.replace('\n', '*eol*'),
+                'actual': output.replace('\n', '*eol*'),
                 'end': '(end)',
             })
 
 
 class EmptyTemplate(OutputTest):
-    convertEOLs = False
-
     def test1(self):
         """an empty string for the template"""
 
@@ -165,8 +146,6 @@ class EmptyTemplate(OutputTest):
 
 
 class Backslashes(OutputTest):
-    convertEOLs = False
-
     def test1(self):
         """ a single \\ using rawstrings"""
         self.verify(r"\ ",
@@ -179,8 +158,8 @@ class Backslashes(OutputTest):
 
     def test3(self):
         """ a single \\ without using rawstrings"""
-        self.verify("\ \ ",
-                    "\ \ ")
+        self.verify(r"\ \ ",
+                    r"\ \ ")
 
     def test4(self):
         """ single line from an apache conf file"""
@@ -200,8 +179,8 @@ class Backslashes(OutputTest):
 
     def test7(self):
         """ a single \\ without using rawstrings plus many NEWLINES"""
-        self.verify("\ \ " + "\n\n\n\n\n\n\n\n\n",
-                    "\ \ " + "\n\n\n\n\n\n\n\n\n")
+        self.verify(r"\ \ " + "\n\n\n\n\n\n\n\n\n",
+                    r"\ \ " + "\n\n\n\n\n\n\n\n\n")
 
     def test8(self):
         """ single line from an apache conf file with single quotes and many NEWLINES
@@ -219,12 +198,12 @@ class NonTokens(OutputTest):
 
     def test2(self):
         """hash not in #directives"""
-        self.verify("# \# #5 ",
+        self.verify(r"# \# #5 ",
                     "# # #5 ")
 
     def test3(self):
         """escapted comments"""
-        self.verify("  \#\#escaped comment  ",
+        self.verify(r"  \#\#escaped comment  ",
                     "  ##escaped comment  ")
 
     def test5(self):
@@ -346,8 +325,6 @@ class Placeholders(OutputTest):
 
 
 class Placeholders_Vals(OutputTest):
-    convertEOLs = False
-
     def test1(self):
         """string"""
         self.verify("$aStr", "blarg")
@@ -394,7 +371,6 @@ class UnicodeStrings(OutputTest):
     def test1(self):
         """unicode data in placeholder
         """
-        # self.verify(u"$unicodeData", defaultTestNameSpace['unicodeData'], outputEncoding='utf8')
         self.verify(u"$unicodeData", defaultTestNameSpace['unicodeData'])
 
     def test2(self):
@@ -418,7 +394,7 @@ class EncodingDirective(OutputTest):
     def test3(self):
         """basic #encoding """
         self.verify(b"#encoding utf-8\n\xe1\x88\xb4".decode('utf-8'),
-                    '\u1234', outputEncoding='utf8')
+                    '\u1234')
 
     def test4(self):
         """basic #encoding """
@@ -434,35 +410,33 @@ class EncodingDirective(OutputTest):
         '''Using #encoding on the second line'''
         self.verify(b"""### Comments on the first line
 #encoding utf-8\n\xe1\x88\xb4""".decode('utf-8'),
-                    '\u1234', outputEncoding='utf8')
+                    '\u1234')
 
 
 class Placeholders_Esc(OutputTest):
-    convertEOLs = False
-
     def test1(self):
         """1 escaped placeholder"""
-        self.verify("\$var",
+        self.verify(r"\$var",
                     "$var")
 
     def test2(self):
         """2 escaped placeholders"""
-        self.verify("\$var \$_",
+        self.verify(r"\$var \$_",
                     "$var $_")
 
     def test3(self):
         """2 escaped placeholders - back to back"""
-        self.verify("\$var\$_",
+        self.verify(r"\$var\$_",
                     "$var$_")
 
     def test4(self):
         """2 escaped placeholders - nested"""
-        self.verify("\$var(\$_)",
+        self.verify(r"\$var(\$_)",
                     "$var($_)")
 
     def test5(self):
         """2 escaped placeholders - nested and enclosed"""
-        self.verify("\$(var(\$_)",
+        self.verify(r"\$(var(\$_)",
                     "$(var($_)")
 
 
@@ -475,17 +449,17 @@ class Placeholders_Calls(OutputTest):
     def test3(self):
         r"""func placeholder - with (\n\n)"""
         self.verify("$aFunc(\n\n)",
-                    "Scooby", convertEOLs=False)
+                    "Scooby")
 
     def test4(self):
         r"""func placeholder - with (\n\n) and $() enclosure"""
         self.verify("$(aFunc(\n\n))",
-                    "Scooby", convertEOLs=False)
+                    "Scooby")
 
     def test5(self):
         r"""func placeholder - with (\n\n) and ${} enclosure"""
         self.verify("${aFunc(\n\n)}",
-                    "Scooby", convertEOLs=False)
+                    "Scooby")
 
     def test6(self):
         """func placeholder - with (int)"""
@@ -495,7 +469,7 @@ class Placeholders_Calls(OutputTest):
     def test7(self):
         r"""func placeholder - with (\nint\n)"""
         self.verify("$aFunc(\n1234\n)",
-                    "1234", convertEOLs=False)
+                    "1234")
 
     def test8(self):
         """func placeholder - with (string)"""
@@ -510,17 +484,17 @@ class Placeholders_Calls(OutputTest):
     def test10(self):
         r"""func placeholder - with ('''\nstring\n''')"""
         self.verify("$aFunc('''\naoeu\n''')",
-                    "\naoeu\n", convertEOLs=False)
+                    "\naoeu\n")
 
     def test11(self):
         r"""func placeholder - with ('''\nstring'\n''')"""
         self.verify("$aFunc('''\naoeu'\n''')",
-                    "\naoeu'\n", convertEOLs=False)
+                    "\naoeu'\n")
 
     def test12(self):
         r'''func placeholder - with ("""\nstring\n""")'''
         self.verify('$aFunc("""\naoeu\n""")',
-                    "\naoeu\n", convertEOLs=False)
+                    "\naoeu\n")
 
     def test13(self):
         """func placeholder - with (string * int)"""
@@ -540,7 +514,7 @@ class Placeholders_Calls(OutputTest):
     def test16(self):
         r"""func placeholder - with (int\n*\nfloat)"""
         self.verify("$aFunc(2\n*\n2.0)",
-                    "4.0", convertEOLs=False)
+                    "4.0")
 
     def test17(self):
         """func placeholder - with ($arg=float)"""
@@ -844,23 +818,22 @@ aoeuoaeu
 
 
 class YieldDirective(OutputTest):
-    convertEOLs = False
-
     def test1(self):
         """simple #yield """
 
         src1 = """#for i in range(10)\n#yield i\n#end for"""
         src2 = """#for i in range(10)\n$i#slurp\n#yield\n#end for"""
-        src3 = ("#def iterator\n"
-                "#for i in range(10)\n#yield i\n#end for\n"
-                "#end def\n"
-                "#for i in $iterator()\n$i#end for"
-                )
+        src3 = (
+            "#def iterator\n"
+            "#for i in range(10)\n#yield i\n#end for\n"
+            "#end def\n"
+            "#for i in $iterator()\n$i#end for"
+        )
 
         for src in (src1, src2, src3):
             klass = compile_to_class(src)
-            iter = klass().respond()
-            output = [str(i) for i in iter]
+            iterator = klass().respond()
+            output = [str(i) for i in iterator]
             assert ''.join(output) == '0123456789'
 
         # @@TR: need to expand this to cover error conditions etc.
@@ -1074,19 +1047,19 @@ class DefDirective(OutputTest):
     def test13(self):
         """single line #def escaped $placeholders"""
         self.verify(
-            "#def testMeth: \$aFunc(\$anInt)\n- $testMeth() -",
+            "#def testMeth: \\$aFunc(\\$anInt)\n- $testMeth() -",
             "- $aFunc($anInt) -")
 
     def test14(self):
         """single line #def 1 escaped $placeholders"""
         self.verify(
-            "#def testMeth: \$aFunc($anInt)\n- $testMeth() -",
+            "#def testMeth: \\$aFunc($anInt)\n- $testMeth() -",
             "- $aFunc(1) -")
 
     def test15(self):
         """single line #def 1 escaped $placeholders + more WS"""
         self.verify(
-            "#def testMeth    : \$aFunc($anInt)\n- $testMeth() -",
+            "#def testMeth    : \\$aFunc($anInt)\n- $testMeth() -",
             "- $aFunc(1) -")
 
     def test16(self):
@@ -1223,19 +1196,19 @@ inner
     def test8(self):
         """single line #block 1 escaped $placeholders"""
         self.verify(
-            "#block testMeth: \$aFunc($anInt)",
+            r"#block testMeth: \$aFunc($anInt)",
             "$aFunc(1)")
 
     def test9(self):
         """single line #block 1 escaped $placeholders + WS"""
         self.verify(
-            "#block testMeth: \$aFunc( $anInt )",
+            r"#block testMeth: \$aFunc( $anInt )",
             "$aFunc( 1 )")
 
     def test10(self):
         """single line #block 1 escaped $placeholders + more WS"""
         self.verify(
-            "#block testMeth  : \$aFunc( $anInt )",
+            r"#block testMeth  : \$aFunc( $anInt )",
             "$aFunc( 1 )")
 
     def test11(self):
@@ -1276,15 +1249,15 @@ class SilentDirective(OutputTest):
 
     def test2(self):
         """simple #silent"""
-        self.verify("#silent $anObj.callIt()\n$anObj._callArg",
+        self.verify("#silent $anObj.callIt()\n$anObj.callArg",
                     "1234")
 
-        self.verify("#silent $anObj.callIt() ##comment\n$anObj._callArg",
+        self.verify("#silent $anObj.callIt() ##comment\n$anObj.callArg",
                     "1234")
 
     def test3(self):
         """simple #silent"""
-        self.verify("#silent $anObj.callIt(99)\n$anObj._callArg",
+        self.verify("#silent $anObj.callIt(99)\n$anObj.callArg",
                     "99")
 
     def test4(self):
@@ -1511,12 +1484,13 @@ class IfDirective(OutputTest):
     def test11(self):
         """#if block using invalid top-level $(placeholder) syntax - should barf"""
 
-        for badSyntax in ("#if $*5*emptyString\n$aStr\n#end if\n",
-                          "#if ${emptyString}\n$aStr\n#end if\n",
-                          "#if $(emptyString)\n$aStr\n#end if\n",
-                          "#if $[emptyString]\n$aStr\n#end if\n",
-                          "#if $!emptyString\n$aStr\n#end if\n",
-                          ):
+        for badSyntax in (
+                "#if $*5*emptyString\n$aStr\n#end if\n",
+                "#if ${emptyString}\n$aStr\n#end if\n",
+                "#if $(emptyString)\n$aStr\n#end if\n",
+                "#if $[emptyString]\n$aStr\n#end if\n",
+                "#if $!emptyString\n$aStr\n#end if\n",
+        ):
             with pytest.raises(ParseError):
                 self.verify(badSyntax, "")
 
@@ -1701,10 +1675,8 @@ class AssertDirective(OutputTest):
     def test2(self):
         """simple #assert that fails
         """
-        def test(self=self):
-            self.verify("#set $x = 1234\n#assert $x == 999",
-                        ""),
-        self.failUnlessRaises(AssertionError, test)
+        with pytest.raises(AssertionError):
+            self.verify('#set $x = 1234\n#assert $x == 999', '')
 
     def test3(self):
         """simple #assert with WS
@@ -1719,10 +1691,8 @@ class RaiseDirective(OutputTest):
 
         Should raise ValueError
         """
-        def test(self=self):
-            self.verify("#raise ValueError",
-                        ""),
-        self.failUnlessRaises(ValueError, test)
+        with pytest.raises(ValueError):
+            self.verify('#raise ValueError', '')
 
     def test2(self):
         """#raise ValueError in #if block
@@ -1934,7 +1904,7 @@ def test_extends_with_partial_baseclass_import():
     )
 
 
-def test_super_directive(tmpdir):
+def test_super_directive():
     compile_file(
         os.path.join('testing', 'templates', 'src', 'super_base.tmpl')
     )
@@ -1964,8 +1934,6 @@ $sep$letter#slurp
 
 
 class FilterDirective(OutputTest):
-    convertEOLs = False
-
     def test1(self):
         """#filter BaseFilter"""
         self.verify("#filter BaseFilter\n$none#end filter",
