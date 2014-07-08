@@ -6,10 +6,10 @@ from tokenize import Number
 
 from Cheetah import five
 
-if five.PY2:
-    from ConfigParser import ConfigParser  # pragma: no cover
-else:
-    from configparser import ConfigParser  # pragma: no cover
+if five.PY2:  # pragma: no cover (PY2)
+    from ConfigParser import ConfigParser  # pylint:disable=import-error
+else:  # pragma: no cover (PY3)
+    from configparser import ConfigParser  # pylint:disable=import-error
 
 
 numberRE = re.compile(Number)
@@ -29,28 +29,6 @@ def mergeNestedDictionaries(dict1, dict2):
     return dict1
 
 
-def stringIsNumber(s):
-    """Return True if theString represents a Python number, False otherwise.
-    This also works for complex numbers and numbers with +/- in front.
-    """
-    s = s.strip()
-
-    if s[0] in '-+' and len(s) > 1:
-        s = s[1:].strip()
-
-    match = numberRE.match(s)
-    return bool(match) and match.end() == len(s)
-
-
-def convStringToNum(theString):
-    """Convert a string representation of a Python number to the Python version"""
-    if not stringIsNumber(theString):
-        raise AssertionError(
-            theString + ' cannot be converted to a Python number'
-        )
-    return eval(theString, {}, {})
-
-
 class ConfigParserCaseSensitive(ConfigParser):
     """A case sensitive version of the standard Python ConfigParser."""
 
@@ -66,46 +44,32 @@ def convert_value(s):
         return True
     elif s.lower() == 'false':
         return False
-    elif stringIsNumber(s):
-        return convStringToNum(s)
     return s
 
 
-class _SettingsCollector(object):
-    """An abstract base class that provides the methods SettingsManager uses to
-    collect settings from config files and strings.
+def readSettingsFromConfigFileObj(file_obj):
+    """Return the settings from a config file that uses the syntax accepted by
+    Python's standard ConfigParser module (like Windows .ini files).
 
-    This class only collects settings it doesn't modify the _settings dictionary
-    of SettingsManager instances in any way.
+    NOTE: this method maintains case unlike the ConfigParser module
+
+    All setting values are initially parsed as strings.
+    However, the following value conversions are applied:
+
+    * The string 'True' will be converted to a Python truth value
+    * The string 'False' will be converted to a Python false value
     """
+    parser = ConfigParserCaseSensitive()
+    parser.readfp(file_obj)
+    assert 'globals' in parser.sections()
 
-    _ConfigParserClass = ConfigParserCaseSensitive
-
-    def readSettingsFromConfigFileObj(self, inFile):
-        """Return the settings from a config file that uses the syntax accepted by
-        Python's standard ConfigParser module (like Windows .ini files).
-
-        NOTE:
-        this method maintains case unlike the ConfigParser module
-
-        All setting values are initially parsed as strings.
-        However, the following value conversions are applied:
-
-        * all Python numeric literals will be coverted from string to number
-        * The string 'True' will be converted to a Python truth value
-        * The string 'False' will be converted to a Python false value
-        """
-        p = self._ConfigParserClass()
-        p.readfp(inFile)
-        assert 'globals' in p.sections()
-
-        return dict(
-            (k, convert_value(p.get('globals', k)))
-            for k in p.options('globals')
-        )
+    return dict(
+        (k, convert_value(parser.get('globals', k)))
+        for k in parser.options('globals')
+    )
 
 
-class SettingsManager(_SettingsCollector):
+class SettingsManager(object):  # pylint:disable=abstract-class-not-used
     """A mixin class that provides facilities for managing application settings.
 
     SettingsManager is designed to work well with nested settings dictionaries
@@ -149,5 +113,5 @@ class SettingsManager(_SettingsCollector):
         """
         configStr = '[globals]\n' + configStr.strip()
         inFile = StringIO(configStr)
-        newSettings = self.readSettingsFromConfigFileObj(inFile)
+        newSettings = readSettingsFromConfigFileObj(inFile)
         self.updateSettings(newSettings)
