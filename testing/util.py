@@ -20,4 +20,4 @@ def run_python(path, env={}):
     proc = subprocess.Popen(
         [sys.executable, path], env=env, stdout=subprocess.PIPE,
     )
-    return proc.communicate()[0].decode('utf-8')
+    return proc.communicate()[0].decode('UTF-8')
