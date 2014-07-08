@@ -12,6 +12,9 @@ from Cheetah.NameMapper import NotFound, valueFromSearchList
 from Cheetah.Unspecified import Unspecified
 
 
+# pylint:disable=abstract-class-not-used
+
+
 # Singleton object, representing no data to be written.
 # None or empty-string can be filtered into useful data, unlike NO_CONTENT.
 NO_CONTENT = object()
@@ -43,7 +46,7 @@ class Template(object):
     def __init__(
             self,
             searchList=None,
-            filter=u'BaseFilter',
+            filter=u'BaseFilter',  # pylint:disable=redefined-builtin
             filtersLib=Filters,
     ):
         """Instantiates an existing template.
@@ -136,7 +139,7 @@ class Template(object):
             klass = getattr(self._CHEETAH__filtersLib, filterName)
         else:
             klass = filter
-            filterName = klass.__name__
+            filterName = klass.__name__  # pylint:disable=maybe-no-member
         self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName] = klass(self).filter
         self._CHEETAH__initialFilter = self._CHEETAH__currentFilter
 

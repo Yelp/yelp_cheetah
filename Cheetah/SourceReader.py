@@ -7,9 +7,13 @@ EOLre = re.compile(r'[ \f\t]*(?:\r\n|\r|\n)')
 EOLZre = re.compile(r'(?:\r\n|\r|\n|\Z)')
 
 
-class SourceReader(object):
+WS_CHARS = ' \t'
+
+
+class SourceReader(object):  # pylint:disable=too-many-public-methods
     def __init__(self, src):
         self._src = src
+        self._srcLines = None
         self._breakPoint = len(self._src)
         self._pos = 0
 
@@ -36,7 +40,7 @@ class SourceReader(object):
         return self._src[i]
 
     def splitlines(self):
-        if not hasattr(self, '_srcLines'):
+        if self._srcLines is None:
             self._srcLines = self._src.splitlines()
         return self._srcLines
 
@@ -44,8 +48,7 @@ class SourceReader(object):
         for i in range(len(self._BOLs)):
             if pos >= self._BOLs[i] and pos <= self._EOLs[i]:
                 return i
-        else:
-            raise AssertionError('unknown position: {0}'.format(pos))
+        raise AssertionError('unknown position: {0}'.format(pos))
 
     def getRowCol(self, pos=None):
         if pos is None:
@@ -163,18 +166,18 @@ class SourceReader(object):
         BOL = self.findBOL()
         return BOL == pos or src[BOL:pos].isspace()
 
-    def matchWhiteSpace(self, WSchars=' \f\t'):
-        return (not self.atEnd()) and self.peek() in WSchars
+    def matchWhiteSpace(self):
+        return not self.atEnd() and self.peek() in WS_CHARS
 
-    def getWhiteSpace(self, max=None, WSchars=' \f\t'):
-        if not self.matchWhiteSpace(WSchars):
+    def getWhiteSpace(self, maximum=None):
+        if not self.matchWhiteSpace():
             return ''
         start = self.pos()
         breakPoint = self.breakPoint()
-        if max is not None:
-            breakPoint = min(breakPoint, self.pos() + max)
+        if maximum is not None:
+            breakPoint = min(breakPoint, self.pos() + maximum)
         while self.pos() < breakPoint:
             self.advance()
-            if not self.matchWhiteSpace(WSchars):
+            if not self.matchWhiteSpace():
                 break
         return self.src()[start:self.pos()]

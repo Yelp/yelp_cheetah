@@ -9,6 +9,7 @@
 '''
 from __future__ import unicode_literals
 
+import collections
 import copy
 import re
 import textwrap
@@ -20,6 +21,12 @@ from Cheetah.legacy_parser import SET_GLOBAL
 from Cheetah.legacy_parser import SET_MODULE
 from Cheetah.legacy_parser import escapedNewlineRE
 from Cheetah.SettingsManager import SettingsManager
+
+
+FilterDetails = collections.namedtuple('FilterDetails', ['ID', 'theFilter'])
+CallDetails = collections.namedtuple(
+    'CallDetails', ['ID', 'functionName', 'args', 'lineCol'],
+)
 
 
 # Settings format: (key, default, docstring)
@@ -50,6 +57,19 @@ _DEFAULT_COMPILER_SETTINGS = [
 DEFAULT_COMPILER_SETTINGS = dict([(v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS])
 
 
+def genPlainVar(nameChunks):
+    """Generate Python code for a Cheetah $var without using NameMapper
+    (Unified Dotted Notation with the SearchList).
+    """
+    nameChunks.reverse()
+    chunk = nameChunks.pop()
+    pythonCode = chunk[0] + chunk[2]
+    while nameChunks:
+        chunk = nameChunks.pop()
+        pythonCode = (pythonCode + '.' + chunk[0] + chunk[2])
+    return pythonCode
+
+
 class GenUtils(object):
     """An abstract baseclass for the Compiler classes that provides methods that
     perform generic utility functions or generate pieces of output code from
@@ -63,7 +83,7 @@ class GenUtils(object):
         if self.setting('useNameMapper') and not plain:
             return self.genNameMapperVar(nameChunks)
         else:
-            return self.genPlainVar(nameChunks)
+            return genPlainVar(nameChunks)
 
     def addGetTextVar(self, nameChunks):
         """Output something that gettext can recognize.
@@ -77,20 +97,8 @@ class GenUtils(object):
         # @@TR: this should be in the compiler not here
         self.addChunk("if False:")
         self.indent()
-        self.addChunk(self.genPlainVar(nameChunks[:]))
+        self.addChunk(genPlainVar(nameChunks[:]))
         self.dedent()
-
-    def genPlainVar(self, nameChunks):
-        """Generate Python code for a Cheetah $var without using NameMapper
-        (Unified Dotted Notation with the SearchList).
-        """
-        nameChunks.reverse()
-        chunk = nameChunks.pop()
-        pythonCode = chunk[0] + chunk[2]
-        while nameChunks:
-            chunk = nameChunks.pop()
-            pythonCode = (pythonCode + '.' + chunk[0] + chunk[2])
-        return pythonCode
 
     def genNameMapperVar(self, nameChunks):
         """Generate valid Python code for a Cheetah $var, using NameMapper
@@ -482,35 +490,35 @@ class MethodCompiler(GenUtils):
     def nextCallRegionID(self):
         return self.nextCacheID()
 
-    def startCallRegion(self, functionName, args, lineCol, regionTitle='CALL'):
-        class CallDetails(object):
-            pass
-        callDetails = CallDetails()
-        callDetails.ID = ID = self.nextCallRegionID()
-        callDetails.functionName = functionName
-        callDetails.args = args
-        callDetails.lineCol = lineCol
-        self._callRegionsStack.append((ID, callDetails))  # attrib of current methodCompiler
+    def startCallRegion(self, functionName, args, lineCol):
+        call_id = self.nextCallRegionID()
+        call_details = CallDetails(call_id, functionName, args, lineCol)
 
-        self.addChunk('## START %(regionTitle)s REGION: ' % locals()
-                      + ID
+        self._callRegionsStack.append((call_id, call_details))
+
+        self.addChunk('## START CALL REGION: '
+                      + call_id
                       + ' of ' + functionName
                       + ' at line %s, col %s' % lineCol + ' in the source.')
-        self.addChunk('_orig_trans%(ID)s = trans' % locals())
-        self.addChunk('trans = _callCollector%(ID)s = DummyTransaction()' % locals())
+        self.addChunk('_orig_trans{0} = trans'.format(call_id))
+        self.addChunk('trans = _callCollector{0} = DummyTransaction()'.format(
+            call_id,
+        ))
         self.addChunk('self.transaction = trans')
-        self.addChunk('write = _callCollector%(ID)s.response().write' % locals())
+        self.addChunk('write = _callCollector{0}.response().write'.format(
+            call_id,
+        ))
 
-    def endCallRegion(self, regionTitle='CALL'):
+    def endCallRegion(self):
         ID, callDetails = self._callRegionsStack[-1]
         functionName, initialKwArgs, lineCol = (
             callDetails.functionName, callDetails.args, callDetails.lineCol)
 
         def reset(ID=ID):
-            self.addChunk('trans = _orig_trans%(ID)s' % locals())
+            self.addChunk('trans = _orig_trans{0}'.format(ID))
             self.addChunk('self.transaction = trans')
             self.addChunk('write = trans.response().write')
-            self.addChunk('del _orig_trans%(ID)s' % locals())
+            self.addChunk('del _orig_trans{0}'.format(ID))
 
         reset()
         self.addChunk('_callArgVal%(ID)s = _callCollector%(ID)s.response().getvalue()' % locals())
@@ -519,7 +527,7 @@ class MethodCompiler(GenUtils):
             initialKwArgs = ', ' + initialKwArgs
         self.addFilteredChunk('%(functionName)s(_callArgVal%(ID)s%(initialKwArgs)s)' % locals())
         self.addChunk('del _callArgVal%(ID)s' % locals())
-        self.addChunk('## END %(regionTitle)s REGION: ' % locals()
+        self.addChunk('## END CALL REGION: '
                       + ID
                       + ' of ' + functionName
                       + ' at line %s, col %s' % lineCol + ' in the source.')
@@ -530,14 +538,13 @@ class MethodCompiler(GenUtils):
         return self.nextCacheID()
 
     def setFilter(self, theFilter):
-        class FilterDetails:
-            pass
-        filterDetails = FilterDetails()
-        filterDetails.ID = ID = self.nextFilterRegionID()
-        filterDetails.theFilter = theFilter
-        self._filterRegionsStack.append((ID, filterDetails))  # attrib of current methodCompiler
+        filter_id = self.nextFilterRegionID()
+        filter_details = FilterDetails(filter_id, theFilter)
+        self._filterRegionsStack.append(
+            (filter_id, filter_details)
+        )
 
-        self.addChunk('_orig_filter%(ID)s = _filter' % locals())
+        self.addChunk('_orig_filter{0} = _filter'.format(filter_id))
         if theFilter.lower() == 'none':
             self.addChunk('_filter = self._CHEETAH__initialFilter')
         else:
@@ -555,12 +562,16 @@ class MethodCompiler(GenUtils):
             self.dedent()
 
     def closeFilterBlock(self):
-        ID = self._filterRegionsStack.pop()[0]
-        self.addChunk('_filter = self._CHEETAH__currentFilter = _orig_filter%(ID)s' % locals())
+        filter_id = self._filterRegionsStack.pop()[0]
+        self.addChunk(
+            '_filter = self._CHEETAH__currentFilter = _orig_filter{0}'.format(
+                filter_id,
+            )
+        )
 
     def _useKWsDictArgForPassingTrans(self):
         alreadyHasTransArg = [
-            argname for argname, defval in self._argStringList
+            argname for argname, _ in self._argStringList
             if argname == 'trans'
         ]
         return self.methodName() != 'respond' and not alreadyHasTransArg
@@ -620,7 +631,7 @@ class MethodCompiler(GenUtils):
             self.addStop()
         self.addChunk('')
 
-    def addStop(self, expr=None):
+    def addStop(self):
         no_content = 'NO_CONTENT'
         self.addChunk('if _dummyTrans:')
         self.indent()
@@ -780,7 +791,7 @@ class ClassCompiler(GenUtils):
     def addAttribute(self, attribExpr):
         self._generatedAttribs.append(attribExpr)
 
-    def addSuper(self, argsList, parserComment=None):
+    def addSuper(self, argsList):
         className = self._className
         methodName = self._getActiveMethodCompiler().methodName()
 
@@ -793,7 +804,7 @@ class ClassCompiler(GenUtils):
         argString = ','.join(argStringChunks)
 
         self.addFilteredChunk(
-            'super(%(className)s, self).%(methodName)s(%(argString)s)' % locals()
+            'super({0}, self).{1}({2})'.format(className, methodName, argString)
         )
 
     def closeDef(self):
@@ -997,7 +1008,7 @@ class LegacyCompiler(SettingsManager, GenUtils):
             self.addImportStatement(importStatement)
             self.addImportedVarNames([finalClassName])
 
-    def setCompilerSettings(self, keywords, settingsStr):
+    def setCompilerSettings(self, settingsStr):
         self.updateSettingsFromConfigStr(settingsStr)
         self._parser.configureParser()
 
