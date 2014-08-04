@@ -6,24 +6,17 @@ from __future__ import unicode_literals
 from Cheetah import five
 
 
-class BaseFilter(object):
-    """A baseclass for the Cheetah Filters."""
+def unicode_filter(val):
+    if val is None:
+        return ''
+    elif isinstance(val, five.text):
+        return val
+    elif isinstance(val, bytes):
+        return val.decode('UTF-8')
+    else:
+        return five.text(val)
 
-    def __init__(self, template=None):
-        """Setup a reference to the template that is using the filter instance.
-        This reference isn't used by any of the standard filters, but is
-        available to BaseFilter subclasses, should they need it.
 
-        Subclasses should call this method.
-        """
-        self.template = template
-
-    def filter(self, val):
-        if val is None:
-            return ''
-        elif isinstance(val, five.text):
-            return val
-        elif isinstance(val, bytes):
-            return val.decode('UTF-8')
-        else:
-            return five.text(val)
+filters = {
+    'BaseFilter': unicode_filter,
+}

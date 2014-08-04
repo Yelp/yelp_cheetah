@@ -4,10 +4,8 @@ See the docstring in the Template class and the Users' Guide for more informatio
 """
 from __future__ import unicode_literals
 
-import types
-
 from Cheetah import five
-from Cheetah import filters
+from Cheetah.filters import filters
 from Cheetah.NameMapper import NotFound, valueFromSearchList
 from Cheetah.Unspecified import Unspecified
 
@@ -40,65 +38,35 @@ class Template(object):
       baseclasses.
 
       Instance attributes look like this:
-          klass._CHEETAH__globalSetVars (_CHEETAH__xxx with 2 underscores)
+          self._CHEETAH__globalSetVars (_CHEETAH__xxx with 2 underscores)
     """
 
     def __init__(
             self,
             searchList=None,
-            filter=u'BaseFilter',  # pylint:disable=redefined-builtin
-            filtersLib=filters,
+            filter_name=u'BaseFilter',
+            filters=filters,
     ):
         """Instantiates an existing template.
 
-        To create an instance of an existing, precompiled template class:
-            i) first import a compiled template
-
-                from templates.tclass import tclass
-
-            ii) then you create an instance
-                t = tclass(searchList=namespaces)
-
-                or
-
-                t = tclass(searchList=namespaces, filter='BaseFilter')
-
-        Optional args:
-            - searchList
-              Default: None
-
-              an optional list of namespaces (dictionaries, objects, modules,
-              etc.) which Cheetah will search through to find the variables
-              referenced in $placeholders.
-
-             - filter
-               Default: 'BaseFilter'
-
-               Which filter should be used for output filtering. This should
-               either be a string which is the name of a filter in the
-               'filtersLib' or a subclass of Cheetah.filters.BaseFilter. . See the
-               Users' Guide for more details.
-
-             - filtersLib
-               Default: Cheetah.filters
-
-               A module containing subclasses of Cheetah.filters.BaseFilter. See the
-               Users' Guide for more details.
+        :param searchList: list of namespaces (objects / dicts)
+        :param filter_name: Name of the inital filter to start with.  A filter
+            is a function which takes a single argument (the contents of a
+            template variable) and may perform some output filtering.
+        :param filters: dict mapping filter names to filter functions
         """
-        if not isinstance(filter, (five.text, type)):
+        if not isinstance(filter_name, five.text):
             raise AssertionError(
-                'Expected `filter` to be `text` or `type` but got {0}'.format(
-                    type(filter)
+                'Expected `filter_name` to be `text` but got {0}'.format(
+                    type(filter_name),
                 )
             )
-        if not isinstance(filtersLib, types.ModuleType):
+        if not isinstance(filters, dict):
             raise AssertionError(
-                'Expected `filtersLib` to be `module` but got {0}'.format(
-                    type(filtersLib)
+                'Expected `filters` to be `dict` but got {0}'.format(
+                    type(filters),
                 )
             )
-
-        super(Template, self).__init__()
 
         if searchList:
             for namespace in searchList:
@@ -110,11 +78,11 @@ class Template(object):
                         'The following keys are members of the Template class '
                         'and will result in NameMapper collisions!\n'
                         '  > {0} \n'
-                        "Please change the key's name or use the compiler "
-                        'setting "prioritizeSearchListOverSelf=True" to '
-                        'prevent the NameMapper from using the Template member '
-                        'in place of your searchList variable'.format(
-                            ', '.join(self.Reserved_SearchList & set(namespace))
+                        "Please change the key's name.".format(
+                            ', '.join(
+                                self.Reserved_SearchList &
+                                set(namespace)
+                            )
                         )
                     )
 
@@ -131,33 +99,20 @@ class Template(object):
         if searchList is not None:
             self._CHEETAH__searchList.extend(list(searchList))
 
-        # @@TR: consider allowing simple callables as the filter argument
-        self._CHEETAH__filtersLib = filtersLib
-        self._CHEETAH__filters = {}
-        if isinstance(filter, five.text):
-            filterName = filter
-            klass = getattr(self._CHEETAH__filtersLib, filterName)
-        else:
-            klass = filter
-            filterName = klass.__name__  # pylint:disable=maybe-no-member
-        self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName] = klass(self).filter
-        self._CHEETAH__initialFilter = self._CHEETAH__currentFilter
+        self._CHEETAH__filters = filters
+        self._CHEETAH__initialFilter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filter_name]
 
         self.transaction = None
 
     def searchList(self):
-        """Return a reference to the searchlist
-        """
+        """Return a reference to the searchlist"""
         return self._CHEETAH__searchList
-
-    # utility functions
 
     def getVar(self, varName, default=Unspecified, autoCall=True, useDottedNotation=True):
         """Get a variable from the searchList.  If the variable can't be found
         in the searchList, it returns the default value if one was given, or
         raises NameMapper.NotFound.
         """
-
         try:
             return valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, useDottedNotation)
         except NotFound:
@@ -167,15 +122,12 @@ class Template(object):
                 raise
 
     def varExists(self, varName, autoCall=False, useDottedNotation=True):
-        """Test if a variable name exists in the searchList.
-        """
+        """Test if a variable name exists in the searchList."""
         try:
             valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, useDottedNotation)
             return True
         except NotFound:
             return False
-
-    hasVar = varExists
 
     def respond(self):
         raise NotImplementedError

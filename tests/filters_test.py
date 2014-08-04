@@ -1,19 +1,7 @@
+from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import Cheetah.Template
-import Cheetah.filters
 from Cheetah.compile import compile_to_class
-
-
-class UniqueFilter(Cheetah.filters.BaseFilter):
-    """A dummy filter that tries to notice when it's been called twice on the
-    same string.
-    """
-    count = 0
-
-    def filter(self, s):
-        self.count += 1
-        return '<%i>%s</%i>' % (self.count, s, self.count)
 
 
 def render_tmpl(template_source):
@@ -24,9 +12,19 @@ def render_tmpl(template_source):
         identity=lambda body: body,
     )
 
-    template_cls = compile_to_class(template_source)
-    template = template_cls(filter=UniqueFilter, searchList=[scope])
+    class notlocal(object):
+        count = 0
 
+    def unique_filter(val):
+        notlocal.count += 1
+        return '<{0}>{1}</{2}>'.format(notlocal.count, val, notlocal.count)
+
+    template_cls = compile_to_class(template_source)
+    template = template_cls(
+        [scope],
+        filter_name='UniqueFilter',
+        filters={'UniqueFilter': unique_filter},
+    )
     return template.respond().strip()
 
 
