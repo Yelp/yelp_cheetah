@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import types
 
 from Cheetah import five
-from Cheetah import Filters
+from Cheetah import filters
 from Cheetah.NameMapper import NotFound, valueFromSearchList
 from Cheetah.Unspecified import Unspecified
 
@@ -47,7 +47,7 @@ class Template(object):
             self,
             searchList=None,
             filter=u'BaseFilter',  # pylint:disable=redefined-builtin
-            filtersLib=Filters,
+            filtersLib=filters,
     ):
         """Instantiates an existing template.
 
@@ -76,13 +76,13 @@ class Template(object):
 
                Which filter should be used for output filtering. This should
                either be a string which is the name of a filter in the
-               'filtersLib' or a subclass of Cheetah.Filters.BaseFilter. . See the
+               'filtersLib' or a subclass of Cheetah.filters.BaseFilter. . See the
                Users' Guide for more details.
 
              - filtersLib
-               Default: Cheetah.Filters
+               Default: Cheetah.filters
 
-               A module containing subclasses of Cheetah.Filters.BaseFilter. See the
+               A module containing subclasses of Cheetah.filters.BaseFilter. See the
                Users' Guide for more details.
         """
         if not isinstance(filter, (five.text, type)):

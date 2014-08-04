@@ -925,10 +925,9 @@ class LegacyCompiler(SettingsManager, GenUtils):
         self._moduleConstants = []
 
         self._importedVarNames = [
-            'Template',
             'DummyTransaction',
             'NotFound',
-            'Filters',
+            'Template',
         ]
 
     def _spawnClassCompiler(self, className):

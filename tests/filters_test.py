@@ -1,11 +1,11 @@
 from __future__ import unicode_literals
 
 import Cheetah.Template
-import Cheetah.Filters
+import Cheetah.filters
 from Cheetah.compile import compile_to_class
 
 
-class UniqueFilter(Cheetah.Filters.BaseFilter):
+class UniqueFilter(Cheetah.filters.BaseFilter):
     """A dummy filter that tries to notice when it's been called twice on the
     same string.
     """
