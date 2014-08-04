@@ -537,29 +537,23 @@ class MethodCompiler(GenUtils):
     def nextFilterRegionID(self):
         return self.nextCacheID()
 
-    def setFilter(self, theFilter):
+    def setFilter(self, filter_name):
         filter_id = self.nextFilterRegionID()
-        filter_details = FilterDetails(filter_id, theFilter)
+        filter_details = FilterDetails(filter_id, filter_name)
         self._filterRegionsStack.append(
             (filter_id, filter_details)
         )
 
         self.addChunk('_orig_filter{0} = _filter'.format(filter_id))
-        if theFilter.lower() == 'none':
+        if filter_name.lower() == 'none':
             self.addChunk('_filter = self._CHEETAH__initialFilter')
         else:
             # is string representing the name of a builtin filter
-            self.addChunk('filterName = ' + repr(theFilter))
-            self.addChunk('if {0!r} in self._CHEETAH__filters:'.format(theFilter))
-            self.indent()
-            self.addChunk('_filter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filterName]')
-            self.dedent()
-            self.addChunk('else:')
-            self.indent()
-            self.addChunk('_filter = self._CHEETAH__currentFilter'
-                          + ' = \\\n\t\t\tself._CHEETAH__filters[filterName] = '
-                          + 'getattr(self._CHEETAH__filtersLib, filterName)(self).filter')
-            self.dedent()
+            self.addChunk(
+                '_filter = '
+                'self._CHEETAH__currentFilter = '
+                'self._CHEETAH__filters[{0!r}]'.format(filter_name)
+            )
 
     def closeFilterBlock(self):
         filter_id = self._filterRegionsStack.pop()[0]
@@ -910,25 +904,24 @@ class LegacyCompiler(SettingsManager, GenUtils):
 
     def _setupCompilerState(self):
         self._activeClassesList = []
-        self._finishedClassesList = []      # listed by ordered
+        self._finishedClassesList = []  # listed by ordered
         self._finishedClassIndex = {}  # listed by name
         self._importStatements = [
-            "from Cheetah.DummyTransaction import DummyTransaction",
-            "from Cheetah.NameMapper import NotFound",
-            "from Cheetah.NameMapper import valueForName as VFN",
-            "from Cheetah.NameMapper import valueFromSearchList as VFSL",
-            "from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL",
-            "from Cheetah.Template import NO_CONTENT",
-            "from Cheetah.Template import Template",
+            'from Cheetah.DummyTransaction import DummyTransaction',
+            'from Cheetah.NameMapper import NotFound',
+            'from Cheetah.NameMapper import valueForName as VFN',
+            'from Cheetah.NameMapper import valueFromSearchList as VFSL',
+            'from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL',
+            'from Cheetah.Template import NO_CONTENT',
+            'from Cheetah.Template import Template',
         ]
 
         self._moduleConstants = []
 
         self._importedVarNames = [
-            'Template',
             'DummyTransaction',
             'NotFound',
-            'Filters',
+            'Template',
         ]
 
     def _spawnClassCompiler(self, className):
