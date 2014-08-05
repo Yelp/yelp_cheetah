@@ -44,7 +44,7 @@ class Template(object):
     def __init__(
             self,
             searchList=None,
-            filter_name=u'BaseFilter',
+            filter_name=u'MarkupFilter',
             filters=filters,
     ):
         """Instantiates an existing template.

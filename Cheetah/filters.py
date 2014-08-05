@@ -1,7 +1,7 @@
-"""Base filter for the #filter directive.
-Filters post-process template variables.
-"""
+from __future__ import absolute_import
 from __future__ import unicode_literals
+
+import markupsafe
 
 from Cheetah import five
 
@@ -17,6 +17,12 @@ def unicode_filter(val):
         return five.text(val)
 
 
+def markup_filter(val):
+    val = unicode_filter(val)
+    return markupsafe.Markup.escape(val)
+
+
 filters = {
-    'BaseFilter': unicode_filter,
+    'MarkupFilter': markup_filter,
+    'UnicodeFilter': unicode_filter,
 }
