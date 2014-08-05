@@ -8,6 +8,8 @@ import pytest
 import unittest
 import warnings
 
+import markupsafe
+
 from Cheetah import five
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
@@ -346,7 +348,10 @@ class Placeholders_Vals(OutputTest):
 
     def test6(self):
         """list"""
-        self.verify("$aList", "['item0', 'item1', 'item2']")
+        self.verify(
+            "$aList",
+            markupsafe.Markup.escape("['item0', 'item1', 'item2']")
+        )
 
     def test7(self):
         """None
@@ -450,7 +455,7 @@ class Placeholders_Calls(OutputTest):
     def test11(self):
         r"""func placeholder - with ('''\nstring'\n''')"""
         self.verify("$aFunc('''\naoeu'\n''')",
-                    "\naoeu'\n")
+                    markupsafe.Markup.escape("\naoeu'\n"))
 
     def test12(self):
         r'''func placeholder - with ("""\nstring\n""")'''
@@ -536,7 +541,10 @@ class NameMapper(OutputTest):
 
     def test4(self):
         """list slicing"""
-        self.verify("$aList[:2]", "['item0', 'item1']")
+        self.verify(
+            "$aList[:2]",
+            markupsafe.Markup.escape("['item0', 'item1']")
+        )
 
     def test5(self):
         """list slicing and subcription combined"""
@@ -1895,16 +1903,16 @@ $sep$letter#slurp
 
 class FilterDirective(OutputTest):
     def test1(self):
-        """#filter BaseFilter"""
-        self.verify("#filter BaseFilter\n$none#end filter",
+        """#filter MarkupFilter"""
+        self.verify("#filter MarkupFilter\n$none#end filter",
                     "")
 
-        self.verify("#filter BaseFilter: $none",
+        self.verify("#filter MarkupFilter: $none",
                     "")
 
     def test2(self):
         """#filter ReplaceNone with WS"""
-        self.verify("#filter BaseFilter:  \n$none#end filter",
+        self.verify("#filter MarkupFilter:  \n$none#end filter",
                     "")
 
 

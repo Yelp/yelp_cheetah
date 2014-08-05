@@ -33,6 +33,7 @@ setup(
         Extension("Cheetah._namemapper", ["Cheetah/c/_namemapper.c"]),
     ],
     platforms=['linux'],
+    install_requires=['markupsafe'],
     entry_points={
         'console_scripts': [
             'cheetah-compile = Cheetah.cheetah_compile:main',
