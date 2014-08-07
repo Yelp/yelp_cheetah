@@ -790,21 +790,18 @@ class YieldDirective(OutputTest):
         """simple #yield """
 
         src1 = """#for i in range(10)\n#yield i\n#end for"""
-        src2 = """#for i in range(10)\n$i#slurp\n#yield\n#end for"""
-        src3 = (
+        src2 = (
             "#def iterator\n"
             "#for i in range(10)\n#yield i\n#end for\n"
             "#end def\n"
             "#for i in $iterator()\n$i#end for"
         )
 
-        for src in (src1, src2, src3):
+        for src in (src1, src2):
             klass = compile_to_class(src)
             iterator = klass().respond()
             output = [str(i) for i in iterator]
             assert ''.join(output) == '0123456789'
-
-        # @@TR: need to expand this to cover error conditions etc.
 
 
 class ForDirective(OutputTest):
@@ -2205,3 +2202,85 @@ def test_identifier_ending_in_dot():
         '$foo.'
     )
     assert cls().respond() == 'bar.'
+
+
+def test_with_statement_yields_value():
+    cls = compile_to_class(
+        '#import contextlib\n'
+        '\n'
+        '#@contextlib.contextmanager\n'
+        '#def my_context_manager(herp)\n'
+        'Ctx Before\n'
+        '$herp\n'
+        '#yield 9001\n'
+        'Ctx After\n'
+        '#end def\n'
+        '\n'
+        'Before\n'
+        '#with $my_context_manager(1337) as val:\n'
+        'Ctx Inside\n'
+        '$val\n'
+        '#end with\n'
+        'After\n'
+    )
+    assert cls().respond().strip() == (
+        'Before\n'
+        'Ctx Before\n'
+        '1337\n'
+        'Ctx Inside\n'
+        '9001\n'
+        'Ctx After\n'
+        'After'
+    )
+
+
+def test_with_statement_yield_no_value():
+    cls = compile_to_class(
+        '#import contextlib\n'
+        '\n'
+        '#@contextlib.contextmanager\n'
+        '#def my_context_manager(herp)\n'
+        'Ctx Before\n'
+        '$herp\n'
+        '#yield\n'
+        'Ctx After\n'
+        '#end def\n'
+        '\n'
+        'Before\n'
+        '#with $my_context_manager(1234)\n'
+        'Ctx inside\n'
+        '#end with\n'
+        'After\n'
+    )
+    assert cls().respond().strip() == (
+        'Before\n'
+        'Ctx Before\n'
+        '1234\n'
+        'Ctx inside\n'
+        'Ctx After\n'
+        'After'
+    )
+
+
+def test_with_statement_short_form():
+    cls = compile_to_class(
+        '#import contextlib\n'
+        '\n'
+        '#@contextlib.contextmanager\n'
+        '#def ctx()\n'
+        'Ctx Before\n'
+        '#yield\n'
+        'Ctx After\n'
+        '#end def\n'
+        '\n'
+        'Before\n'
+        '#with $ctx():Ctx inside\n'
+        'After\n'
+    )
+    assert cls().respond().strip() == (
+        'Before\n'
+        'Ctx Before\n'
+        'Ctx inside\n'
+        'Ctx After\n'
+        'After'
+    )
