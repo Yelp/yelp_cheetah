@@ -175,9 +175,6 @@ class GenUtils(object):
 
         return pythonCode
 
-##################################################
-# METHOD COMPILERS
-
 
 class MethodCompiler(GenUtils):
     def __init__(
@@ -193,13 +190,6 @@ class MethodCompiler(GenUtils):
         self._moduleCompiler = classCompiler._moduleCompiler
         self._methodName = methodName
         self._initialMethodComment = initialMethodComment
-        self._setupState()
-        self._decorators = decorators or []
-
-    def setting(self, key):
-        return self._settingsManager.setting(key)
-
-    def _setupState(self):
         self._indent = self.setting('indentationStep')
         self._indentLev = self.setting('initialMethIndentLevel')
         self._pendingStrConstChunks = []
@@ -210,31 +200,23 @@ class MethodCompiler(GenUtils):
         self._hasReturnStatement = False
         self._isGenerator = False
         self._argStringList = [("self", None)]
-        self._isClassMethod = None
-        self._isStaticMethod = None
+        self._decorators = decorators or []
+
+    def setting(self, key):
+        return self._settingsManager.setting(key)
 
     def cleanupState(self):
         """Called by the containing class compiler instance
         """
         self.commitStrConst()
 
-        kwargsName = None
-        positionalArgsListName = None
-        for argname, _ in self._argStringList:
-            if argname.strip().startswith('**'):
-                kwargsName = argname.strip().replace('**', '')
-                break
-            elif argname.strip().startswith('*'):
-                positionalArgsListName = argname.strip().replace('*', '')
+        has_double_star_arg = any(
+            argname.strip().startswith('**')
+            for argname, _ in self._argStringList
+        )
 
-        if not kwargsName and self._useKWsDictArgForPassingTrans():
-            kwargsName = 'KWS'
+        if not has_double_star_arg:
             self.addMethArg('**KWS', None)
-        self._kwargsName = kwargsName
-
-        if not self._useKWsDictArgForPassingTrans():
-            assert not kwargsName and not positionalArgsListName
-            self.addMethArg('trans', 'None')
 
         self._indentLev = self.setting('initialMethIndentLevel')
         mainBodyChunks = self._methodBodyChunks
@@ -299,7 +281,7 @@ class MethodCompiler(GenUtils):
 
         self.addChunk("if _v is not NO_CONTENT: write(_filter(_v))")
 
-    def _appendToPrevStrConst(self, strConst):
+    def addStrConst(self, strConst):
         if self._pendingStrConstChunks:
             self._pendingStrConstChunks.append(strConst)
         else:
@@ -345,10 +327,6 @@ class MethodCompiler(GenUtils):
             if BOL < len(src):
                 self._pendingStrConstChunks[-1] = src[:BOL]
 
-    # @@TR: consider merging the next two methods into one
-    def addStrConst(self, strConst):
-        self._appendToPrevStrConst(strConst)
-
     def addMethComment(self, comm):
         offSet = self.setting('commentOffset')
         self.addChunk('#' + ' ' * offSet + comm)
@@ -356,9 +334,6 @@ class MethodCompiler(GenUtils):
     def addPlaceholder(self, expr, rawPlaceholder, lineCol):
         self.addFilteredChunk(expr, rawPlaceholder, lineCol)
         self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
-
-    def addSilent(self, expr):
-        self.addChunk(expr)
 
     def addSet(self, expr, exprComponents, setStyle):
         if setStyle is SET_GLOBAL:
@@ -389,22 +364,19 @@ class MethodCompiler(GenUtils):
         else:
             self.addChunk(expr)
 
-    def addWhile(self, expr, lineCol=None):
-        self.addIndentingDirective(expr, lineCol=lineCol)
-
-    def addFor(self, expr, lineCol=None):
-        self.addIndentingDirective(expr, lineCol=lineCol)
-
-    def addWith(self, expr, lineCol=None):
-        self.addIndentingDirective(expr, lineCol=lineCol)
-
-    def addIndentingDirective(self, expr, lineCol=None):
+    def addIndentingDirective(self, expr, lineCol):
         assert expr and expr[-1] != ':'
         expr = expr + ':'
         self.addChunk(expr)
         assert lineCol
         self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
         self.indent()
+
+    addWhile = addIndentingDirective
+    addFor = addIndentingDirective
+    addWith = addIndentingDirective
+    addIf = addIndentingDirective
+    addTry = addIndentingDirective
 
     def addReIndentingDirective(self, expr, dedent=True, lineCol=None):
         self.commitStrConst()
@@ -418,26 +390,14 @@ class MethodCompiler(GenUtils):
         self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
         self.indent()
 
-    def addIf(self, expr, lineCol=None):
-        """For a full #if ... #end if directive
-        """
-        self.addIndentingDirective(expr, lineCol=lineCol)
+    addExcept = addReIndentingDirective
+    addFinally = addReIndentingDirective
 
     def addElse(self, expr, dedent=True, lineCol=None):
         expr = re.sub(r'else[ \f\t]+if', 'elif', expr)
         self.addReIndentingDirective(expr, dedent=dedent, lineCol=lineCol)
 
-    def addElif(self, expr, dedent=True, lineCol=None):
-        self.addElse(expr, dedent=dedent, lineCol=lineCol)
-
-    def addTry(self, expr, lineCol=None):
-        self.addIndentingDirective(expr, lineCol=lineCol)
-
-    def addExcept(self, expr, dedent=True, lineCol=None):
-        self.addReIndentingDirective(expr, dedent=dedent, lineCol=lineCol)
-
-    def addFinally(self, expr, dedent=True, lineCol=None):
-        self.addReIndentingDirective(expr, dedent=dedent, lineCol=lineCol)
+    addElif = addElse
 
     def addReturn(self, expr):
         assert not self._isGenerator
@@ -449,23 +409,13 @@ class MethodCompiler(GenUtils):
         self._isGenerator = True
         self.addChunk(expr)
 
-    def addPass(self, expr):
-        self.addChunk(expr)
-
-    def addDel(self, expr):
-        self.addChunk(expr)
-
-    def addAssert(self, expr):
-        self.addChunk(expr)
-
-    def addRaise(self, expr):
-        self.addChunk(expr)
-
-    def addBreak(self, expr):
-        self.addChunk(expr)
-
-    def addContinue(self, expr):
-        self.addChunk(expr)
+    addSilent = addChunk
+    addPass = addChunk
+    addDel = addChunk
+    addAssert = addChunk
+    addRaise = addChunk
+    addBreak = addChunk
+    addContinue = addChunk
 
     def addPSP(self, PSP):
         self.commitStrConst()
@@ -477,8 +427,7 @@ class MethodCompiler(GenUtils):
         self._next_variable_id += 1
         return '_{0}'.format(self._next_variable_id)
 
-    def nextCallRegionID(self):
-        return self.nextCacheID()
+    nextCallRegionID = nextCacheID
 
     def startCallRegion(self, functionName, args, lineCol):
         call_id = self.nextCallRegionID()
@@ -524,8 +473,7 @@ class MethodCompiler(GenUtils):
         self.addChunk('')
         self._callRegionsStack.pop()  # attrib of current methodCompiler
 
-    def nextFilterRegionID(self):
-        return self.nextCacheID()
+    nextFilterRegionID = nextCacheID
 
     def setFilter(self, filter_name):
         filter_id = self.nextFilterRegionID()
@@ -553,34 +501,17 @@ class MethodCompiler(GenUtils):
             )
         )
 
-    def _useKWsDictArgForPassingTrans(self):
-        alreadyHasTransArg = [
-            argname for argname, _ in self._argStringList
-            if argname == 'trans'
-        ]
-        return self.methodName() != 'respond' and not alreadyHasTransArg
-
     def isClassMethod(self):
-        if self._isClassMethod is None:
-            self._isClassMethod = '@classmethod' in self._decorators
-        return self._isClassMethod
+        return '@classmethod' in self._decorators
 
     def isStaticMethod(self):
-        if self._isStaticMethod is None:
-            self._isStaticMethod = '@staticmethod' in self._decorators
-        return self._isStaticMethod
+        return '@staticmethod' in self._decorators
 
     def _addAutoSetupCode(self):
         self.addChunk(self._initialMethodComment)
 
         if not self.isClassMethod() and not self.isStaticMethod():
-            if self._useKWsDictArgForPassingTrans() and self._kwargsName:
-                self.addChunk('trans = %s.get("trans")' % self._kwargsName)
-            self.addChunk('if not trans:')
-            self.indent()
-            self.addChunk('trans = self.transaction'
-                          ' # is None unless self.awake() was called')
-            self.dedent()
+            self.addChunk('trans = self.transaction')
             self.addChunk('if not trans:')
             self.indent()
             self.addChunk('self.transaction = trans = DummyTransaction()')
@@ -671,7 +602,14 @@ class ClassCompiler(GenUtils):
         self._className = className
         self._moduleCompiler = moduleCompiler
         self._mainMethodName = mainMethodName
-        self._setupState()
+        self._decoratorsForNextMethod = []
+        self._activeMethodsList = []        # stack while parsing/generating
+        self._finishedMethodsList = []      # store by order
+        self._methodsIndex = {}      # store by name
+        self._baseClass = 'Template'
+        # printed after methods in the gen class def:
+        self._generatedAttribs = []
+        self._blockMetaData = {}
         methodCompiler = self._spawnMethodCompiler(
             mainMethodName,
             '## CHEETAH: main method generated for this template'
@@ -685,23 +623,8 @@ class ClassCompiler(GenUtils):
     def __getattr__(self, name):
         """Provide access to the methods and attributes of the MethodCompiler
         at the top of the activeMethods stack: one-way namespace sharing
-
-
-        WARNING: Use .setMethods to assign the attributes of the MethodCompiler
-        from the methods of this class!!! or you will be assigning to attributes
-        of this object instead.
         """
         return getattr(self._activeMethodsList[-1], name)
-
-    def _setupState(self):
-        self._decoratorsForNextMethod = []
-        self._activeMethodsList = []        # stack while parsing/generating
-        self._finishedMethodsList = []      # store by order
-        self._methodsIndex = {}      # store by name
-        self._baseClass = 'Template'
-        # printed after methods in the gen class def:
-        self._generatedAttribs = []
-        self._blockMetaData = {}
 
     def cleanupState(self):
         while self._activeMethodsList:
@@ -802,16 +725,8 @@ class ClassCompiler(GenUtils):
         methodName = methCompiler.methodName()
         self._swallowMethodCompiler(methCompiler)
 
-        # metaData = self._blockMetaData[methodName]
-        # rawDirective = metaData['raw']
-        # lineCol = metaData['lineCol']
-
         # insert the code to call the block
-        codeChunk = 'self.' + methodName + '(trans=trans)'
-        self.addChunk(codeChunk)
-
-        # self.appendToPrevChunk(' # generated from ' + repr(rawDirective) )
-        # self.appendToPrevChunk(' at line %s, col %s' % lineCol + '.')
+        self.addChunk('self.{0}()'.format(methodName))
 
     # code wrapping methods
 
@@ -819,29 +734,25 @@ class ClassCompiler(GenUtils):
         ind = self.setting('indentationStep')
         classDefChunks = [self.classSignature()]
 
-        def addMethods():
-            classDefChunks.extend([
-                ind + '#'*50,
-                ind + '## CHEETAH GENERATED METHODS',
-                '\n',
-                self.methodDefs(),
-                ])
+        classDefChunks.extend([
+            ind + '#' * 50,
+            ind + '## CHEETAH GENERATED METHODS',
+            '\n',
+            self.methodDefs(),
+        ])
 
-        def addAttributes():
-            classDefChunks.extend([
-                ind + '#'*50,
-                ind + '## CHEETAH GENERATED ATTRIBUTES',
-                '\n',
-                self.attributes(),
-                ])
-        addMethods()
-        addAttributes()
+        classDefChunks.extend([
+            ind + '#' * 50,
+            ind + '## CHEETAH GENERATED ATTRIBUTES',
+            '\n',
+            self.attributes(),
+        ])
 
         classDef = '\n'.join(classDefChunks)
         return classDef
 
     def classSignature(self):
-        return "class %s(%s):" % (self.className(), self._baseClass)
+        return 'class {0}({1}):'.format(self.className(), self._baseClass)
 
     def methodDefs(self):
         methodDefs = [methGen.methodDef() for methGen in self._finishedMethods()]
@@ -873,26 +784,10 @@ class LegacyCompiler(SettingsManager, GenUtils):
 
         assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
 
-        if source == "":
+        if source == '':
             warnings.warn("You supplied an empty string for the source!", )
 
         self._parser = self.parserClass(source, compiler=self)
-        self._setupCompilerState()
-
-    def __getattr__(self, name):
-        """Provide one-way access to the methods and attributes of the
-        ClassCompiler, and thereby the MethodCompilers as well.
-
-        WARNING: Use .setMethods to assign the attributes of the ClassCompiler
-        from the methods of this class!!! or you will be assigning to attributes
-        of this object instead.
-        """
-        return getattr(self._activeClassesList[-1], name)
-
-    def _initializeSettings(self):
-        self.updateSettings(copy.deepcopy(DEFAULT_COMPILER_SETTINGS))
-
-    def _setupCompilerState(self):
         self._activeClassesList = []
         self._finishedClassesList = []  # listed by ordered
         self._finishedClassIndex = {}  # listed by name
@@ -914,15 +809,22 @@ class LegacyCompiler(SettingsManager, GenUtils):
             'Template',
         ]
 
+    def __getattr__(self, name):
+        """Provide one-way access to the methods and attributes of the
+        ClassCompiler, and thereby the MethodCompilers as well.
+        """
+        return getattr(self._activeClassesList[-1], name)
+
+    def _initializeSettings(self):
+        self.updateSettings(copy.deepcopy(DEFAULT_COMPILER_SETTINGS))
+
     def _spawnClassCompiler(self, className):
-        klass = self.classCompilerClass
-        classCompiler = klass(
+        return self.classCompilerClass(
             className,
             moduleCompiler=self,
             mainMethodName=self.setting('mainMethodName'),
             settingsManager=self,
         )
-        return classCompiler
 
     def _addActiveClassCompiler(self, classCompiler):
         self._activeClassesList.append(classCompiler)
@@ -938,9 +840,6 @@ class LegacyCompiler(SettingsManager, GenUtils):
         self._finishedClassesList.append(classCompiler)
         self._finishedClassIndex[classCompiler.className()] = classCompiler
         return classCompiler
-
-    def _finishedClasses(self):
-        return self._finishedClassesList
 
     def importedVarNames(self):
         return self._importedVarNames
@@ -977,7 +876,9 @@ class LegacyCompiler(SettingsManager, GenUtils):
             modName = baseClassName
             # we assume the class name to be the module name
             # and that it's not a builtin:
-            importStatement = "from %s import %s" % (modName, baseClassName)
+            importStatement = 'from {0} import {1}'.format(
+                modName, baseClassName
+            )
             self.addImportStatement(importStatement)
             self.addImportedVarNames((baseClassName,))
         else:
@@ -1068,7 +969,7 @@ class LegacyCompiler(SettingsManager, GenUtils):
         return '\n'.join(self._moduleConstants)
 
     def classDefs(self):
-        classDefs = [klass.classDef() for klass in self._finishedClasses()]
+        classDefs = [klass.classDef() for klass in self._finishedClassesList]
         return '\n\n'.join(classDefs)
 
     def moduleFooter(self):
@@ -1082,5 +983,3 @@ if __name__ == '__main__':
     from sys import stdout
     stdout.write({main_class_name}(searchList=[environ]).respond())
 """.format(main_class_name=self._mainClassName)
-
-# vim: shiftwidth=4 tabstop=4 expandtab
