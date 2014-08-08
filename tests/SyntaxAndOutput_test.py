@@ -771,7 +771,7 @@ aoeuoaeu
     def test3(self):
         """#return'ing an string AND streaming other output via the transaction"""
         self.verify("""1
-$str($test(trans=trans)[1])
+$str($test()[1])
 3
 #def test
 1.5
