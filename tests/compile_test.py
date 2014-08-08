@@ -220,6 +220,7 @@ useDottedNotation = True
 #extends testing.templates.extends_test_template
 #implements respond
 
+#import contextlib
 #import sys
 #from tests.SyntaxAndOutput_test import dummydecorator
 
@@ -261,6 +262,13 @@ useDottedNotation = True
     #yield 1
     #yield 2
     #yield 3
+#end def
+
+#@contextlib.contextmanager
+#def ctx
+    before
+    #yield
+    after
 #end def
 
 
@@ -310,6 +318,10 @@ $arr
     #end if
     $i#slurp
 #end for
+
+#with $ctx()
+    inside ctx
+#end with
     """
     compiled_templates = [compile_source(MEGA_TEMPLATE) for _ in range(5)]
     assert len(set(compiled_templates)) == 1

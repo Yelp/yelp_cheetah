@@ -58,13 +58,6 @@ delimeters = ('(', ')', '{', '}', '[', ']',
               ',', '.', ':', ';', '=', '`') + augAssignOps
 
 
-keywords = (
-    'and', 'del', 'for', 'is', 'raise', 'assert', 'elif', 'from', 'lambda',
-    'return', 'break', 'else', 'global', 'not', 'try', 'class', 'except', 'if',
-    'or', 'while', 'continue', 'exec', 'import', 'pass', 'def', 'finally', 'in',
-    'print',
-)
-
 single3 = "'''"
 double3 = '"""'
 
@@ -154,6 +147,7 @@ directiveNamesAndParsers = {
     'continue': None,
     'return': None,
     'yield': None,
+    'with': None,
 
     'end': 'eatEndDirective',
 
@@ -177,6 +171,7 @@ endDirectiveNamesAndHandlers = {
     'for': None,                # has short-form
     'if': None,                 # has short-form
     'try': None,                # has short-form
+    'with': None,
 }
 
 
@@ -974,6 +969,7 @@ class LegacyParser(_LowLevelParser):
 
         self._closeableDirectives = [
             'def', 'block', 'call', 'filter', 'if', 'for', 'while', 'try',
+            'with',
         ]
 
         for macroName, callback in self.setting('macroDirectives').items():
@@ -1051,16 +1047,17 @@ class LegacyParser(_LowLevelParser):
         self._compiler.addPSP(pspString)
         self.getPSPEndToken()
 
-    # generic directive eat methods
-    _simpleIndentingDirectives = '''
-    else elif for while try except finally'''.split()
-    _simpleExprDirectives = '''
-    pass continue return yield break
-    del assert raise
-    silent
-    import from'''.split()
-    _directiveHandlerNames = {'import': 'addImportStatement',
-                              'from': 'addImportStatement', }
+    _simpleIndentingDirectives = [
+        'else', 'elif', 'for', 'while', 'try', 'except', 'finally', 'with',
+    ]
+    _simpleExprDirectives = [
+        'pass', 'continue', 'return', 'yield', 'break', 'del', 'assert',
+        'raise', 'silent', 'import', 'from',
+    ]
+    _directiveHandlerNames = {
+        'import': 'addImportStatement',
+        'from': 'addImportStatement',
+    }
 
     def _normalize_handler_name(self, directiveName):
         return self._directiveHandlerNames.get(
@@ -1249,7 +1246,7 @@ class LegacyParser(_LowLevelParser):
         elif directiveName == 'filter':
             self._compiler.closeFilterBlock()
         else:
-            assert directiveName in ['while', 'for', 'if', 'try']
+            assert directiveName in ['while', 'for', 'if', 'try', 'with']
             self._compiler.commitStrConst()
             self._compiler.dedent()
 

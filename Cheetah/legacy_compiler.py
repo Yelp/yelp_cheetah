@@ -395,6 +395,9 @@ class MethodCompiler(GenUtils):
     def addFor(self, expr, lineCol=None):
         self.addIndentingDirective(expr, lineCol=lineCol)
 
+    def addWith(self, expr, lineCol=None):
+        self.addIndentingDirective(expr, lineCol=lineCol)
+
     def addIndentingDirective(self, expr, lineCol=None):
         assert expr and expr[-1] != ':'
         expr = expr + ':'
@@ -444,20 +447,7 @@ class MethodCompiler(GenUtils):
     def addYield(self, expr):
         assert not self._hasReturnStatement
         self._isGenerator = True
-        if expr.replace('yield', '').strip():
-            self.addChunk(expr)
-        else:
-            self.addChunk('if _dummyTrans:')
-            self.indent()
-            self.addChunk('yield trans.response().getvalue()')
-            self.addChunk('trans = DummyTransaction()')
-            self.addChunk('write = trans.response().write')
-            self.dedent()
-            self.addChunk('else:')
-            self.indent()
-            self.addChunk(
-                'raise TypeError("This method cannot be called with a trans arg")')
-            self.dedent()
+        self.addChunk(expr)
 
     def addPass(self, expr):
         self.addChunk(expr)
