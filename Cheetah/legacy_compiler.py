@@ -193,13 +193,6 @@ class MethodCompiler(GenUtils):
         self._moduleCompiler = classCompiler._moduleCompiler
         self._methodName = methodName
         self._initialMethodComment = initialMethodComment
-        self._setupState()
-        self._decorators = decorators or []
-
-    def setting(self, key):
-        return self._settingsManager.setting(key)
-
-    def _setupState(self):
         self._indent = self.setting('indentationStep')
         self._indentLev = self.setting('initialMethIndentLevel')
         self._pendingStrConstChunks = []
@@ -212,29 +205,23 @@ class MethodCompiler(GenUtils):
         self._argStringList = [("self", None)]
         self._isClassMethod = None
         self._isStaticMethod = None
+        self._decorators = decorators or []
+
+    def setting(self, key):
+        return self._settingsManager.setting(key)
 
     def cleanupState(self):
         """Called by the containing class compiler instance
         """
         self.commitStrConst()
 
-        kwargsName = None
-        positionalArgsListName = None
-        for argname, _ in self._argStringList:
-            if argname.strip().startswith('**'):
-                kwargsName = argname.strip().replace('**', '')
-                break
-            elif argname.strip().startswith('*'):
-                positionalArgsListName = argname.strip().replace('*', '')
+        has_double_star_arg = any(
+            argname.strip().startswith('**')
+            for argname, _ in self._argStringList
+        )
 
-        if not kwargsName and self._useKWsDictArgForPassingTrans():
-            kwargsName = 'KWS'
+        if not has_double_star_arg:
             self.addMethArg('**KWS', None)
-        self._kwargsName = kwargsName
-
-        if not self._useKWsDictArgForPassingTrans():
-            assert not kwargsName and not positionalArgsListName
-            self.addMethArg('trans', 'None')
 
         self._indentLev = self.setting('initialMethIndentLevel')
         mainBodyChunks = self._methodBodyChunks
@@ -553,13 +540,6 @@ class MethodCompiler(GenUtils):
             )
         )
 
-    def _useKWsDictArgForPassingTrans(self):
-        alreadyHasTransArg = [
-            argname for argname, _ in self._argStringList
-            if argname == 'trans'
-        ]
-        return self.methodName() != 'respond' and not alreadyHasTransArg
-
     def isClassMethod(self):
         if self._isClassMethod is None:
             self._isClassMethod = '@classmethod' in self._decorators
@@ -574,13 +554,7 @@ class MethodCompiler(GenUtils):
         self.addChunk(self._initialMethodComment)
 
         if not self.isClassMethod() and not self.isStaticMethod():
-            if self._useKWsDictArgForPassingTrans() and self._kwargsName:
-                self.addChunk('trans = %s.get("trans")' % self._kwargsName)
-            self.addChunk('if not trans:')
-            self.indent()
-            self.addChunk('trans = self.transaction'
-                          ' # is None unless self.awake() was called')
-            self.dedent()
+            self.addChunk('trans = self.transaction')
             self.addChunk('if not trans:')
             self.indent()
             self.addChunk('self.transaction = trans = DummyTransaction()')
