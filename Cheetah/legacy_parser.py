@@ -10,6 +10,7 @@ from __future__ import unicode_literals
 
 import collections
 import re
+import string
 from tokenize import PseudoToken
 
 from Cheetah import five
@@ -28,44 +29,23 @@ SET_LOCAL = 0
 SET_GLOBAL = 1
 SET_MODULE = 2
 
-##################################################
-# Tokens for the parser
+identchars = string.ascii_letters + '_'
+namechars = identchars + string.digits
 
-# generic
-identchars = "abcdefghijklmnopqrstuvwxyz" \
-             "ABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-namechars = identchars + "0123456789"
-
-# operators
-powerOp = '**'
-unaryArithOps = ('+', '-', '~')
-binaryArithOps = ('+', '-', '/', '//', '%')
-shiftOps = ('>>', '<<')
-bitwiseOps = ('&', '|', '^')
-assignOp = '='
-augAssignOps = ('+=', '-=', '/=', '*=', '**=', '^=', '%=',
-                '>>=', '<<=', '&=', '|=', )
-assignmentOps = (assignOp,) + augAssignOps
-
-compOps = ('<', '>', '==', '!=', '<=', '>=', '<>', 'is', 'in',)
-booleanOps = ('and', 'or', 'not')
-operators = (
-    (powerOp,) + unaryArithOps + binaryArithOps + shiftOps + bitwiseOps +
-    assignmentOps + compOps + booleanOps
+assignmentOps = (
+    '=', '+=', '-=', '/=', '*=', '**=', '^=', '%=', '>>=', '<<=', '&=', '|=',
 )
-
-delimeters = ('(', ')', '{', '}', '[', ']',
-              ',', '.', ':', ';', '=', '`') + augAssignOps
-
 
 single3 = "'''"
 double3 = '"""'
 
-tripleQuotedStringStarts = ("'''", '"""',
-                            "r'''", 'r"""', "R'''", 'R"""',
-                            "u'''", 'u"""', "U'''", 'U"""',
-                            "ur'''", 'ur"""', "Ur'''", 'Ur"""',
-                            "uR'''", 'uR"""', "UR'''", 'UR"""')
+tripleQuotedStringStarts = (
+    "'''", '"""',
+    "r'''", 'r"""', "R'''", 'R"""',
+    "u'''", 'u"""', "U'''", 'U"""',
+    "ur'''", 'ur"""', "Ur'''", 'Ur"""',
+    "uR'''", 'uR"""', "UR'''", 'UR"""',
+)
 
 tripleQuotedStringPairs = {
     "'''": single3, '"""': double3,
@@ -87,9 +67,6 @@ closurePairsRev = {'(': ')', '[': ']', '{': '}'}
 Components = collections.namedtuple('Components', ['LVALUE', 'OP', 'RVALUE'])
 
 
-##################################################
-# Regex chunks for the parser
-
 tripleQuotedStringREs = {}
 
 
@@ -101,10 +78,7 @@ def makeTripleQuoteRe(start, end):
 for start_part, end_part in tripleQuotedStringPairs.items():
     tripleQuotedStringREs[start_part] = makeTripleQuoteRe(start_part, end_part)
 
-WS = r'[ \f\t]*'
-EOL = r'\r\n|\n|\r'
 escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
-nameCharLookAhead = r'(?=[A-Za-z_])'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
 directiveRE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@[a-zA-Z_][a-zA-Z0-9_]*)')
 EOLre = re.compile(r'(?:\r\n|\r|\n)')
@@ -177,7 +151,6 @@ endDirectiveNamesAndHandlers = {
 
 class ParseError(ValueError):
     def __init__(self, stream, msg='Invalid Syntax'):
-        super(ParseError, self).__init__()
         self.stream = stream
         if stream.pos() >= len(stream):
             stream.setPos(len(stream) - 1)
@@ -318,10 +291,9 @@ class _LowLevelParser(SourceReader):
         self.expressionPlaceholderStartRE = re.compile(
             escCharLookBehind +
             r'(?P<startToken>' + re.escape(self.setting('cheetahVarStartToken')) + ')' +
-            # r'\[[ \t\f]*'
             r'(?:\{|\(|\[)[ \t\f]*'
             + r'(?=[^\)\}\]])'
-            )
+        )
 
     def _makeCommentREs(self):
         """Construct the regex bits that are used in comment parsing."""
@@ -402,7 +374,6 @@ class _LowLevelParser(SourceReader):
 
     def getCommentStartToken(self):
         match = self.matchCommentStartToken()
-        assert match
         return self.readTo(match.end())
 
     def getDottedName(self):
@@ -437,7 +408,7 @@ class _LowLevelParser(SourceReader):
 
     def matchAssignmentOperator(self):
         match = self.matchPyToken()
-        assert match is None or match.group() in assignmentOps
+        assert match.group() in assignmentOps
         return match
 
     def getAssignmentOperator(self):
@@ -446,8 +417,7 @@ class _LowLevelParser(SourceReader):
         return self.readTo(match.end())
 
     def matchDirective(self):
-        """Returns False or the name of the directive matched.
-        """
+        """Returns False or the name of the directive matched."""
         startPos = self.pos()
         if not self.matchDirectiveStartToken():
             return False
@@ -482,7 +452,6 @@ class _LowLevelParser(SourceReader):
 
     def getDirectiveStartToken(self):
         match = self.matchDirectiveStartToken()
-        assert match
         return self.readTo(match.end())
 
     def matchDirectiveEndToken(self):
@@ -490,7 +459,6 @@ class _LowLevelParser(SourceReader):
 
     def getDirectiveEndToken(self):
         match = self.matchDirectiveEndToken()
-        assert match
         return self.readTo(match.end())
 
     def matchColonForSingleLineShortFormDirective(self):
@@ -513,12 +481,10 @@ class _LowLevelParser(SourceReader):
 
     def getPSPStartToken(self):
         match = self.matchPSPStartToken()
-        assert match
         return self.readTo(match.end())
 
     def getPSPEndToken(self):
         match = self.matchPSPEndToken()
-        assert match
         return self.readTo(match.end())
 
     def matchCheetahVarStart(self):
@@ -544,12 +510,10 @@ class _LowLevelParser(SourceReader):
     def getCheetahVarStartToken(self):
         """just the start token, not the enclosure"""
         match = self.matchCheetahVarStartToken()
-        assert match
         return self.readTo(match.end())
 
     def getCheetahVar(self, plain=False, skipStartToken=False):
-        """This is called when parsing inside expressions.
-        """
+        """This is called when parsing inside expressions."""
         if not skipStartToken:
             self.getCheetahVarStartToken()
         return self.getCheetahVarBody(plain=plain)
@@ -559,10 +523,8 @@ class _LowLevelParser(SourceReader):
         return self._compiler.genCheetahVar(self.getCheetahVarNameChunks(), plain=plain)
 
     def getCheetahVarNameChunks(self):
-        """
-        nameChunks = list of Cheetah $var subcomponents represented as tuples
-          [ (namemapperPart,autoCall,restOfName),
-          ]
+        """nameChunks = list of Cheetah $var subcomponents represented as tuples
+          [(namemapperPart, autoCall, restOfName), ...]
         where:
           namemapperPart = the dottedName base
           autocall = where NameMapper should use autocalling on namemapperPart
@@ -578,10 +540,11 @@ class _LowLevelParser(SourceReader):
           $a.b.c[1].d().x.y.z
 
         nameChunks is the list
-          [ ('a.b.c',True,'[1]'),
-            ('d',False,'()'),
-            ('x.y.z',True,''),
-          ]
+            [
+                ('a.b.c', True, '[1]'),
+                ('d', False, '()'),
+                ('x.y.z', True, ''),
+            ]
 
         """
         chunks = []
@@ -591,7 +554,6 @@ class _LowLevelParser(SourceReader):
             if not self.peek() in identchars + '.':
                 break
             elif self.peek() == '.':
-
                 if self.pos() + 1 < len(self) and self.peek(1) in identchars:
                     self.advance()  # discard the period as it isn't needed with NameMapper
                 else:
@@ -637,7 +599,7 @@ class _LowLevelParser(SourceReader):
                     "' was found for the '" + open + "'")
 
             c = self.peek()
-            if c in ")}]":  # get the ending enclosure and break
+            if c in ')}]':  # get the ending enclosure and break
                 assert enclosures
                 c = self.getc()
                 open = closurePairs[c]
@@ -652,7 +614,7 @@ class _LowLevelParser(SourceReader):
                             closurePairsRev[enclosures[-1][0]], c,
                         )
                     )
-            elif c in " \t\f\r\n":
+            elif c in ' \t\f\r\n':
                 addBit(self.getc())
             elif self.matchCheetahVarInExpressionStartToken():
                 startPos = self.pos()
@@ -690,9 +652,10 @@ class _LowLevelParser(SourceReader):
 
         These defVals are always strings, so (argName, defVal=None) is safe even
         with a case like (arg1, arg2=None, arg3=1234*2), which would be returned as
-        [('arg1', None),
-         ('arg2', 'None'),
-         ('arg3', '1234*2'),
+        [
+            ('arg1', None),
+            ('arg2', 'None'),
+            ('arg3', '1234*2'),
         ]
 
         This method understands *arg, and **kw
@@ -931,13 +894,10 @@ class LegacyParser(_LowLevelParser):
         super(LegacyParser, self).__init__(src)
         self.setSettingsManager(compiler)
         self._compiler = compiler
-        self.setupState()
-        self.configureParser()
-
-    def setupState(self):
         self._macros = {}
         self._macroDetails = {}
         self._openDirectivesStack = []
+        self.configureParser()
 
     def configureParser(self):
         super(LegacyParser, self).configureParser()
@@ -976,8 +936,6 @@ class LegacyParser(_LowLevelParser):
             assert callback
             self._macros[macroName] = normalizeParserVal(callback)
             self._directiveNamesAndParsers[macroName] = self.eatMacroCall
-
-    # main parse loop
 
     def parse(self, breakPoint=None, assertEmptyStack=True):
         if breakPoint:
@@ -1217,7 +1175,7 @@ class LegacyParser(_LowLevelParser):
     def eatEndDirective(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
         self.getDirectiveStartToken()
-        self.advance(3)                 # to end of 'end'
+        self.advance(len('end'))
         self.getWhiteSpace()
         pos = self.pos()
         directiveName = False
@@ -1301,7 +1259,6 @@ class LegacyParser(_LowLevelParser):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
         self.getDirectiveStartToken()
-        # self.advance()  # eat @
         decoratorExpr = self.getExpression()
         self._compiler.addDecorator(decoratorExpr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
@@ -1322,7 +1279,7 @@ class LegacyParser(_LowLevelParser):
         self._compiler._blockMetaData[methodName] = {
             'raw': rawSignature,
             'lineCol': self.getRowCol(startPos),
-            }
+        }
 
     def _eatDefOrBlock(self, directiveName):
         assert directiveName in ('def', 'block')
@@ -1444,10 +1401,6 @@ class LegacyParser(_LowLevelParser):
         else:
             argsList = []
 
-        # parserComment = ('## CHEETAH: generated from ' + signature +
-        #                 ' at line %s, col %s' % self.getRowCol(startPos)
-        #                 + '.')
-
         self.getExpression()  # throw away and unwanted crap that got added in
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         self._compiler.addSuper(argsList)
@@ -1501,7 +1454,6 @@ class LegacyParser(_LowLevelParser):
             self.getWhiteSpace(maximum=1)
             srcBlock = self.readToEOL(gobble=False)
             self.readToEOL(gobble=True)
-            # self.readToEOL(gobble=False)
         else:
             if self.peek() == ':':
                 self.advance()
@@ -1588,7 +1540,7 @@ class LegacyParser(_LowLevelParser):
             if self.peek() == ':':
                 self.advance()
             self.getWhiteSpace()
-            self.pushToOpenDirectivesStack("filter")
+            self.pushToOpenDirectivesStack('filter')
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             self._compiler.setFilter(theFilter)
 
