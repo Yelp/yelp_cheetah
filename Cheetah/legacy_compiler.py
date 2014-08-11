@@ -36,11 +36,9 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
 
-    ('commentOffset', 1, ''),
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
-    ('initialMethIndentLevel', 2, ''),
 
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
@@ -48,7 +46,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('directiveEndToken', '#', ''),
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
-    ('gettextTokens', ["_", "N_", "ngettext"], ''),
+    ('gettextTokens', ['_', 'ngettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
 
     ('future_unicode_literals', True, 'from __future__ import unicode_literals'),
@@ -105,8 +103,7 @@ class GenUtils(object):
         (Unified Dotted Notation with the SearchList).
 
         nameChunks = list of var subcomponents represented as tuples
-          [ (name,useAC,remainderOfExpr),
-          ]
+          [(name, useAC, remainderOfExpr)...]
         where:
           name = the dotted name base
           useAC = where NameMapper should use autocalling on namemapperPart
@@ -191,7 +188,7 @@ class MethodCompiler(GenUtils):
         self._methodName = methodName
         self._initialMethodComment = initialMethodComment
         self._indent = self.setting('indentationStep')
-        self._indentLev = self.setting('initialMethIndentLevel')
+        self._indentLev = 2
         self._pendingStrConstChunks = []
         self._methodSignature = None
         self._methodBodyChunks = []
@@ -218,7 +215,7 @@ class MethodCompiler(GenUtils):
         if not has_double_star_arg:
             self.addMethArg('**KWS', None)
 
-        self._indentLev = self.setting('initialMethIndentLevel')
+        self._indentLev = 2
         mainBodyChunks = self._methodBodyChunks
         self._methodBodyChunks = []
         self._addAutoSetupCode()
@@ -327,9 +324,8 @@ class MethodCompiler(GenUtils):
             if BOL < len(src):
                 self._pendingStrConstChunks[-1] = src[:BOL]
 
-    def addMethComment(self, comm):
-        offSet = self.setting('commentOffset')
-        self.addChunk('#' + ' ' * offSet + comm)
+    def addMethComment(self, comment):
+        self.addChunk('# ' + comment)
 
     def addPlaceholder(self, expr, rawPlaceholder, lineCol):
         self.addFilteredChunk(expr, rawPlaceholder, lineCol)
