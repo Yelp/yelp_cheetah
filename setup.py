@@ -3,7 +3,7 @@ from setuptools import setup, Extension
 
 setup(
     name="yelp_cheetah",
-    version='0.2.0',
+    version='0.2.1',
     description='cheetah, hacked by yelpers',
     classifiers=[
         'Intended Audience :: Developers',
