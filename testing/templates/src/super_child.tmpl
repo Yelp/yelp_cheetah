@@ -3,7 +3,8 @@
 #def foo
     #super
     This is child foo
-    #super(trans=$trans)
+    #super()
     $bar(1234)
 #end def
-#def bar(arg): #super($self, $arg)
+#def bar(arg): #super(self, arg=arg)
+#def another_def(arg): #super(arg)

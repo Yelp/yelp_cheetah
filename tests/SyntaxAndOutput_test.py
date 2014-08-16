@@ -958,43 +958,43 @@ class DefDirective(OutputTest):
 
     def test3(self):
         """#def with argstring, gobble WS"""
-        self.verify("  #def testMeth($a=999)   \n1234-$a\n  #end def\n$testMeth()",
+        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$testMeth()",
                     "1234-999\n")
 
     def test4(self):
         """#def with argstring, gobble WS, string used in call"""
-        self.verify("  #def testMeth($a=999)   \n1234-$a\n  #end def\n$testMeth('ABC')",
+        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$testMeth('ABC')",
                     "1234-ABC\n")
 
     def test5(self):
         """#def with argstring, gobble WS, list used in call"""
-        self.verify("  #def testMeth($a=999)   \n1234-$a\n  #end def\n$testMeth([1,2,3])",
+        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$testMeth([1,2,3])",
                     "1234-[1, 2, 3]\n")
 
     def test6(self):
         """#def with 2 args, gobble WS, list used in call"""
-        self.verify("  #def testMeth($a, $b='default')   \n1234-$a$b\n  #end def\n$testMeth([1,2,3])",
+        self.verify("  #def testMeth(a, b='default')   \n1234-$a$b\n  #end def\n$testMeth([1,2,3])",
                     "1234-[1, 2, 3]default\n")
 
     def test7(self):
         """#def with *args, gobble WS"""
-        self.verify("  #def testMeth($*args)   \n1234-$args\n  #end def\n$testMeth()",
+        self.verify("  #def testMeth(*args)   \n1234-$args\n  #end def\n$testMeth()",
                     "1234-()\n")
 
     def test8(self):
         """#def with **KWs, gobble WS"""
-        self.verify("  #def testMeth($**KWs)   \n1234-$KWs\n  #end def\n$testMeth()",
+        self.verify("  #def testMeth(**KWs)   \n1234-$KWs\n  #end def\n$testMeth()",
                     "1234-{}\n")
 
     def test9(self):
         """#def with *args + **KWs, gobble WS"""
-        self.verify("  #def testMeth($*args, $**KWs)   \n1234-$args-$KWs\n  #end def\n$testMeth()",
+        self.verify("  #def testMeth(*args, **KWs)   \n1234-$args-$KWs\n  #end def\n$testMeth()",
                     "1234-()-{}\n")
 
     def test10(self):
         """#def with *args + **KWs, gobble WS"""
         self.verify(
-            "  #def testMeth($*args, $**KWs)   \n1234-$args-$KWs['a']\n  #end def\n$testMeth(1,2, a=1)",
+            "  #def testMeth(*args, **KWs)   \n1234-$args-$KWs['a']\n  #end def\n$testMeth(1,2, a=1)",
             "1234-(1, 2)-1\n")
 
     def test11(self):
@@ -1029,8 +1029,8 @@ class DefDirective(OutputTest):
 
     def test19(self):
         """#def that extends over two lines with arguments"""
-        self.verify("#def testMeth($arg=1234,\n"
-                    + "  $arg2=5678)\n"
+        self.verify("#def testMeth(arg=1234,\n"
+                    + "  arg2=5678)\n"
                     + "$arg $arg2\n"
                     + "#end def\n"
                     + "$testMeth()",
@@ -1104,12 +1104,12 @@ class BlockDirective(OutputTest):
         Because blocks can be reused in multiple parts of the template arguments
         (!!with defaults!!) can be given."""
 
-        self.verify("  #block testBlock($a=999)   \n1234-$a\n  #end block  ",
+        self.verify("  #block testBlock(a=999)   \n1234-$a\n  #end block  ",
                     "1234-999\n")
 
     def test4(self):
         """#block with 2 args, gobble WS"""
-        self.verify("  #block testBlock($a=999, $b=444)   \n1234-$a$b\n  #end block  ",
+        self.verify("  #block testBlock(a=999, b=444)   \n1234-$a$b\n  #end block  ",
                     "1234-999444\n")
 
     def test5(self):
@@ -1164,7 +1164,7 @@ inner
     def test13(self):
         """single line #block with an arg """
         self.verify(
-            "#block testMeth($arg='This is my block'): $arg",
+            "#block testMeth(arg='This is my block'): $arg",
             "This is my block")
 
     def test14(self):
@@ -1856,7 +1856,7 @@ def test_super_directive():
     assert ret.strip() == (
         'this is base foo    This is child foo\n'
         'this is base foo    super-1234\n'
-        ' super-99'
+        ' super-99 super-20'
     )
 
 
