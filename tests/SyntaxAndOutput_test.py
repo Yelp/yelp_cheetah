@@ -1027,24 +1027,9 @@ class DefDirective(OutputTest):
             "#def testMeth    : \\$aFunc($anInt)\n- $testMeth() -",
             "- $aFunc(1) -")
 
-    def test16(self):
-        """multiline #def with $ on methodName"""
-        self.verify("#def $testMeth\n1234\n#end def\n$testMeth()",
-                    "1234\n")
-
-    def test17(self):
-        """single line #def with $ on methodName"""
-        self.verify("#def $testMeth:1234\n$testMeth()",
-                    "1234")
-
-    def test18(self):
-        """single line #def with an argument"""
-        self.verify("#def $testMeth($arg=1234):$arg\n$testMeth()",
-                    "1234")
-
     def test19(self):
         """#def that extends over two lines with arguments"""
-        self.verify("#def $testMeth($arg=1234,\n"
+        self.verify("#def testMeth($arg=1234,\n"
                     + "  $arg2=5678)\n"
                     + "$arg $arg2\n"
                     + "#end def\n"
@@ -1072,19 +1057,19 @@ class DecoratorDirective(OutputTest):
 
         self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
                     + "#@dummydecorator"
-                    + "\n#def $testMeth():1234\n$testMeth()",
+                    + "\n#def testMeth():1234\n$testMeth()",
                     "1234")
 
         self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
                     + "#@dummydecorator"
-                    + "\n#block $testMeth():1234",
+                    + "\n#block testMeth():1234",
                     "1234")
 
         with pytest.raises(ParseError):
             self.verify(
                 "#from tests.SyntaxAndOutput_test import dummydecorator\n"
                 + "#@dummydecorator\n sdf"
-                + "\n#def $testMeth():1234\n$testMeth()",
+                + "\n#def testMeth():1234\n$testMeth()",
                 "1234")
 
     def test2(self):
@@ -1176,33 +1161,22 @@ inner
             r"#block testMeth  : \$aFunc( $anInt )",
             "$aFunc( 1 )")
 
-    def test11(self):
-        """multiline #block $ on argstring"""
-        self.verify("#block $testBlock\n1234\n#end block",
-                    "1234\n")
-
-    def test12(self):
-        """single line #block with $ on methodName """
-        self.verify(
-            "#block $testMeth: This is my block",
-            "This is my block")
-
     def test13(self):
         """single line #block with an arg """
         self.verify(
-            "#block $testMeth($arg='This is my block'): $arg",
+            "#block testMeth($arg='This is my block'): $arg",
             "This is my block")
 
     def test14(self):
         """single line #block with None for content"""
         self.verify(
-            """#block $testMeth: $None\ntest $testMeth()-""",
+            """#block testMeth: $None\ntest $testMeth()-""",
             "test -")
 
     def test15(self):
         """single line #block with nothing for content"""
         self.verify(
-            """#block $testMeth: \nfoo\n#end block\ntest $testMeth()-""",
+            """#block testMeth: \nfoo\n#end block\ntest $testMeth()-""",
             "foo\ntest foo\n-")
 
 

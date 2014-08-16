@@ -1290,7 +1290,7 @@ class LegacyParser(_LowLevelParser):
         self.advance(len(directiveName))
         self.getWhiteSpace()
         if self.matchCheetahVarStart():
-            self.getCheetahVarStartToken()
+            raise ParseError(self, 'use #def func() instead of #def $func()')
         methodName = self.getIdentifier()
         self.getWhiteSpace()
         if self.peek() == '(':

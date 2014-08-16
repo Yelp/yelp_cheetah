@@ -414,3 +414,22 @@ def test_malformed_compiler_settings():
             '==\n'
             '#end compiler-settings\n'
         )
+
+
+def test_def_with_dollar_sign_invalid():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'use #def func() instead of #def $func()\n'
+        'Line 1, column 6\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#def $foo()\n'
+        '          ^\n'
+        '2   |#end def\n'
+    ):
+        compile_to_class(
+            '#def $foo()\n'
+            '#end def\n'
+        )
