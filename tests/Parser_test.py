@@ -333,8 +333,7 @@ def test_invalid_syntax_in_super():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        "Long-form placeholders - ${}, $(), $[], etc. are not valid inside "
-        "expressions. Use them in top-level $placeholders only.\n"
+        '$ is not allowed here.\n'
         'Line 1, column 12\n'
         '\n'
         'Line|Cheetah Code\n'

@@ -6,7 +6,7 @@ from Cheetah.compile import compile_to_class
 def test_Chep_2_Conditionalized_Import_Behavior_InlineImport():
     """Verify (new) inline import behavior works"""
     template = '''
-        #def funky($s)
+        #def funky(s)
             #try
                 #import os.path
             #except ImportError

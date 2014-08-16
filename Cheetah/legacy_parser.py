@@ -689,21 +689,15 @@ class _LowLevelParser(SourceReader):
                 argList.next()
                 onDefVal = False
                 self.advance()
-            elif self.startswith(self.cheetahVarStartToken) and not onDefVal:
-                self.advance(len(self.cheetahVarStartToken))
+            elif self.startswith(self.cheetahVarStartToken):
+                raise ParseError(self, '$ is not allowed here.')
             elif self.matchIdentifier() and not onDefVal:
                 argList.add_argument(self.getIdentifier())
             elif onDefVal:
-                if self.matchCheetahVarInExpressionStartToken():
-                    token = self.getCheetahVar()
-                elif self.matchCheetahVarStart():
-                    # it has syntax that is only valid at the top level
-                    self._raiseErrorAboutInvalidCheetahVarSyntaxInExpr()
-                else:
-                    token = self.getPyToken()
-                    if token in ('{', '(', '['):
-                        self.rev()
-                        token = self.getExpression(enclosed=True)
+                token = self.getPyToken()
+                if token in ('{', '(', '['):
+                    self.rev()
+                    token = self.getExpression(enclosed=True)
                 argList.add_default(token)
             elif c == '*' and not onDefVal:
                 varName = self.getc()
