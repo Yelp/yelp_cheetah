@@ -1268,12 +1268,7 @@ class LegacyParser(_LowLevelParser):
         self._eatDefOrBlock('def')
 
     def eatBlock(self):
-        startPos = self.pos()
-        methodName, rawSignature = self._eatDefOrBlock('block')
-        self._compiler._blockMetaData[methodName] = {
-            'raw': rawSignature,
-            'lineCol': self.getRowCol(startPos),
-        }
+        self._eatDefOrBlock('block')
 
     def _eatDefOrBlock(self, directiveName):
         assert directiveName in ('def', 'block')
@@ -1297,7 +1292,6 @@ class LegacyParser(_LowLevelParser):
 
         if self.matchColonForSingleLineShortFormDirective():
             self.getc()
-            rawSignature = self[startPos:endOfFirstLinePos]
             self._eatSingleLineDef(
                 methodName=methodName,
                 argsList=argsList,
@@ -1315,15 +1309,12 @@ class LegacyParser(_LowLevelParser):
             if self.peek() == ':':
                 self.getc()
             self.pushToOpenDirectivesStack(directiveName)
-            rawSignature = self[startPos:self.pos()]
             self._eatMultiLineDef(
                 methodName=methodName,
                 argsList=argsList,
                 startPos=startPos,
                 isLineClearToStartToken=isLineClearToStartToken,
             )
-
-        return methodName, rawSignature
 
     def _eatMultiLineDef(self, methodName, argsList, startPos, isLineClearToStartToken=False):
         self.getExpression()  # slurp up any garbage left at the end
