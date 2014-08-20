@@ -30,7 +30,7 @@ def render_tmpl(template_source):
 
 def test_def_only_filter_once():
     output = render_tmpl("""
-        #def print_foo: $foo
+        #def print_foo(): $foo
 
         $print_foo()
     """)
@@ -44,7 +44,7 @@ def test_transactional_filtering_naive_call():
     # inside the #call block, the function is run, and then the return
     # value (still containing $foo) is filtered again
     output = render_tmpl("""
-        #def print_foo: $foo
+        #def print_foo(): $foo
 
         #call $identity # [$print_foo()] #end call
     """)

@@ -432,3 +432,60 @@ def test_def_with_dollar_sign_invalid():
             '#def $foo()\n'
             '#end def\n'
         )
+
+
+def test_def_without_arglist_invalid():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        '#def must contain an argspec (at least ())\n'
+        'Line 1, column 9\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#def foo\n'
+        '             ^\n'
+        '2   |#end def\n'
+    ):
+        compile_to_class(
+            '#def foo\n'
+            '#end def\n'
+        )
+
+
+def test_block_with_an_argspec_invalid():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        '#block must not have an argspec, did you mean #def?\n'
+        'Line 1, column 11\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#block foo(bar)\n'
+        '               ^\n'
+        '2   |#end block\n'
+    ):
+        compile_to_class(
+            '#block foo(bar)\n'
+            '#end block\n'
+        )
+
+
+def test_self_in_arglist_invalid():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Do not specify `self` in an arglist, it is assumed\n'
+        'Line 1, column 10\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#def foo(self, bar)\n'
+        '              ^\n'
+        '2   |#end def\n'
+    ):
+        compile_to_class(
+            '#def foo(self, bar)\n'
+            '#end def\n'
+        )

@@ -742,7 +742,7 @@ class ReturnDirective(OutputTest):
         self.verify("""1
 $str($test()-6)
 3
-#def test
+#def test()
 #if 1
 #return (3   *2)  \
   + 2
@@ -758,7 +758,7 @@ aoeuoaeu
         self.verify("""1
 $str($test()[1])
 3
-#def test
+#def test()
 #if 1
 #return '123'
 #else
@@ -773,7 +773,7 @@ aoeuoaeu
         self.verify("""1
 $str($test()[1])
 3
-#def test
+#def test()
 1.5
 #if 1
 #return '123'
@@ -791,7 +791,7 @@ class YieldDirective(OutputTest):
 
         src1 = """#for i in range(10)\n#yield i\n#end for"""
         src2 = (
-            "#def iterator\n"
+            "#def iterator()\n"
             "#for i in range(10)\n#yield i\n#end for\n"
             "#end def\n"
             "#for i in $iterator()\n$i#end for"
@@ -941,19 +941,18 @@ class AttrDirective(OutputTest):
 class DefDirective(OutputTest):
 
     def test1(self):
-        """#def without argstring"""
-        self.verify("#def testMeth\n1234\n#end def\n$testMeth()",
+        self.verify("#def testMeth()\n1234\n#end def\n$testMeth()",
                     "1234\n")
 
-        self.verify("#def testMeth ## comment\n1234\n#end def\n$testMeth()",
+        self.verify("#def testMeth() ## comment\n1234\n#end def\n$testMeth()",
                     "1234\n")
 
-        self.verify("#def testMeth: ## comment\n1234\n#end def\n$testMeth()",
+        self.verify("#def testMeth(): ## comment\n1234\n#end def\n$testMeth()",
                     "1234\n")
 
     def test2(self):
-        """#def without argstring, gobble WS"""
-        self.verify("   #def testMeth  \n1234\n    #end def   \n$testMeth()",
+        """#def, gobble WS"""
+        self.verify("   #def testMeth()  \n1234\n    #end def   \n$testMeth()",
                     "1234\n")
 
     def test3(self):
@@ -1000,31 +999,31 @@ class DefDirective(OutputTest):
     def test11(self):
         """single line #def with extra WS"""
         self.verify(
-            "#def testMeth: aoeuaoeu\n- $testMeth() -",
+            "#def testMeth(): aoeuaoeu\n- $testMeth() -",
             "- aoeuaoeu -")
 
     def test12(self):
         """single line #def with extra WS and nested $placeholders"""
         self.verify(
-            "#def testMeth: $anInt $aFunc(1234)\n- $testMeth() -",
+            "#def testMeth(): $anInt $aFunc(1234)\n- $testMeth() -",
             "- 1 1234 -")
 
     def test13(self):
         """single line #def escaped $placeholders"""
         self.verify(
-            "#def testMeth: \\$aFunc(\\$anInt)\n- $testMeth() -",
+            "#def testMeth(): \\$aFunc(\\$anInt)\n- $testMeth() -",
             "- $aFunc($anInt) -")
 
     def test14(self):
         """single line #def 1 escaped $placeholders"""
         self.verify(
-            "#def testMeth: \\$aFunc($anInt)\n- $testMeth() -",
+            "#def testMeth(): \\$aFunc($anInt)\n- $testMeth() -",
             "- $aFunc(1) -")
 
     def test15(self):
         """single line #def 1 escaped $placeholders + more WS"""
         self.verify(
-            "#def testMeth    : \\$aFunc($anInt)\n- $testMeth() -",
+            "#def testMeth    (): \\$aFunc($anInt)\n- $testMeth() -",
             "- $aFunc(1) -")
 
     def test19(self):
@@ -1035,16 +1034,6 @@ class DefDirective(OutputTest):
                     + "#end def\n"
                     + "$testMeth()",
                     "1234 5678\n")
-
-
-def test_def_with_self_as_argument():
-    cls = compile_to_class(
-        '#def foo(self, bar)\n'
-        '$bar\n'
-        '#end def\n'
-        '$foo("baz")\n',
-    )
-    assert cls().respond().strip() == 'baz'
 
 
 class DecoratorDirective(OutputTest):
@@ -1062,7 +1051,7 @@ class DecoratorDirective(OutputTest):
 
         self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
                     + "#@dummydecorator"
-                    + "\n#block testMeth():1234",
+                    + "\n#block testMeth:1234",
                     "1234")
 
         with pytest.raises(ParseError):
@@ -1077,7 +1066,7 @@ class DecoratorDirective(OutputTest):
         self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
                     + "#@dummydecorator\n"
                     + "#@dummydecorator\n"
-                    + "#def testMeth\n"
+                    + "#def testMeth()\n"
                     + "1234\n"
                     "#end def\n"
                     "$testMeth()",
@@ -1086,7 +1075,7 @@ class DecoratorDirective(OutputTest):
 
 class BlockDirective(OutputTest):
     def test1(self):
-        """#block without argstring"""
+        """#block"""
         self.verify("#block testBlock\n1234\n#end block",
                     "1234\n")
 
@@ -1094,23 +1083,9 @@ class BlockDirective(OutputTest):
                     "1234\n")
 
     def test2(self):
-        """#block without argstring, gobble WS"""
+        """#block, gobble WS"""
         self.verify("  #block testBlock   \n1234\n  #end block  ",
                     "1234\n")
-
-    def test3(self):
-        """#block with argstring, gobble WS
-
-        Because blocks can be reused in multiple parts of the template arguments
-        (!!with defaults!!) can be given."""
-
-        self.verify("  #block testBlock(a=999)   \n1234-$a\n  #end block  ",
-                    "1234-999\n")
-
-    def test4(self):
-        """#block with 2 args, gobble WS"""
-        self.verify("  #block testBlock(a=999, b=444)   \n1234-$a$b\n  #end block  ",
-                    "1234-999444\n")
 
     def test5(self):
         """#block with 2 nested blocks
@@ -1160,12 +1135,6 @@ inner
         self.verify(
             r"#block testMeth  : \$aFunc( $anInt )",
             "$aFunc( 1 )")
-
-    def test13(self):
-        """single line #block with an arg """
-        self.verify(
-            "#block testMeth(arg='This is my block'): $arg",
-            "This is my block")
 
     def test14(self):
         """single line #block with None for content"""
@@ -2104,9 +2073,9 @@ def test_nested_defs_with_calls():
         'Arg fn2: $arg\n'
         '#end def\n'
         '\n'
-        '#def foo\n'
+        '#def foo()\n'
         '    #call $callfn1\n'
-        '        #def bar\n'
+        '        #def bar()\n'
         '            #call $callfn2\n'
         '                val\n'
         '            #end call\n'
