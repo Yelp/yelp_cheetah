@@ -665,10 +665,6 @@ class _LowLevelParser(SourceReader):
         argList = ArgList()
         onDefVal = False
 
-        # @@TR: this settings mangling should be removed
-        useNameMapper_orig = self.setting('useNameMapper')
-        self.setSetting('useNameMapper', False)
-
         while True:
             if self.atEnd():
                 raise ParseError(
@@ -710,7 +706,6 @@ class _LowLevelParser(SourceReader):
             else:
                 raise ParseError(self, 'Unexpected character.')
 
-        self.setSetting('useNameMapper', useNameMapper_orig)  # @@TR: see comment above
         return argList.merge()
 
     def getExpressionParts(
