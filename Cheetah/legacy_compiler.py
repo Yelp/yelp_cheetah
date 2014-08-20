@@ -605,7 +605,6 @@ class ClassCompiler(GenUtils):
         self._baseClass = 'Template'
         # printed after methods in the gen class def:
         self._generatedAttribs = []
-        self._blockMetaData = {}
         methodCompiler = self._spawnMethodCompiler(
             mainMethodName,
             '## CHEETAH: main method generated for this template'
