@@ -234,12 +234,12 @@ useDottedNotation = True
 #end def
 
 
-#def returning_function
+#def returning_function()
     #return 5
 #end def
 
 
-#def try_raise_finally_func
+#def try_raise_finally_func()
     #try
         #raise AssertionError("foo")
     #except AssertionError
@@ -252,20 +252,20 @@ useDottedNotation = True
 #end def
 
 
-#def spacer
+#def spacer()
    #super()
    after
 #end def
 
 
-#def gen
+#def gen()
     #yield 1
     #yield 2
     #yield 3
 #end def
 
 #@contextlib.contextmanager
-#def ctx
+#def ctx()
     before
     #yield
     after

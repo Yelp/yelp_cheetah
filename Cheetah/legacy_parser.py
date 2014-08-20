@@ -1277,11 +1277,26 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(self, 'use #def func() instead of #def $func()')
         methodName = self.getIdentifier()
         self.getWhiteSpace()
-        if self.peek() == '(':
+
+        if directiveName == 'block' and self.peek() == '(':
+            raise ParseError(
+                self, '#block must not have an argspec, did you mean #def?',
+            )
+
+        if directiveName == 'def' and self.peek() != '(':
+            raise ParseError(self, '#def must contain an argspec (at least ())')
+
+        if directiveName == 'def':
+            arglist_position = self.pos()
             argsList = self.getDefArgList()
-            self.advance()              # past the closing ')'
+            self.advance()  # Past closing ')'
             if argsList and argsList[0][0] == 'self':
-                del argsList[0]
+                # So the exception points at the right place
+                self.setPos(arglist_position + 1)
+                raise ParseError(
+                    self,
+                    'Do not specify `self` in an arglist, it is assumed',
+                )
         else:
             argsList = []
 
