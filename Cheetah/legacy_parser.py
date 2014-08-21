@@ -1241,7 +1241,7 @@ class LegacyParser(_LowLevelParser):
         self.advance(len('attr'))
         self.getWhiteSpace()
         if self.matchCheetahVarStart():
-            self.getCheetahVarStartToken()
+            raise ParseError(self, '#attr directive must not contain `$`')
         attribName = self.getIdentifier()
         self.getWhiteSpace()
         self.getAssignmentOperator()

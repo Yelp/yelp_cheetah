@@ -905,29 +905,29 @@ class AttrDirective(OutputTest):
 
     def test1(self):
         """#attr with int"""
-        self.verify("#attr $test = 1234\n$test",
+        self.verify("#attr test = 1234\n$test",
                     "1234")
 
     def test2(self):
         """#attr with string"""
-        self.verify("#attr $test = 'blarg'\n$test",
+        self.verify("#attr test = 'blarg'\n$test",
                     "blarg")
 
     def test3(self):
         """#attr with expression"""
-        self.verify("#attr $test = 'blarg'.upper()*2\n$test",
+        self.verify("#attr test = 'blarg'.upper()*2\n$test",
                     "BLARGBLARG")
 
     def test4(self):
         """#attr with string + WS
         Should gobble"""
-        self.verify("     #attr $test = 'blarg'   \n$test",
+        self.verify("     #attr test = 'blarg'   \n$test",
                     "blarg")
 
     def test5(self):
         """#attr with string + WS + leading text
         Shouldn't gobble"""
-        self.verify("  --   #attr $test = 'blarg'   \n$test",
+        self.verify("  --   #attr test = 'blarg'   \n$test",
                     "  --   \nblarg")
 
     def test_attr_with_unicode(self):
