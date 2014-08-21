@@ -227,14 +227,29 @@ def test_parse_error_on_attr_with_var():
         ParseError,
         '\n\n'
         'Invalid #attr directive. It should contain simple Python literals.\n'
-        'Line 1, column 18\n'
+        'Line 1, column 13\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
-        '1   |#attr $foo = $bar\n'
-        '                      ^\n'
+        '1   |#attr foo = $bar\n'
+        '                 ^\n'
     ):
-        compile_to_class('#attr $foo = $bar\n')
+        compile_to_class('#attr foo = $bar\n')
+
+
+def test_parse_error_on_attr_with_dollar_sign():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        '#attr directive must not contain `$`\n'
+        'Line 1, column 7\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#attr $foo = "hai"\n'
+        '           ^\n'
+    ):
+        compile_to_class('#attr $foo = "hai"\n')
 
 
 def test_invalid_line_continuation():
@@ -488,4 +503,44 @@ def test_self_in_arglist_invalid():
         compile_to_class(
             '#def foo(self, bar)\n'
             '#end def\n'
+        )
+
+
+def test_set_with_dollar_signs_raises():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'lvalue of #set cannot contain `$`\n'
+        'Line 1, column 6\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#set $foo = 1\n'
+        '          ^\n'
+    ):
+        compile_to_class('#set $foo = 1\n')
+
+
+def test_macros_with_arguments():
+    def herp_macro(src, foo):
+        return src + foo  # pragma: no cover
+
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Macro arguments must not contain a `$`\n'
+        'Line 1, column 13\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#herp_macro $foo\n'
+        '                 ^\n'
+        '2   |src\n'
+        '3   |#end herp_macro\n'
+    ):
+        compile_to_class(
+            '#herp_macro $foo\n'
+            'src\n'
+            '#end herp_macro\n',
+            settings={'macroDirectives': {'herp_macro': herp_macro}},
         )

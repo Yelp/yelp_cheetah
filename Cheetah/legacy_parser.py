@@ -64,7 +64,7 @@ closurePairsRev = {'(': ')', '[': ']', '{': '}'}
 
 
 # Used for #set global
-Components = collections.namedtuple('Components', ['LVALUE', 'OP', 'RVALUE'])
+Components = collections.namedtuple('Components', ['lvalue', 'op', 'rvalue'])
 
 
 tripleQuotedStringREs = {}
@@ -827,6 +827,17 @@ class _LowLevelParser(SourceReader):
             pyTokensToBreakAt=pyTokensToBreakAt,
             useNameMapper=useNameMapper))
 
+    def get_python_expression(self, failure_msg, **kwargs):
+        """Get an expression that should not contain cheetah variables.
+        Raises a ParseError with `failure_msg` on failure.
+        """
+        expr_pos = self.pos()
+        expr = self.getExpression(**kwargs)
+        if 'VFN(' in expr or 'VFFSL(' in expr:
+            self.setPos(expr_pos)
+            raise ParseError(self, failure_msg)
+        return expr
+
     def _raiseErrorAboutInvalidCheetahVarSyntaxInExpr(self):
         match = self.matchCheetahVarStart()
         groupdict = match.groupdict()
@@ -1230,17 +1241,15 @@ class LegacyParser(_LowLevelParser):
         self.advance(len('attr'))
         self.getWhiteSpace()
         if self.matchCheetahVarStart():
-            self.getCheetahVarStartToken()
+            raise ParseError(self, '#attr directive must not contain `$`')
         attribName = self.getIdentifier()
         self.getWhiteSpace()
         self.getAssignmentOperator()
-        expr = self.getExpression()
-        if 'VFN(' in expr or 'VFFSL(' in expr:
-            raise ParseError(
-                self,
-                'Invalid #attr directive. '
-                'It should contain simple Python literals.'
-            )
+        self.getWhiteSpace()
+        expr = self.get_python_expression(
+            'Invalid #attr directive. '
+            'It should contain simple Python literals.'
+        )
         self._compiler.addAttribute(attribName, expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 
@@ -1416,14 +1425,17 @@ class LegacyParser(_LowLevelParser):
             self.getWhiteSpace()
             style = SET_MODULE
 
-        LVALUE = self.getExpression(pyTokensToBreakAt=assignmentOps, useNameMapper=False).strip()
-        OP = self.getAssignmentOperator()
-        RVALUE = self.getExpression()
-        expr = LVALUE + ' ' + OP + ' ' + RVALUE.strip()
+        lvalue = self.get_python_expression(
+            'lvalue of #set cannot contain `$`',
+            pyTokensToBreakAt=assignmentOps,
+        ).strip()
+        op = self.getAssignmentOperator()
+        rvalue = self.getExpression()
+        expr = lvalue + ' ' + op + ' ' + rvalue.strip()
 
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
-        expr_components = Components(LVALUE, OP, RVALUE)
+        expr_components = Components(lvalue, op, rvalue)
         self._compiler.addSet(expr, expr_components, style)
 
     def eatSlurp(self):
@@ -1440,8 +1452,9 @@ class LegacyParser(_LowLevelParser):
         macro = self._macros[macroName]
 
         self.getWhiteSpace()
-        args = self.getExpression(
-            useNameMapper=False, pyTokensToBreakAt=[':']
+        args = self.get_python_expression(
+            'Macro arguments must not contain a `$`',
+            pyTokensToBreakAt=[':'],
         ).strip()
 
         if self.matchColonForSingleLineShortFormDirective():
