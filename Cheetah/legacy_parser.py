@@ -827,6 +827,17 @@ class _LowLevelParser(SourceReader):
             pyTokensToBreakAt=pyTokensToBreakAt,
             useNameMapper=useNameMapper))
 
+    def get_python_expression(self, failure_msg, **kwargs):
+        """Get an expression that should not contain cheetah variables.
+        Raises a ParseError with `failure_msg` on failure.
+        """
+        expr_pos = self.pos()
+        expr = self.getExpression(**kwargs)
+        if 'VFN(' in expr or 'VFFSL(' in expr:
+            self.setPos(expr_pos)
+            raise ParseError(self, failure_msg)
+        return expr
+
     def _raiseErrorAboutInvalidCheetahVarSyntaxInExpr(self):
         match = self.matchCheetahVarStart()
         groupdict = match.groupdict()
@@ -1234,13 +1245,11 @@ class LegacyParser(_LowLevelParser):
         attribName = self.getIdentifier()
         self.getWhiteSpace()
         self.getAssignmentOperator()
-        expr = self.getExpression()
-        if 'VFN(' in expr or 'VFFSL(' in expr:
-            raise ParseError(
-                self,
-                'Invalid #attr directive. '
-                'It should contain simple Python literals.'
-            )
+        self.getWhiteSpace()
+        expr = self.get_python_expression(
+            'Invalid #attr directive. '
+            'It should contain simple Python literals.'
+        )
         self._compiler.addAttribute(attribName, expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 
@@ -1416,12 +1425,10 @@ class LegacyParser(_LowLevelParser):
             self.getWhiteSpace()
             style = SET_MODULE
 
-        lvalue_pos = self.pos()
-        lvalue = self.getExpression(pyTokensToBreakAt=assignmentOps).strip()
-        if 'VFN(' in lvalue or 'VFFSL' in lvalue:
-            self.setPos(lvalue_pos)
-            raise ParseError(self, 'lvalue of #set cannot contain `$`')
-
+        lvalue = self.get_python_expression(
+            'lvalue of #set cannot contain `$`',
+            pyTokensToBreakAt=assignmentOps,
+        ).strip()
         op = self.getAssignmentOperator()
         rvalue = self.getExpression()
         expr = lvalue + ' ' + op + ' ' + rvalue.strip()
@@ -1445,14 +1452,10 @@ class LegacyParser(_LowLevelParser):
         macro = self._macros[macroName]
 
         self.getWhiteSpace()
-        args_pos = self.pos()
-        args = self.getExpression(pyTokensToBreakAt=[':']).strip()
-        if 'VFN(' in args or 'VFFSL(' in args:
-            self.setPos(args_pos)
-            raise ParseError(
-                self,
-                'Macro arguments must not contain a `$`',
-            )
+        args = self.get_python_expression(
+            'Macro arguments must not contain a `$`',
+            pyTokensToBreakAt=[':'],
+        ).strip()
 
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :

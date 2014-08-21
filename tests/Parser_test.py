@@ -227,12 +227,12 @@ def test_parse_error_on_attr_with_var():
         ParseError,
         '\n\n'
         'Invalid #attr directive. It should contain simple Python literals.\n'
-        'Line 1, column 18\n'
+        'Line 1, column 14\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#attr $foo = $bar\n'
-        '                      ^\n'
+        '                  ^\n'
     ):
         compile_to_class('#attr $foo = $bar\n')
 
