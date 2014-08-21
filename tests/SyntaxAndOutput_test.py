@@ -1178,8 +1178,6 @@ class SilentDirective(OutputTest):
 class SetDirective(OutputTest):
     def test1(self):
         """simple #set"""
-        self.verify("#set $testVar = 'blarg'\n$testVar",
-                    "blarg")
         self.verify("#set testVar = 'blarg'\n$testVar",
                     "blarg")
 
@@ -1188,17 +1186,12 @@ class SetDirective(OutputTest):
 
     def test2(self):
         """simple #set with no WS between operands"""
-        self.verify("#set       $testVar='blarg'",
+        self.verify("#set       testVar='blarg'",
                     "")
-
-    def test3(self):
-        """#set + use of var"""
-        self.verify("#set $testVar = 'blarg'\n$testVar",
-                    "blarg")
 
     def test5(self):
         """#set with a dictionary"""
-        self.verify("""#set $testDict = {'one':'one1','two':'two2','three':'three3'}
+        self.verify("""#set testDict = {'one':'one1','two':'two2','three':'three3'}
 $testDict['one']
 $testDict['two']""",
                     "one1\ntwo2")
@@ -1206,27 +1199,27 @@ $testDict['two']""",
     def test6(self):
         """#set with string, then used in #if block"""
 
-        self.verify("""#set $test='a string'\n#if $test#blarg#end if""",
+        self.verify("""#set test='a string'\n#if $test#blarg#end if""",
                     "blarg")
 
     def test7(self):
         """simple #set, gobble WS"""
-        self.verify("   #set $testVar = 'blarg'   ",
+        self.verify("   #set testVar = 'blarg'   ",
                     "")
 
     def test8(self):
         """simple #set, don't gobble WS"""
-        self.verify("  #set $testVar = 'blarg'#---",
+        self.verify("  #set testVar = 'blarg'#---",
                     "  ---")
 
     def test9(self):
         """simple #set with a list"""
-        self.verify("   #set $testVar = [1, 2, 3]  \n$testVar",
+        self.verify("   #set testVar = [1, 2, 3]  \n$testVar",
                     "[1, 2, 3]")
 
     def test10(self):
         """simple #set global with a list"""
-        self.verify("   #set global $testVar = [1, 2, 3]  \n$testVar",
+        self.verify("   #set global testVar = [1, 2, 3]  \n$testVar",
                     "[1, 2, 3]")
 
     def test14(self):
@@ -1235,7 +1228,7 @@ $testDict['two']""",
             '#compiler-settings\n'
             'useNameMapper = 0\n'
             '#end compiler-settings\n'
-            '#set $testVar = 1\n'
+            '#set testVar = 1\n'
             '$testVar',
             '1'
         )
@@ -1259,21 +1252,15 @@ $testDict['two']""",
         """#set with i,j=list style assignment"""
         self.verify("""#set i,j = [1,2]\n$i$j""",
                     "12")
-        self.verify("""#set $i,$j = [1,2]\n$i$j""",
-                    "12")
 
     def test19(self):
         """#set with (i,j)=list style assignment"""
         self.verify("""#set (i,j) = [1,2]\n$i$j""",
                     "12")
-        self.verify("""#set ($i,$j) = [1,2]\n$i$j""",
-                    "12")
 
     def test20(self):
         """#set with i, (j,k)=list style assignment"""
         self.verify("""#set i, (j,k) = [1,(2,3)]\n$i$j$k""",
-                    "123")
-        self.verify("""#set $i, ($j,$k) = [1,(2,3)]\n$i$j$k""",
                     "123")
 
 
@@ -1444,21 +1431,21 @@ def test_simple_psp():
 class WhileDirective(OutputTest):
     def test1(self):
         """simple #while with a counter"""
-        self.verify("#set $i = 0\n#while $i < 5\n$i#slurp\n#set $i += 1\n#end while",
+        self.verify("#set i = 0\n#while $i < 5\n$i#slurp\n#set i += 1\n#end while",
                     "01234")
 
 
 class ContinueDirective(OutputTest):
     def test1(self):
         """#continue with a #while"""
-        self.verify("""#set $i = 0
+        self.verify("""#set i = 0
 #while $i < 5
 #if $i == 3
-  #set $i += 1
+  #set i += 1
   #continue
 #end if
 $i#slurp
-#set $i += 1
+#set i += 1
 #end while""",
                     "0124")
 
@@ -1476,13 +1463,13 @@ $i#slurp
 class BreakDirective(OutputTest):
     def test1(self):
         """#break with a #while"""
-        self.verify("""#set $i = 0
+        self.verify("""#set i = 0
 #while $i < 5
 #if $i == 3
   #break
 #end if
 $i#slurp
-#set $i += 1
+#set i += 1
 #end while""",
                     "012")
 
@@ -1577,19 +1564,19 @@ class AssertDirective(OutputTest):
     def test1(self):
         """simple #assert
         """
-        self.verify("#set $x = 1234\n#assert $x == 1234",
+        self.verify("#set x = 1234\n#assert $x == 1234",
                     "")
 
     def test2(self):
         """simple #assert that fails
         """
         with pytest.raises(AssertionError):
-            self.verify('#set $x = 1234\n#assert $x == 999', '')
+            self.verify('#set x = 1234\n#assert $x == 999', '')
 
     def test3(self):
         """simple #assert with WS
         """
-        self.verify("#set $x = 1234\n   #assert $x == 1234   ",
+        self.verify("#set x = 1234\n   #assert $x == 1234   ",
                     "")
 
 
@@ -1750,12 +1737,12 @@ $anInt
     def test2(self):
         """overriding the directiveStartToken
         """
-        self.verify("""#set $x = 1234
+        self.verify("""#set x = 1234
 $x
 #compiler-settings
 directiveStartToken = @
 #end compiler-settings
-@set $x = 1234
+@set x = 1234
 $x
 """,
                     "1234\n1234\n")
@@ -1832,10 +1819,10 @@ def test_super_directive():
 class ImportantExampleCases(OutputTest):
     def test1(self):
         """how to make a comma-delimited list"""
-        self.verify("""#set $sep = ''
+        self.verify("""#set sep = ''
 #for $letter in $letterList
 $sep$letter#slurp
-#set $sep = ', '
+#set sep = ', '
 #end for
 """,
                     "a, b, c")
@@ -1925,10 +1912,10 @@ class MiscComplexSyntax(OutputTest):
     def test1(self):
         """Complex use of {},[] and () in a #set expression
         ----
-        #set $c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]
+        #set c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]
         $c
         """
-        self.verify("#set $c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]\n$c",
+        self.verify("#set c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]\n$c",
                     "0")
 
 
@@ -2056,7 +2043,7 @@ def test_long_macros_with_colon():
 
 def test_comment_directive_ambiguity():
     cls = compile_to_class(
-        '#set $foo = 1##set $bar = 2\n'
+        '#set foo = 1##set bar = 2\n'
         '$foo $bar\n'
     )
     assert cls().respond().strip() == '1 2'

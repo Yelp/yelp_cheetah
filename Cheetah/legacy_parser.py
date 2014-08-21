@@ -64,7 +64,7 @@ closurePairsRev = {'(': ')', '[': ']', '{': '}'}
 
 
 # Used for #set global
-Components = collections.namedtuple('Components', ['LVALUE', 'OP', 'RVALUE'])
+Components = collections.namedtuple('Components', ['lvalue', 'op', 'rvalue'])
 
 
 tripleQuotedStringREs = {}
@@ -1416,14 +1416,19 @@ class LegacyParser(_LowLevelParser):
             self.getWhiteSpace()
             style = SET_MODULE
 
-        LVALUE = self.getExpression(pyTokensToBreakAt=assignmentOps, useNameMapper=False).strip()
-        OP = self.getAssignmentOperator()
-        RVALUE = self.getExpression()
-        expr = LVALUE + ' ' + OP + ' ' + RVALUE.strip()
+        lvalue_pos = self.pos()
+        lvalue = self.getExpression(pyTokensToBreakAt=assignmentOps).strip()
+        if 'VFN(' in lvalue or 'VFFSL' in lvalue:
+            self.setPos(lvalue_pos)
+            raise ParseError(self, 'lvalue of #set cannot contain `$`')
+
+        op = self.getAssignmentOperator()
+        rvalue = self.getExpression()
+        expr = lvalue + ' ' + op + ' ' + rvalue.strip()
 
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
-        expr_components = Components(LVALUE, OP, RVALUE)
+        expr_components = Components(lvalue, op, rvalue)
         self._compiler.addSet(expr, expr_components, style)
 
     def eatSlurp(self):

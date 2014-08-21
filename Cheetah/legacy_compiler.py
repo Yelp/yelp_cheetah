@@ -333,12 +333,12 @@ class MethodCompiler(GenUtils):
 
     def addSet(self, expr, exprComponents, setStyle):
         if setStyle is SET_GLOBAL:
-            (LVALUE, OP, RVALUE) = (exprComponents.LVALUE,
-                                    exprComponents.OP,
-                                    exprComponents.RVALUE)
-            # we need to split the LVALUE to deal with globalSetVars
-            splitPos1 = LVALUE.find('.')
-            splitPos2 = LVALUE.find('[')
+            (lvalue, op, rvalue) = (
+                exprComponents.lvalue, exprComponents.op, exprComponents.rvalue,
+            )
+            # we need to split the lvalue to deal with globalSetVars
+            splitPos1 = lvalue.find('.')
+            splitPos2 = lvalue.find('[')
             if splitPos1 > 0 and splitPos2 == -1:
                 splitPos = splitPos1
             elif splitPos1 > 0 and splitPos1 < max(splitPos2, 0):
@@ -347,13 +347,13 @@ class MethodCompiler(GenUtils):
                 splitPos = splitPos2
 
             if splitPos > 0:
-                primary = LVALUE[:splitPos]
-                secondary = LVALUE[splitPos:]
+                primary = lvalue[:splitPos]
+                secondary = lvalue[splitPos:]
             else:
-                primary = LVALUE
+                primary = lvalue
                 secondary = ''
-            LVALUE = 'self._CHEETAH__globalSetVars["' + primary + '"]' + secondary
-            expr = LVALUE + ' ' + OP + ' ' + RVALUE.strip()
+            lvalue = 'self._CHEETAH__globalSetVars["' + primary + '"]' + secondary
+            expr = lvalue + ' ' + op + ' ' + rvalue.strip()
 
         if setStyle is SET_MODULE:
             self._moduleCompiler.addModuleGlobal(expr)

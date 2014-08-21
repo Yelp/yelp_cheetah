@@ -489,3 +489,18 @@ def test_self_in_arglist_invalid():
             '#def foo(self, bar)\n'
             '#end def\n'
         )
+
+
+def test_set_with_dollar_signs_raises():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'lvalue of #set cannot contain `$`\n'
+        'Line 1, column 6\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#set $foo = 1\n'
+        '          ^\n'
+    ):
+        compile_to_class('#set $foo = 1\n')
