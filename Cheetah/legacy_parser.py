@@ -1445,9 +1445,14 @@ class LegacyParser(_LowLevelParser):
         macro = self._macros[macroName]
 
         self.getWhiteSpace()
-        args = self.getExpression(
-            useNameMapper=False, pyTokensToBreakAt=[':']
-        ).strip()
+        args_pos = self.pos()
+        args = self.getExpression(pyTokensToBreakAt=[':']).strip()
+        if 'VFN(' in args or 'VFFSL(' in args:
+            self.setPos(args_pos)
+            raise ParseError(
+                self,
+                'Macro arguments must not contain a `$`',
+            )
 
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
