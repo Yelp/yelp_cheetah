@@ -190,21 +190,19 @@ class MethodCompiler(GenUtils):
         self._indent = self.setting('indentationStep')
         self._indentLev = 2
         self._pendingStrConstChunks = []
-        self._methodSignature = None
         self._methodBodyChunks = []
         self._callRegionsStack = []
         self._filterRegionsStack = []
         self._hasReturnStatement = False
         self._isGenerator = False
-        self._argStringList = [("self", None)]
+        self._argStringList = [('self', None)]
         self._decorators = decorators or []
 
     def setting(self, key):
         return self._settingsManager.setting(key)
 
     def cleanupState(self):
-        """Called by the containing class compiler instance
-        """
+        """Called by the containing class compiler instance"""
         self.commitStrConst()
 
         has_double_star_arg = any(
@@ -212,6 +210,7 @@ class MethodCompiler(GenUtils):
             for argname, _ in self._argStringList
         )
 
+        # TODO: make it not so
         if not has_double_star_arg:
             self.addMethArg('**KWS', None)
 
@@ -259,24 +258,24 @@ class MethodCompiler(GenUtils):
 
     def addChunk(self, chunk):
         self.commitStrConst()
-        chunk = "\n" + self.indentation() + chunk
+        chunk = '\n' + self.indentation() + chunk
         self._methodBodyChunks.append(chunk)
 
     def appendToPrevChunk(self, appendage):
         self._methodBodyChunks[-1] = self._methodBodyChunks[-1] + appendage
 
     def addWriteChunk(self, chunk):
-        self.addChunk('write(' + chunk + ')')
+        self.addChunk('write({0})'.format(chunk))
 
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
-            self.addChunk("_v = %s # %r" % (chunk, rawExpr))
+            self.addChunk('_v = {0} # {1!r}'.format(chunk, rawExpr))
             assert lineCol
             self.appendToPrevChunk(' on line %s, col %s' % lineCol)
         else:
-            self.addChunk("_v = %s" % chunk)
+            self.addChunk('_v = %s' % chunk)
 
-        self.addChunk("if _v is not NO_CONTENT: write(_filter(_v))")
+        self.addChunk('if _v is not NO_CONTENT: write(_filter(_v))')
 
     def addStrConst(self, strConst):
         if self._pendingStrConstChunks:
@@ -449,13 +448,11 @@ class MethodCompiler(GenUtils):
         functionName, initialKwArgs, lineCol = (
             callDetails.functionName, callDetails.args, callDetails.lineCol)
 
-        def reset(ID=ID):
-            self.addChunk('trans = _orig_trans{0}'.format(ID))
-            self.addChunk('self.transaction = trans')
-            self.addChunk('write = trans.response().write')
-            self.addChunk('del _orig_trans{0}'.format(ID))
+        self.addChunk('trans = _orig_trans{0}'.format(ID))
+        self.addChunk('self.transaction = trans')
+        self.addChunk('write = trans.response().write')
+        self.addChunk('del _orig_trans{0}'.format(ID))
 
-        reset()
         self.addChunk('_callArgVal%(ID)s = _callCollector%(ID)s.response().getvalue()' % locals())
         self.addChunk('del _callCollector%(ID)s' % locals())
         if initialKwArgs:
@@ -590,11 +587,9 @@ class ClassCompiler(GenUtils):
 
     def __init__(self, className, mainMethodName='respond',
                  moduleCompiler=None,
-                 fileName=None,
                  settingsManager=None):
 
         self._settingsManager = settingsManager
-        self._fileName = fileName
         self._className = className
         self._moduleCompiler = moduleCompiler
         self._mainMethodName = mainMethodName
@@ -645,10 +640,9 @@ class ClassCompiler(GenUtils):
         self._mainMethodName = methodName
 
     def _spawnMethodCompiler(self, methodName, initialMethodComment):
-        klass = self.methodCompilerClass
         decorators = self._decoratorsForNextMethod or []
         self._decoratorsForNextMethod = []
-        methodCompiler = klass(
+        methodCompiler = self.methodCompilerClass(
             methodName,
             classCompiler=self,
             initialMethodComment=initialMethodComment,
