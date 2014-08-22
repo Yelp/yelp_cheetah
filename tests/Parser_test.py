@@ -2,6 +2,8 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import pytest
+
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ArgList
 from Cheetah.legacy_parser import UnknownDirectiveError
@@ -543,4 +545,28 @@ def test_macros_with_arguments():
             'src\n'
             '#end herp_macro\n',
             settings={'macroDirectives': {'herp_macro': herp_macro}},
+        )
+
+
+@pytest.mark.parametrize('decorator', ('@classmethod', '@staticmethod'))
+def test_classmethod_staticmethod_not_allowed(decorator):
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        '@classmethod / @staticmethod are not supported\n'
+        'Line 1, column 2\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#{0}\n'
+        '      ^\n'
+        '2   |#def foo(bar)\n'
+        '3   |    #return bar + 1\n'
+        '4   |#end def\n'.format(decorator)
+    ):
+        compile_to_class(
+            '#{0}\n'
+            '#def foo(bar)\n'
+            '    #return bar + 1\n'
+            '#end def\n'.format(decorator)
         )

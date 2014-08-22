@@ -1257,15 +1257,21 @@ class LegacyParser(_LowLevelParser):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
         self.getDirectiveStartToken()
-        decoratorExpr = self.getExpression()
-        self._compiler.addDecorator(decoratorExpr)
+        decorator_expr = self.getExpression()
+        if decorator_expr in ('@classmethod', '@staticmethod'):
+            self.setPos(self.pos() - len(decorator_expr))
+            raise ParseError(
+                self, '@classmethod / @staticmethod are not supported',
+            )
+        self._compiler.addDecorator(decorator_expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         self.getWhiteSpace()
 
         directiveName = self.matchDirective()
         if not directiveName or directiveName not in ('def', 'block', '@'):
             raise ParseError(
-                self, msg='Expected #def, #block or another @decorator')
+                self, 'Expected #def, #block or another @decorator',
+            )
         self.eatDirective()
 
     def eatDef(self):

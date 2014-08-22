@@ -2,7 +2,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import pytest
-import unittest
 
 from Cheetah.compile import compile_to_class
 
@@ -72,7 +71,7 @@ def test_ImportFailModule():
             #set invalidmodule = dict(FOO='BAR!')
         #end try
 
-        $invalidmodule.FOO
+        $invalidmodule['FOO']
     '''
     template = compile_to_class(
         template,
@@ -80,7 +79,7 @@ def test_ImportFailModule():
     )
     template = template(searchList=[{}])
 
-    assert str(template), 'We weren\'t able to properly generate the result from the template'
+    assert template.respond()
 
 
 def test_ProperImportOfBadModule():
@@ -122,61 +121,3 @@ def test_RequestInSearchList():
     template = compile_to_class("$request")
     template = template(searchList=[{'request': 'foobar'}])
     assert template.respond() == 'foobar'
-
-
-@pytest.mark.xfail
-def test_Mantis_Issue_21():
-    """Test case for bug outlined in issue #21
-
-    Effectively @staticmethod and @classmethod
-    decorated methods in templates don't
-    properly define the _filter local, which breaks
-    when using the NameMapper
-    """
-    template = '''
-        #@staticmethod
-        #def testMethod(output=None)
-            This is my $output
-        #end def
-    '''
-    template = compile_to_class(template)
-    # raises a NameError: global name 'self' is not defined
-    assert template.testMethod(output='bug')
-
-
-class Mantis_Issue_22_Regression_Test(unittest.TestCase):
-    '''
-        Test case for bug outlined in issue #22
-
-        When using @staticmethod and @classmethod
-        in conjunction with the #filter directive
-        the generated code for the #filter is reliant
-        on the `self` local, breaking the function
-    '''
-    @pytest.mark.xfail
-    def test_NoneFilter(self):
-        template = '''
-            #@staticmethod
-            #def testMethod()
-                #filter None
-                    This is my $output
-                #end filter
-            #end def
-        '''
-        template = compile_to_class(template)
-        assert template
-        assert template.testMethod(output='bug')
-
-    @pytest.mark.xfail
-    def test_DefinedFilter(self):
-        template = '''
-            #@staticmethod
-            #def testMethod()
-                #filter Filter
-                    This is my $output
-                #end filter
-            #end def
-        '''
-        template = compile_to_class(template)
-        assert template
-        assert template.testMethod(output='bug')
