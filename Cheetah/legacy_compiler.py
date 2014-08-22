@@ -494,36 +494,20 @@ class MethodCompiler(GenUtils):
             )
         )
 
-    def isClassMethod(self):
-        return '@classmethod' in self._decorators
-
-    def isStaticMethod(self):
-        return '@staticmethod' in self._decorators
-
     def _addAutoSetupCode(self):
         self.addChunk(self._initialMethodComment)
 
-        if not self.isClassMethod() and not self.isStaticMethod():
-            self.addChunk('trans = self.transaction')
-            self.addChunk('if not trans:')
-            self.indent()
-            self.addChunk('self.transaction = trans = DummyTransaction()')
-            self.addChunk('_dummyTrans = True')
-            self.dedent()
-            self.addChunk('else: _dummyTrans = False')
-        else:
-            self.addChunk('trans = DummyTransaction()')
-            self.addChunk('_dummyTrans = True')
+        self.addChunk('trans = self.transaction')
+        self.addChunk('if not trans:')
+        self.indent()
+        self.addChunk('self.transaction = trans = DummyTransaction()')
+        self.addChunk('_dummyTrans = True')
+        self.dedent()
+        self.addChunk('else: _dummyTrans = False')
         self.addChunk('write = trans.response().write')
         if self.setting('useNameMapper'):
-            if not self.isClassMethod() and not self.isStaticMethod():
-                self.addChunk('SL = self._CHEETAH__searchList')
-            else:
-                self.addChunk('SL = []')
-        if self.isClassMethod() or self.isStaticMethod():
-            self.addChunk('_filter = lambda x, **kwargs: unicode(x)')
-        else:
-            self.addChunk('_filter = self._CHEETAH__currentFilter')
+            self.addChunk('SL = self._CHEETAH__searchList')
+        self.addChunk('_filter = self._CHEETAH__currentFilter')
         self.addChunk('')
         self.addChunk("#" * 40)
         self.addChunk('## START - generated method body')
@@ -558,11 +542,6 @@ class MethodCompiler(GenUtils):
         argStringChunks = []
         for arg in self._argStringList:
             chunk = arg[0]
-            if chunk == 'self' and self.isClassMethod():
-                chunk = 'cls'
-            if chunk == 'self' and self.isStaticMethod():
-                # Skip the "self" method for @staticmethod decorators
-                continue
             if arg[1] is not None:
                 chunk += '=' + arg[1]
             argStringChunks.append(chunk)
@@ -676,13 +655,13 @@ class ClassCompiler(GenUtils):
     def _finishedMethods(self):
         return self._finishedMethodsList
 
-    def addDecorator(self, decoratorExpr):
+    def addDecorator(self, decorator_expr):
         """Set the decorator to be used with the next method in the source.
 
         See _spawnMethodCompiler() and MethodCompiler for the details of how
         this is used.
         """
-        self._decoratorsForNextMethod.append(decoratorExpr)
+        self._decoratorsForNextMethod.append(decorator_expr)
 
     def addAttribute(self, attribExpr):
         self._generatedAttribs.append(attribExpr)

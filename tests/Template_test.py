@@ -46,30 +46,6 @@ def test_TryExceptImportTestFailCase():
     )
 
 
-def test_ClassMethodSupport_BasicDecorator():
-    template = '''
-        #@classmethod
-        #def myClassMethod(foo)
-            #return '$foo = %s' % $foo
-        #end def
-    '''
-    template = compile_to_class(template)
-    rc = template.myClassMethod(foo='bar')
-    assert rc == '$foo = bar'
-
-
-def test_StaticMethodSupport_BasicDecorator():
-    template = '''
-        #@staticmethod
-        #def myStaticMethod(foo)
-            #return '$foo = %s' % $foo
-        #end def
-    '''
-    template = compile_to_class(template)
-    rc = template.myStaticMethod(foo='bar')
-    assert rc == '$foo = bar'
-
-
 def test_SubclassSearchListTest():
     """Verify that if we subclass Template, we can still use attributes on
     that subclass in the searchList
