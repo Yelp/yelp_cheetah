@@ -22,6 +22,7 @@ class DummyTransaction(object):
         It only provides a response object and method.  All other methods and
         attributes make no sense in this context.
     '''
+
     def __init__(self):
         self._response = None
 

@@ -303,6 +303,7 @@ class VFN(NameMapperTest):
 
     def test44(self):
         """NotFound test in a loop"""
+
         def test(self=self):
             self.get('anObj.methX')
 
@@ -318,6 +319,7 @@ class VFN(NameMapperTest):
 
     def test46(self):
         """Other exception from meth test in a loop"""
+
         def test(self=self):
             self.get('anObj.meth2')
 
@@ -351,6 +353,7 @@ class VFN(NameMapperTest):
 
     def test52(self):
         """Other exception from func test in a loop"""
+
         def test(self=self):
             self.get('funcThatRaises')
 
@@ -366,6 +369,7 @@ class VFN(NameMapperTest):
 
     def test54(self):
         """Other exception from func test in a loop"""
+
         def test(self=self):
             self.get('aDict.nestedDict.funcThatRaises')
 

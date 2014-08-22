@@ -7,7 +7,7 @@ PY3 = (str is not bytes)
 if PY2:
     text = unicode  # flake8: noqa # pragma: no cover
 else:
-    text = str # pragma: no cover
+    text = str  # pragma: no cover
 
 
 # TODO: Uncomment these if needed

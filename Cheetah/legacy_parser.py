@@ -281,12 +281,12 @@ class _LowLevelParser(SourceReader):
             escCharLookBehind +
             re.escape(self.setting('cheetahVarStartToken'))
             + validCharsLookAhead
-            )
+        )
 
         self.cheetahVarInExpressionStartTokenRE = re.compile(
             re.escape(self.setting('cheetahVarStartToken'))
             + r'(?=[A-Za-z_])'
-            )
+        )
 
         self.expressionPlaceholderStartRE = re.compile(
             escCharLookBehind +
@@ -890,6 +890,7 @@ class LegacyParser(_LowLevelParser):
     sending state dependent code generation commands to
     Cheetah.legacy_compiler.LegacyCompiler
     """
+
     def __init__(self, src, compiler=None):
         super(LegacyParser, self).__init__(src)
         self.setSettingsManager(compiler)

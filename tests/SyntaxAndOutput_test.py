@@ -1594,6 +1594,7 @@ class RaiseDirective(OutputTest):
 
         Should raise ValueError
         """
+
         def test(self=self):
             self.verify("#if 1\n#raise ValueError\n#end if\n",
                         "")
