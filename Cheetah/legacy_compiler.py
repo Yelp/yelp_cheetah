@@ -23,7 +23,7 @@ from Cheetah.SettingsManager import SettingsManager
 
 
 CallDetails = collections.namedtuple(
-    'CallDetails', ['ID', 'functionName', 'args', 'lineCol'],
+    'CallDetails', ['call_id', 'function_name', 'args', 'lineCol'],
 )
 
 
@@ -403,47 +403,65 @@ class MethodCompiler(GenUtils):
         self._next_variable_id += 1
         return '_{0}'.format(self._next_variable_id)
 
-    def startCallRegion(self, functionName, args, lineCol):
+    def startCallRegion(self, function_name, args, lineCol):
         call_id = self.next_id()
-        call_details = CallDetails(call_id, functionName, args, lineCol)
+        call_details = CallDetails(call_id, function_name, args, lineCol)
+        self._callRegionsStack.append(call_details)
 
-        self._callRegionsStack.append((call_id, call_details))
-
-        self.addChunk('## START CALL REGION: '
-                      + call_id
-                      + ' of ' + functionName
-                      + ' at line %s, col %s' % lineCol + ' in the source.')
+        self.addChunk(
+            '## START CALL REGION: {call_id} of {function_name} '
+            'at line {line}, col {col}.'.format(
+                call_id=call_id,
+                function_name=function_name,
+                line=lineCol[0],
+                col=lineCol[1],
+            )
+        )
         self.addChunk('_orig_trans{0} = trans'.format(call_id))
-        self.addChunk('trans = _callCollector{0} = DummyTransaction()'.format(
-            call_id,
-        ))
-        self.addChunk('self.transaction = trans')
-        self.addChunk('write = _callCollector{0}.response().write'.format(
-            call_id,
-        ))
+        self.addChunk(
+            'self.transaction = trans = _call{0} = DummyTransaction()'.format(
+                call_id
+            )
+        )
+        self.addChunk('write = trans.response().write')
 
     def endCallRegion(self):
-        ID, call_details = self._callRegionsStack[-1]
-        functionName, initialKwArgs, lineCol = (
-            call_details.functionName, call_details.args, call_details.lineCol)
+        call_details = self._callRegionsStack.pop()
+        call_id, function_name, args, (line, col) = (
+            call_details.call_id,
+            call_details.function_name,
+            call_details.args,
+            call_details.lineCol,
+        )
 
-        self.addChunk('trans = _orig_trans{0}'.format(ID))
-        self.addChunk('self.transaction = trans')
+        self.addChunk(
+            'self.transaction = trans = _orig_trans{0}'.format(call_id),
+        )
         self.addChunk('write = trans.response().write')
-        self.addChunk('del _orig_trans{0}'.format(ID))
+        self.addChunk('del _orig_trans{0}'.format(call_id))
 
-        self.addChunk('_callArgVal%(ID)s = _callCollector%(ID)s.response().getvalue()' % locals())
-        self.addChunk('del _callCollector%(ID)s' % locals())
-        if initialKwArgs:
-            initialKwArgs = ', ' + initialKwArgs
-        self.addFilteredChunk('%(functionName)s(_callArgVal%(ID)s%(initialKwArgs)s)' % locals())
-        self.addChunk('del _callArgVal%(ID)s' % locals())
-        self.addChunk('## END CALL REGION: '
-                      + ID
-                      + ' of ' + functionName
-                      + ' at line %s, col %s' % lineCol + ' in the source.')
+        self.addChunk('_call_arg{0} = _call{0}.response().getvalue()'.format(call_id))
+        self.addChunk('del _call{0}'.format(call_id))
+
+        args = (', ' + args).strip()
+        self.addFilteredChunk(
+            '{function_name}(_call_arg{call_id}{args})'.format(
+                function_name=function_name,
+                call_id=call_id,
+                args=args,
+            )
+        )
+        self.addChunk('del _call_arg{0}'.format(call_id))
+        self.addChunk(
+            '## END CALL REGION: {call_id} of {function_name} '
+            'at line {line}, col {col}.'.format(
+                call_id=call_id,
+                function_name=function_name,
+                line=line,
+                col=col,
+            )
+        )
         self.addChunk('')
-        self._callRegionsStack.pop()  # attrib of current methodCompiler
 
     def setFilter(self, filter_name):
         filter_id = self.next_id()
@@ -453,7 +471,6 @@ class MethodCompiler(GenUtils):
         if filter_name.lower() == 'none':
             self.addChunk('_filter = self._CHEETAH__initialFilter')
         else:
-            # is string representing the name of a builtin filter
             self.addChunk(
                 '_filter = '
                 'self._CHEETAH__currentFilter = '
@@ -477,7 +494,10 @@ class MethodCompiler(GenUtils):
         self.addChunk('self.transaction = trans = DummyTransaction()')
         self.addChunk('_dummyTrans = True')
         self.dedent()
-        self.addChunk('else: _dummyTrans = False')
+        self.addChunk('else:')
+        self.indent()
+        self.addChunk('_dummyTrans = False')
+        self.dedent()
         self.addChunk('write = trans.response().write')
         if self.setting('useNameMapper'):
             self.addChunk('SL = self._CHEETAH__searchList')
@@ -494,20 +514,16 @@ class MethodCompiler(GenUtils):
         self.addChunk('')
 
         if not self._isGenerator:
-            self.addStop()
+            self.addChunk('if _dummyTrans:')
+            self.indent()
+            self.addChunk('self.transaction = None')
+            self.addChunk('return trans.response().getvalue()')
+            self.dedent()
+            self.addChunk('else:')
+            self.indent()
+            self.addChunk('return NO_CONTENT')
+            self.dedent()
         self.addChunk('')
-
-    def addStop(self):
-        no_content = 'NO_CONTENT'
-        self.addChunk('if _dummyTrans:')
-        self.indent()
-        self.addChunk('self.transaction = None')
-        self.addChunk('return trans.response().getvalue()')
-        self.dedent()
-        self.addChunk('else:')
-        self.indent()
-        self.addChunk('return %s' % no_content)
-        self.dedent()
 
     def addMethArg(self, name, defVal=None):
         self._argStringList.append((name, defVal))
