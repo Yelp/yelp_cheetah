@@ -18,12 +18,10 @@ import warnings
 from Cheetah import five
 from Cheetah.legacy_parser import LegacyParser
 from Cheetah.legacy_parser import SET_GLOBAL
-from Cheetah.legacy_parser import SET_MODULE
 from Cheetah.legacy_parser import escapedNewlineRE
 from Cheetah.SettingsManager import SettingsManager
 
 
-FilterDetails = collections.namedtuple('FilterDetails', ['ID', 'theFilter'])
 CallDetails = collections.namedtuple(
     'CallDetails', ['ID', 'functionName', 'args', 'lineCol'],
 )
@@ -131,7 +129,6 @@ class GenUtils(object):
         where:
           VFN = NameMapper.valueForName
           VFFSL = NameMapper.valueFromFrameOrSearchList
-          VFSL = NameMapper.valueFromSearchList # optionally used instead of VFFSL
           SL = self.searchList()
           useAC = self.setting('useAutocalling') # True in this example
 
@@ -244,12 +241,11 @@ class MethodCompiler(GenUtils):
 
     def methodDef(self):
         self.commitStrConst()
-        methodDefChunks = (
+        return ''.join((
             self.methodSignature(),
             '\n',
-            self.methodBody())
-        methodDef = ''.join(methodDefChunks)
-        return methodDef
+            self.methodBody(),
+        ))
 
     def methodBody(self):
         return ''.join(self._methodBodyChunks)
@@ -262,7 +258,7 @@ class MethodCompiler(GenUtils):
         self._methodBodyChunks.append(chunk)
 
     def appendToPrevChunk(self, appendage):
-        self._methodBodyChunks[-1] = self._methodBodyChunks[-1] + appendage
+        self._methodBodyChunks[-1] += appendage
 
     def addWriteChunk(self, chunk):
         self.addChunk('write({0})'.format(chunk))
@@ -270,7 +266,6 @@ class MethodCompiler(GenUtils):
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
             self.addChunk('_v = {0} # {1!r}'.format(chunk, rawExpr))
-            assert lineCol
             self.appendToPrevChunk(' on line %s, col %s' % lineCol)
         else:
             self.addChunk('_v = %s' % chunk)
@@ -278,10 +273,7 @@ class MethodCompiler(GenUtils):
         self.addChunk('if _v is not NO_CONTENT: write(_filter(_v))')
 
     def addStrConst(self, strConst):
-        if self._pendingStrConstChunks:
-            self._pendingStrConstChunks.append(strConst)
-        else:
-            self._pendingStrConstChunks = [strConst]
+        self._pendingStrConstChunks.append(strConst)
 
     def commitStrConst(self):
         """Add the code for outputting the pending strConst without chopping off
@@ -330,40 +322,29 @@ class MethodCompiler(GenUtils):
         self.addFilteredChunk(expr, rawPlaceholder, lineCol)
         self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
 
-    def addSet(self, expr, exprComponents, setStyle):
+    def addSet(self, components, setStyle):
+        expr = ' '.join([component.strip() for component in components])
         if setStyle is SET_GLOBAL:
-            (lvalue, op, rvalue) = (
-                exprComponents.lvalue, exprComponents.op, exprComponents.rvalue,
-            )
             # we need to split the lvalue to deal with globalSetVars
-            splitPos1 = lvalue.find('.')
-            splitPos2 = lvalue.find('[')
-            if splitPos1 > 0 and splitPos2 == -1:
-                splitPos = splitPos1
-            elif splitPos1 > 0 and splitPos1 < max(splitPos2, 0):
-                splitPos = splitPos1
-            else:
-                splitPos = splitPos2
+            first_obj_match = re.search(r'[\[\.]', components.lvalue)
+            split_pos = first_obj_match.start() if first_obj_match else -1
 
-            if splitPos > 0:
-                primary = lvalue[:splitPos]
-                secondary = lvalue[splitPos:]
+            if split_pos > 0:
+                primary = components.lvalue[:split_pos]
+                secondary = components.lvalue[split_pos:]
             else:
-                primary = lvalue
+                primary = components.lvalue
                 secondary = ''
-            lvalue = 'self._CHEETAH__globalSetVars["' + primary + '"]' + secondary
-            expr = lvalue + ' ' + op + ' ' + rvalue.strip()
+            expr = 'self._CHEETAH__globalSetVars["{0}"]{1} {2} {3}'.format(
+                primary, secondary, components.op, components.rvalue,
+            )
 
-        if setStyle is SET_MODULE:
-            self._moduleCompiler.addModuleGlobal(expr)
-        else:
-            self.addChunk(expr)
+        self.addChunk(expr)
 
     def addIndentingDirective(self, expr, lineCol):
-        assert expr and expr[-1] != ':'
+        assert expr[-1] != ':'
         expr = expr + ':'
         self.addChunk(expr)
-        assert lineCol
         self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
         self.indent()
 
@@ -418,14 +399,12 @@ class MethodCompiler(GenUtils):
         for line in PSP.splitlines():
             self.addChunk(line)
 
-    def nextCacheID(self):
+    def next_id(self):
         self._next_variable_id += 1
         return '_{0}'.format(self._next_variable_id)
 
-    nextCallRegionID = nextCacheID
-
     def startCallRegion(self, functionName, args, lineCol):
-        call_id = self.nextCallRegionID()
+        call_id = self.next_id()
         call_details = CallDetails(call_id, functionName, args, lineCol)
 
         self._callRegionsStack.append((call_id, call_details))
@@ -444,9 +423,9 @@ class MethodCompiler(GenUtils):
         ))
 
     def endCallRegion(self):
-        ID, callDetails = self._callRegionsStack[-1]
+        ID, call_details = self._callRegionsStack[-1]
         functionName, initialKwArgs, lineCol = (
-            callDetails.functionName, callDetails.args, callDetails.lineCol)
+            call_details.functionName, call_details.args, call_details.lineCol)
 
         self.addChunk('trans = _orig_trans{0}'.format(ID))
         self.addChunk('self.transaction = trans')
@@ -466,14 +445,9 @@ class MethodCompiler(GenUtils):
         self.addChunk('')
         self._callRegionsStack.pop()  # attrib of current methodCompiler
 
-    nextFilterRegionID = nextCacheID
-
     def setFilter(self, filter_name):
-        filter_id = self.nextFilterRegionID()
-        filter_details = FilterDetails(filter_id, filter_name)
-        self._filterRegionsStack.append(
-            (filter_id, filter_details)
-        )
+        filter_id = self.next_id()
+        self._filterRegionsStack.append(filter_id)
 
         self.addChunk('_orig_filter{0} = _filter'.format(filter_id))
         if filter_name.lower() == 'none':
@@ -487,7 +461,7 @@ class MethodCompiler(GenUtils):
             )
 
     def closeFilterBlock(self):
-        filter_id = self._filterRegionsStack.pop()[0]
+        filter_id = self._filterRegionsStack.pop()
         self.addChunk(
             '_filter = self._CHEETAH__currentFilter = _orig_filter{0}'.format(
                 filter_id,
@@ -864,12 +838,6 @@ class LegacyCompiler(SettingsManager, GenUtils):
         self.updateSettingsFromConfigStr(settingsStr)
         self._parser.configureParser()
 
-    def addModuleGlobal(self, line):
-        """Adds a line of global module code.  It is inserted after the import
-        statements and Cheetah default module constants.
-        """
-        self._moduleConstants.append(line)
-
     def addImportStatement(self, impStatement):
         settings = self.settings()
         if not self._methodBodyChunks or settings.get('useLegacyImportMode'):
@@ -887,9 +855,6 @@ class LegacyCompiler(SettingsManager, GenUtils):
         self._getActiveClassCompiler().addAttribute(attribName + ' =' + expr)
 
     def addComment(self, comm):
-        if re.match(r'#+$', comm):      # skip bar comments
-            return
-
         for line in comm.splitlines():
             self.addMethComment(line)
 

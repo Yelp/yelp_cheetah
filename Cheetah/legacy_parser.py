@@ -27,7 +27,6 @@ python_token_re = re.compile(PseudoToken)
 
 SET_LOCAL = 0
 SET_GLOBAL = 1
-SET_MODULE = 2
 
 identchars = string.ascii_letters + '_'
 namechars = identchars + string.digits
@@ -1427,10 +1426,6 @@ class LegacyParser(_LowLevelParser):
             self.getIdentifier()
             self.getWhiteSpace()
             style = SET_GLOBAL
-        elif self.startswith('module'):
-            self.getIdentifier()
-            self.getWhiteSpace()
-            style = SET_MODULE
 
         lvalue = self.get_python_expression(
             'lvalue of #set cannot contain `$`',
@@ -1438,12 +1433,11 @@ class LegacyParser(_LowLevelParser):
         ).strip()
         op = self.getAssignmentOperator()
         rvalue = self.getExpression()
-        expr = lvalue + ' ' + op + ' ' + rvalue.strip()
 
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
         expr_components = Components(lvalue, op, rvalue)
-        self._compiler.addSet(expr, expr_components, style)
+        self._compiler.addSet(expr_components, style)
 
     def eatSlurp(self):
         if self.isLineClearToStartToken():
@@ -1500,7 +1494,6 @@ class LegacyParser(_LowLevelParser):
         self.setPos(origPos)
 
     def eatCall(self):
-        # @@TR: need to enable single line version of this
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
         lineCol = self.getRowCol()
@@ -1591,18 +1584,15 @@ class LegacyParser(_LowLevelParser):
         assert directiveName in self._closeableDirectives
         self._openDirectivesStack.append(directiveName)
 
-    def popFromOpenDirectivesStack(self, directiveName):
+    def popFromOpenDirectivesStack(self, directive_name):
         if not self._openDirectivesStack:
             raise ParseError(self, msg="#end found, but nothing to end")
 
-        if self._openDirectivesStack[-1] == directiveName:
-            del self._openDirectivesStack[-1]
-        else:
+        last = self._openDirectivesStack.pop()
+        if last != directive_name:
             raise ParseError(
                 self,
-                msg="#end %s found, expected #end %s" % (
-                    directiveName, self._openDirectivesStack[-1]
-                )
+                '#end {0} found, expected #end {1}'.format(directive_name, last)
             )
 
     def assertEmptyOpenDirectivesStack(self):

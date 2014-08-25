@@ -1243,11 +1243,6 @@ $testDict['two']""",
         self.verify("""#set global testVar = 1 \n$testVar""",
                     "1")
 
-    def test17(self):
-        """simple #set module without $"""
-        self.verify("""#set module __foo__ = 'bar'\n$__foo__""",
-                    "bar")
-
     def test18(self):
         """#set with i,j=list style assignment"""
         self.verify("""#set i,j = [1,2]\n$i$j""",
