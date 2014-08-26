@@ -34,6 +34,9 @@ setup(
     ],
     platforms=['linux'],
     install_requires=['markupsafe'],
+    extras_require={
+        'testing': ['pyquery'],
+    },
     entry_points={
         'console_scripts': [
             'cheetah-compile = Cheetah.cheetah_compile:main',
