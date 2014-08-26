@@ -1,10 +1,8 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import os.path
 import pytest
 
-from Cheetah.compile import compile_file
 from Cheetah.partial_template import default_self
 from Cheetah.partial_template import PartialMethodNotCalledFromTemplate
 from Cheetah.Template import Template
@@ -106,14 +104,7 @@ def test_method_with_non_standard_first_argument():
         TemplateWithWeirdParameter().weird_first_argument()
 
 
-def test_partial_template_integration():
-    compile_file(
-        os.path.join('testing', 'templates', 'src', 'uses_partial.tmpl'),
-    )
-    compile_file(
-        os.path.join('testing', 'templates', 'src', 'partial_template.tmpl'),
-    )
-
+def test_partial_template_integration(compile_testing_templates):
     from testing.templates.src.uses_partial import uses_partial
     ret = uses_partial().respond()
 
@@ -126,13 +117,7 @@ def test_partial_template_integration():
     )
 
 
-def test_partial_with_same_name_retains_class_and_keeps_function():
-    compile_file(
-        os.path.join(
-            'testing', 'templates', 'src', 'partial_with_same_name.tmpl',
-        ),
-    )
-
+def test_partial_with_same_name_retains_class_and_keeps_function(compile_testing_templates):
     from testing.templates.src import partial_with_same_name
 
     original_cls = partial_with_same_name.PARTIAL_TEMPLATE_CLASS

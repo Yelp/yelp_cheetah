@@ -2,8 +2,6 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import os
-import os.path
 import pytest
 import unittest
 import warnings
@@ -11,7 +9,6 @@ import warnings
 import markupsafe
 
 from Cheetah import five
-from Cheetah.compile import compile_file
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ParseError
 from Cheetah.NameMapper import NotFound
@@ -1800,14 +1797,8 @@ def test_extends_with_partial_baseclass_import():
     )
 
 
+@pytest.mark.usefixtures('compile_testing_templates')
 def test_super_directive():
-    compile_file(
-        os.path.join('testing', 'templates', 'src', 'super_base.tmpl')
-    )
-    compile_file(
-        os.path.join('testing', 'templates', 'src', 'super_child.tmpl')
-    )
-
     from testing.templates.src.super_child import super_child
     ret = super_child().respond()
     assert ret.strip() == (
