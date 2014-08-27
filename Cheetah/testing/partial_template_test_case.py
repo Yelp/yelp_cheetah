@@ -33,6 +33,16 @@ class PartialTemplateTestCase(unittest.TestCase):
         """Return a template instance used to call the partials."""
         return Template()
 
+    def call_partial_template(
+            self,
+            template,
+            method,
+            partial_args,
+            partial_kwargs,
+    ):
+        """Return the rendered output of the template."""
+        return method(template, *partial_args, **partial_kwargs)
+
     def test_partial_template(self):
         # XXX: apparently pytest likes to discover and run this case when
         # imported
@@ -49,6 +59,12 @@ class PartialTemplateTestCase(unittest.TestCase):
         )
         partial_func = getattr(partial_module, self.method)
         partial_args, partial_kwargs = self.get_partial_arguments()
+        ret = self.call_partial_template(
+            template,
+            partial_func,
+            partial_args,
+            partial_kwargs,
+        )
         ret = partial_func(template, *partial_args, **partial_kwargs)
 
         self.assert_partial_rendering(
