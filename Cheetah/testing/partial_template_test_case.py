@@ -65,7 +65,6 @@ class PartialTemplateTestCase(unittest.TestCase):
             partial_args,
             partial_kwargs,
         )
-        ret = partial_func(template, *partial_args, **partial_kwargs)
 
         self.assert_partial_rendering(
             pyquery.PyQuery('<div>{0}</div>'.format(ret or '')),
