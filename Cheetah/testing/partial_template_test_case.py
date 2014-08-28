@@ -67,7 +67,10 @@ class PartialTemplateTestCase(unittest.TestCase):
         )
 
         self.assert_partial_rendering(
-            pyquery.PyQuery('<div>{0}</div>'.format(ret or '')),
+            pyquery.PyQuery(
+                '<div>{0}</div>'.format(ret or ''),
+                parser='html_fragments',
+            ),
             partial_args,
             partial_kwargs,
         )
