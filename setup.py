@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import find_packages, setup, Extension
 
 
 setup(
@@ -28,7 +28,7 @@ setup(
     author_email="buck@yelp.com",
     url="http://github.com/bukzor/yelp_cheetah",
     license='MIT License',
-    packages=['Cheetah'],
+    packages=find_packages(exclude=('tests*', 'testing*')),
     ext_modules=[
         Extension("Cheetah._namemapper", ["Cheetah/c/_namemapper.c"]),
     ],
