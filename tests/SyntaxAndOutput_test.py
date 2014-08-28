@@ -1719,3 +1719,14 @@ def test_does_not_allow_autoself():
     )
     with pytest.raises(NotFound):
         cls().respond()
+
+
+@pytest.mark.xfail
+def test_transaction_cleared_on_dummy_trans():
+    cls = compile_to_class(
+        '#def foo():#return "hello"\n'
+        '#def bar():world\n'
+    )
+    tmpl = cls()
+    assert tmpl.foo() == 'hello'
+    assert tmpl.bar() == 'world'
