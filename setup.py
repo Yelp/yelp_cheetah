@@ -3,7 +3,7 @@ from setuptools import find_packages, setup, Extension
 
 setup(
     name="yelp_cheetah",
-    version='0.3.2',
+    version='0.3.3',
     description='cheetah, hacked by yelpers',
     classifiers=[
         'Intended Audience :: Developers',
@@ -33,7 +33,10 @@ setup(
         Extension("Cheetah._namemapper", ["Cheetah/c/_namemapper.c"]),
     ],
     platforms=['linux'],
-    install_requires=['markupsafe'],
+    install_requires=[
+        'argparse',
+        'markupsafe',
+    ],
     extras_require={
         'testing': ['pyquery'],
     },
