@@ -62,6 +62,14 @@ def test_compile_multiple_files(template_writer):
     assert run_python(tmpl2.replace('.tmpl', '.py')) == 'bar'
 
 
+def test_compile_multiple_files_by_directory(template_writer, tmpdir):
+    tmpl1 = template_writer.write('foo')
+    tmpl2 = template_writer.write('bar')
+    compile_all([tmpdir.strpath])
+    assert run_python(tmpl1.replace('.tmpl', '.py')) == 'foo'
+    assert run_python(tmpl2.replace('.tmpl', '.py')) == 'bar'
+
+
 def test_touch_init_if_not_exists(tmpdir):
     _touch_init_if_not_exists(tmpdir.strpath)
     assert os.path.exists(os.path.join(tmpdir.strpath, '__init__.py'))

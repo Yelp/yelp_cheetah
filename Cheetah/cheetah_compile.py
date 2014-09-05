@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import argparse
 import os
 import os.path
 import sys
@@ -14,12 +15,8 @@ from Cheetah.compile import compile_file
 def compile_template(filename, **kwargs):
     if not isinstance(filename, five.text):
         filename = filename.decode('UTF-8')
+    print('Compiling {0}'.format(filename))
     return compile_file(filename, **kwargs)
-
-
-def compile_all(filenames):
-    for filename in filenames:
-        compile_template(filename)
 
 
 def _compile_files_in_directory(
@@ -32,7 +29,6 @@ def _compile_files_in_directory(
     for filename in filenames:
         if filename.endswith(extension):
             filename = os.path.join(directory, filename)
-            print('Compiling {0}'.format(filename))
             compile_template(filename, **kwargs)
 
     return any(filename.endswith(extension) for filename in filenames)
@@ -67,6 +63,29 @@ def compile_directories(directories, extension='.tmpl', **kwargs):
                 continue
 
             _touch_init_if_not_exists(dirpath)
+
+
+def compile_all(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'filenames', nargs='*',
+        help='Filenames / directories to cheetah compile templates in',
+    )
+    parser.add_argument(
+        '--extension', default='.tmpl',
+        help='File extension to use for compiling directories',
+    )
+    args = parser.parse_args(argv)
+
+    directories = [
+        filename for filename in args.filenames if os.path.isdir(filename)
+    ]
+    files = [
+        filename for filename in args.filenames if not os.path.isdir(filename)
+    ]
+    compile_directories(directories, extension=args.extension)
+    for filename in files:
+        compile_template(filename)
 
 
 def main():  # pragma: no cover (called by commandline only)
