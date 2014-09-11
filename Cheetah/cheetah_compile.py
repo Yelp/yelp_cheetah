@@ -51,16 +51,12 @@ def compile_directories(directories, extension='.tmpl', **kwargs):
     for directory in directories:
         for dirpath, _, filenames in os.walk(directory):
             # Compile all the files
-            has_templates = _compile_files_in_directory(
+            _compile_files_in_directory(
                 dirpath,
                 filenames,
                 extension=extension,
                 **kwargs
             )
-
-            # Don't add __init__.py if we're not a template directory
-            if not has_templates:
-                continue
 
             _touch_init_if_not_exists(dirpath)
 
