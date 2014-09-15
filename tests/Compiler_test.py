@@ -50,3 +50,8 @@ def test_unicode_literals_off():
     assert 'from __future__ import unicode_literals\n' not in tmpl_source
     # u because we're not unicode literals
     assert "write(u'''Hello World''')" in tmpl_source
+
+
+def test_comments():
+    tmpl_source = compile_source('## foo')
+    assert '# foo' in tmpl_source
