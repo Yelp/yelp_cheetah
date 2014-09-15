@@ -316,7 +316,7 @@ class MethodCompiler(GenUtils):
                 self._pendingStrConstChunks[-1] = src[:BOL]
 
     def addMethComment(self, comment):
-        self.addChunk('# ' + comment)
+        self.addChunk('#' + comment)
 
     def addPlaceholder(self, expr, rawPlaceholder, lineCol):
         self.addFilteredChunk(expr, rawPlaceholder, lineCol)
