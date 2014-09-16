@@ -136,3 +136,10 @@ def test_compile_directories_no_init_in_non_template_dirs(tmpdir):
     compile_directories([tmpdir.strpath])
     assert os.path.exists(os.path.join(templates, '__init__.py'))
     assert os.path.exists(os.path.join(templates, 'foo.py'))
+
+
+def test_compile_directories_does_not_put_init_in_pycache(tmpdir):
+    pycache_dir = os.path.join(tmpdir.strpath, '__pycache__')
+    os.mkdir(pycache_dir)
+    compile_directories([tmpdir.strpath])
+    assert not os.path.exists(os.path.join(pycache_dir, '__init__.py'))

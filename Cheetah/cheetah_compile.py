@@ -35,6 +35,8 @@ def _compile_files_in_directory(
 
 
 def _touch_init_if_not_exists(directory):
+    if '__pycache__' in directory:
+        return
     init_py_file = os.path.join(directory, '__init__.py')
     if not os.path.exists(init_py_file):
         print('Creating {0}'.format(init_py_file))
