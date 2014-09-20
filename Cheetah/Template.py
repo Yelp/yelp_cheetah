@@ -7,7 +7,6 @@ from __future__ import unicode_literals
 from Cheetah import five
 from Cheetah.filters import filters
 from Cheetah.NameMapper import NotFound, valueFromSearchList
-from Cheetah.Unspecified import Unspecified
 
 
 # pylint:disable=abstract-class-not-used
@@ -16,6 +15,7 @@ from Cheetah.Unspecified import Unspecified
 # Singleton object, representing no data to be written.
 # None or empty-string can be filtered into useful data, unlike NO_CONTENT.
 NO_CONTENT = object()
+UNSPECIFIED = object()
 
 
 class Template(object):
@@ -108,7 +108,7 @@ class Template(object):
         """Return a reference to the searchlist"""
         return self._CHEETAH__searchList
 
-    def getVar(self, varName, default=Unspecified, autoCall=True, useDottedNotation=True):
+    def getVar(self, varName, default=UNSPECIFIED, autoCall=True, useDottedNotation=True):
         """Get a variable from the searchList.  If the variable can't be found
         in the searchList, it returns the default value if one was given, or
         raises NameMapper.NotFound.
@@ -116,7 +116,7 @@ class Template(object):
         try:
             return valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, useDottedNotation)
         except NotFound:
-            if default is not Unspecified:
+            if default is not UNSPECIFIED:
                 return default
             else:
                 raise
