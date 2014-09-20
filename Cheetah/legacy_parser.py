@@ -15,7 +15,6 @@ from tokenize import PseudoToken
 
 from Cheetah import five
 from Cheetah.SourceReader import SourceReader
-from Cheetah.Unspecified import Unspecified
 
 if five.PY2:  # pragma: no cover (PY2 only)
     from itertools import izip_longest  # pylint:disable=no-name-in-module
@@ -712,17 +711,11 @@ class _LowLevelParser(SourceReader):
             enclosed=False,
             enclosures=None,  # list of tuples (char, pos), where char is ({ or [
             pyTokensToBreakAt=None,  # only works if not enclosed
-            useNameMapper=Unspecified,
     ):
         """Get a Cheetah expression that includes $CheetahVars and break at
         directive end tokens, the end of an enclosure, or at a specified
         pyToken.
         """
-
-        if useNameMapper is not Unspecified:
-            useNameMapper_orig = self.setting('useNameMapper')
-            self.setSetting('useNameMapper', useNameMapper)
-
         if enclosures is None:
             enclosures = []
 
@@ -800,15 +793,16 @@ class _LowLevelParser(SourceReader):
                 exprBits.append(token)
                 if identRE.match(token):
                     if token == 'for':
-                        expr = self.getExpression(useNameMapper=False, pyTokensToBreakAt=['in'])
+                        exprBits.append(self.getWhiteSpace())
+                        expr = self.get_python_expression(
+                            'lvalue of for must not contain a `$`',
+                            pyTokensToBreakAt=['in'],
+                        )
                         exprBits.append(expr)
                     else:
                         exprBits.append(self.getWhiteSpace())
                         if not self.atEnd() and self.peek() == '(':
                             exprBits.append(self.getCallArgString())
-
-        if useNameMapper is not Unspecified:
-            self.setSetting('useNameMapper', useNameMapper_orig)  # @@TR: see comment above
         return exprBits
 
     def getExpression(
@@ -816,15 +810,15 @@ class _LowLevelParser(SourceReader):
             enclosed=False,
             enclosures=None,  # list of tuples (char, pos), where # char is ({ or [
             pyTokensToBreakAt=None,
-            useNameMapper=Unspecified,
     ):
         """Returns the output of self.getExpressionParts() as a concatenated
         string rather than as a list.
         """
         return ''.join(self.getExpressionParts(
-            enclosed=enclosed, enclosures=enclosures,
+            enclosed=enclosed,
+            enclosures=enclosures,
             pyTokensToBreakAt=pyTokensToBreakAt,
-            useNameMapper=useNameMapper))
+        ))
 
     def get_python_expression(self, failure_msg, **kwargs):
         """Get an expression that should not contain cheetah variables.

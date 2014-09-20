@@ -570,3 +570,24 @@ def test_classmethod_staticmethod_not_allowed(decorator):
             '    #return bar + 1\n'
             '#end def\n'.format(decorator)
         )
+
+
+def test_lvalue_for():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'lvalue of for must not contain a `$`\n'
+        'Line 1, column 6\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#for $foo in bar\n'
+        '          ^\n'
+        '2   |$foo\n'
+        '3   |#end for\n'
+    ):
+        compile_to_class(
+            '#for $foo in bar\n'
+            '$foo\n'
+            '#end for\n',
+        )

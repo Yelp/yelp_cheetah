@@ -14,10 +14,6 @@ from Cheetah.legacy_parser import ParseError
 from Cheetah.NameMapper import NotFound
 
 
-class Unspecified(object):
-    pass
-
-
 def dummydecorator(func):
     return func
 
@@ -58,28 +54,12 @@ defaultTestNameSpace = {
     'aFunc': dummyFunc,
     'anObj': DummyClass(),
     'aMeth': DummyClass().meth1,
-    'aStrToBeIncluded': "$aStr $anInt",
     'none': None,
     'emptyString': '',
     'numOne': 1,
     'numTwo': 2,
     'zero': 0,
-    'tenDigits': 1234567890,
-    'webSafeTest': 'abc <=> &',
-    'strip1': '  \t   strippable whitespace   \t\t  \n',
-    'strip2': '  \t   strippable whitespace   \t\t  ',
-    'strip3': '  \t   strippable whitespace   \t\t\n1 2  3\n',
-
-    'blockToBeParsed': """$numOne $numTwo""",
-    'includeBlock2': """$numOne $numTwo $aSetVar""",
-
-    'includeFileName': 'parseTest.txt',
     'listOfLambdas': [lambda x: x, lambda x: x, lambda x: x],
-    'list': [
-        {'index': 0, 'numOne': 1, 'numTwo': 2},
-        {'index': 1, 'numOne': 1, 'numTwo': 2},
-    ],
-    'nameList': [('john', 'doe'), ('jane', 'smith')],
     'letterList': ['a', 'b', 'c'],
     '_': lambda x: 'Translated: ' + x,
     'unicodeData': 'aoeu12345\u1234',
@@ -272,7 +252,7 @@ class Comments_SingleLine(OutputTest):
 
     def test11(self):
         """## containing #for directive"""
-        self.verify("##for $i in range(15)",
+        self.verify("##for i in range(15)",
                     "")
 
 
@@ -804,97 +784,93 @@ class YieldDirective(OutputTest):
 class ForDirective(OutputTest):
     def test1(self):
         """#for loop with one local var"""
-        self.verify("#for $i in range(5)\n$i\n#end for",
+        self.verify("#for i in range(5)\n$i\n#end for",
                     "0\n1\n2\n3\n4\n")
 
-        self.verify("#for $i in range(5):\n$i\n#end for",
+        self.verify("#for i in range(5):\n$i\n#end for",
                     "0\n1\n2\n3\n4\n")
 
-        self.verify("#for $i in range(5): ##comment\n$i\n#end for",
+        self.verify("#for i in range(5): ##comment\n$i\n#end for",
                     "0\n1\n2\n3\n4\n")
 
-        self.verify("#for $i in range(5) ##comment\n$i\n#end for",
+        self.verify("#for i in range(5) ##comment\n$i\n#end for",
                     "0\n1\n2\n3\n4\n")
 
     def test2(self):
         """#for loop with WS in loop"""
-        self.verify("#for $i in range(5)\n$i \n#end for",
+        self.verify("#for i in range(5)\n$i \n#end for",
                     "0 \n1 \n2 \n3 \n4 \n")
 
     def test3(self):
         """#for loop gobble WS"""
-        self.verify("   #for $i in range(5)   \n$i \n   #end for   ",
+        self.verify("   #for i in range(5)   \n$i \n   #end for   ",
                     "0 \n1 \n2 \n3 \n4 \n")
 
     def test4(self):
         """#for loop over list"""
-        self.verify("#for $i, $j in [(0,1),(2,3)]\n$i,$j\n#end for",
+        self.verify("#for i, j in [(0,1),(2,3)]\n$i,$j\n#end for",
                     "0,1\n2,3\n")
 
     def test5(self):
         """#for loop over list, with #slurp"""
-        self.verify("#for $i, $j in [(0,1),(2,3)]\n$i,$j#slurp\n#end for",
+        self.verify("#for i, j in [(0,1),(2,3)]\n$i,$j#slurp\n#end for",
                     "0,12,3")
 
     def test6(self):
         """#for loop with explicit closures"""
-        self.verify("#for $i in range(5)#$i#end for#",
+        self.verify("#for i in range(5)#$i#end for#",
                     "01234")
 
     def test7(self):
         """#for loop with explicit closures and WS"""
-        self.verify("  #for $i in range(5)#$i#end for#  ",
+        self.verify("  #for i in range(5)#$i#end for#  ",
                     "  01234  ")
 
     def test8(self):
         """#for loop using another $var"""
-        self.verify("  #for $i in range($aFunc(5))#$i#end for#  ",
+        self.verify("  #for i in range($aFunc(5))#$i#end for#  ",
                     "  01234  ")
 
     def test9(self):
         """test methods in for loops"""
-        self.verify("#for $func in $listOfLambdas\n$func($anInt)\n#end for",
+        self.verify("#for func in $listOfLambdas\n$func($anInt)\n#end for",
                     "1\n1\n1\n")
 
     def test10(self):
         """#for loop over list, using methods of the items"""
         self.verify("#for i, j in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
-        self.verify("#for $i, $j in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
+        self.verify("#for i, j in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
 
     def test11(self):
-        """#for loop over list, using ($i,$j) style target list"""
+        """#for loop over list, using (i, j) style target list"""
         self.verify("#for (i, j) in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
-                    "AA,BB\nCC,DD\n")
-        self.verify("#for ($i, $j) in [('aa','bb'),('cc','dd')]\n$i.upper(),$j.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
 
     def test12(self):
         """#for loop over list, using i, (j,k) style target list"""
         self.verify("#for i, (j, k) in enumerate([('aa','bb'),('cc','dd')])\n$j.upper(),$k.upper()\n#end for",
                     "AA,BB\nCC,DD\n")
-        self.verify("#for $i, ($j, $k) in enumerate([('aa','bb'),('cc','dd')])\n$j.upper(),$k.upper()\n#end for",
-                    "AA,BB\nCC,DD\n")
 
     def test13(self):
         """single line #for"""
-        self.verify("#for $i in range($aFunc(5)): $i",
+        self.verify("#for i in range($aFunc(5)): $i",
                     "01234")
 
     def test14(self):
         """single line #for with 1 extra leading space"""
-        self.verify("#for $i in range($aFunc(5)):  $i",
+        self.verify("#for i in range($aFunc(5)):  $i",
                     " 0 1 2 3 4")
 
     def test15(self):
         """2 times single line #for"""
-        self.verify("#for $i in range($aFunc(5)): $i#slurp\n" * 2,
+        self.verify("#for i in range($aFunc(5)): $i#slurp\n" * 2,
                     "01234" * 2)
 
     def test16(self):
         """false single line #for """
-        self.verify("#for $i in range(5): \n$i\n#end for",
+        self.verify("#for i in range(5): \n$i\n#end for",
                     "0\n1\n2\n3\n4\n")
 
 
@@ -1443,7 +1419,7 @@ $i#slurp
 
     def test2(self):
         """#continue with a #for"""
-        self.verify("""#for $i in range(5)
+        self.verify("""#for i in range(5)
 #if $i == 3
   #continue
 #end if
@@ -1467,7 +1443,7 @@ $i#slurp
 
     def test2(self):
         """#break with a #for"""
-        self.verify("""#for $i in range(5)
+        self.verify("""#for i in range(5)
 #if $i == 3
   #break
 #end if
@@ -1807,7 +1783,7 @@ class ImportantExampleCases(OutputTest):
     def test1(self):
         """how to make a comma-delimited list"""
         self.verify("""#set sep = ''
-#for $letter in $letterList
+#for letter in $letterList
 $sep$letter#slurp
 #set sep = ', '
 #end for
