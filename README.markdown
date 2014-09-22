@@ -19,4 +19,154 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
-TBD
+## 0.0.0
+- Before hacking
+
+## 0.0.1
+- Correct dependencies
+
+## 0.1.0
+- Removed Cheetah Analyzer
+- Removed textmate highlight support
+- Remove logging of placeholders
+- Remove Django support
+- Make useAutoCalling default to False
+- Remove `#cache` directive
+- Remove Mondo
+- Remove RecursiveNull
+- Remove SiteHierarchy
+- Remove turbocheetah
+- Remove Servlet
+- Remove silent placeholders (`$!placeholder`)
+- Remove `#errorCatcher` directive
+- Remove WebWare support
+- Remove FileUtils
+- Remove hasName
+- Remove Indenter
+- Remove `#indent` directive
+- Remove cheetah eval `c'$var'` syntax
+- Remove import hook, live compiling, compilation cache
+- Remove CheetahWrapper
+- Remove `#I18n` macro
+- Improve cmdline interface
+- Remove several magical imports (`time`, `currentTime`, etc.)
+- Remove `#unicode` directive
+- Remove `#breakpoint` directive
+- Remove `#unless` directive
+- Remove `#repeate` directive
+- Remove `#capture` directive
+- Improve compiling interface.  There are now three functions: (`compile_source`, `compile_file`, `compile_to_class`)
+- Remove `#defmacro` directive
+- Remove `#include` directive
+- Remove `getFileContents`
+- Remove preprocessors
+- Remove `addSrcTimeToOutput` setting
+- Remove `disabledDirectives` setting
+- Remove `pre` / `post` `ParseDirective` hooks
+- Remove placeholder hooks
+- Remove expression hooks
+- Remove `I18NFunctionName`
+- Remove `EmptySingleLineMethods` setting
+- Remove `allowWhitespaceAfterDirectiveStartToken`
+- Remove `templateMetaclass` setting
+- Require `unicode` for compiling source
+- Remove `#transform` directive
+- Remove `Websafe`, `Markdown`, `CodeHighlight`, `Maxlen`, `Strip` filters
+- Remove aliases for `BaseFilter`
+- Remove `namespaces` argument for `Template` constructor
+- Remove `#stop` directive
+- Remove `useFilters` setting (always True)
+- Remove `allowPlaceholderFilterArgs` setting
+- Remove `encoding` setting
+- Remove `EOLSlurp` feature
+- Remove `#raw` directive
+- Remove C implementation of filters
+- Remove `outputMethodsBeforeAttributes` setting
+- Remove `defDocStrMsg` setting
+- Remove `handlerForExtendsDirective` setting
+- Remove `__str__` from all objects
+- Remove support for pypy (Delete python implementation of NameMapper)
+- Remove `useStackFrames` setting
+- Remove `#importsettings` directive
+- Remove `#compiler-settings python` directive
+- Remove `safeConvert`
+- Remove `*` imports
+- Raise on searchlist collisions
+- Fix bug with macros causing out-of-bounds when near end of source
+
+## 0.1.1
+- Raise on unknown macros
+- Remove `#echo` directive
+- Remove `#* ... *#` multiline comment syntax
+- Remove version checking code
+- Remove `#arg` directive
+- Remove `#closure` directive
+- Make compilation output deterministic
+- Make `<% ... %>`
+- Remove ability to specify argspecs in `#implements`
+- Remove multiple inheritance from `#extends`
+- Remove `#compiler` directive
+- Remove global imports: (`sys`, `os`, `os.path`, 'builtin`, 'getmtime`, `exists`, `types`)
+- Default `useDottedNotation` to false
+- Remove `allowNestedDefScopes` setting
+- Remove `useSearchList` setting
+- Remove `useKWsForPassingTrans` setting
+- Remove `alwaysFilterNone` setting
+- Remove cheetah ternary `#if ... then ... else ...` directive
+- Remove `namespace` argument from Template.__init__
+- **Support Python 3**
+- Expose a global `__YELP_CHEETAH__ = True` in compiled source
+- Remove `autoImportForExtends` setting (always True)
+- Disable `#extends` of an imported name
+- Add setting `future_unicode_literals` for toggling `unicode_literals` in compiled source
+
+
+## 0.1.2
+- Rename `Cheetah.Compiler` and `Cheetah.Parser` to `Cheetah.legacy_compiler` and `Cheetah.legacy_parser`
+- Remove `#encoding` directive, cheetah source is now invariantely `UTF-8`
+
+
+## 0.1.3
+- Add `Cheetah.partial_template`, a system for importable template functions.
+
+## 0.1.4
+- Make filters simple functions instead of classes
+- Add and make default `markupsafe` filter
+
+## 0.2.0
+- Add `#with` directive
+- **100% test coverage**
+
+## 0.2.1
+- Add `compile_directories`
+
+## 0.3.0
+- Disallow dollarsigns on `#def` / `#block` name
+- Disallow dollarsigns in function signatures
+- Require argspec for `#def`
+- Requres no argspec for `#block`
+- Require no dollarsign in `#set` lvalue
+- Disallow dollarsigns in macro arguments
+- Disallow dollarsigns in `#attr` lvalue
+- Forbid `@classmethod` / `@staticmethod`
+- Remove `#set module` directive
+- Add testing infrastructure for partial template testing
+
+## 0.3.1
+- Fix partial template testing infrastructure
+
+## 0.3.2
+- `cheetah-compile` takes directories
+
+
+## 0.3.3
+- dep argparse
+
+## 0.3.4
+- Invariantly create `__init__.py` in subdirectories
+
+## 0.3.5
+- Do not create `__init__.py` in `__pycache__` directories
+
+## 0.4.0 (not yet released)
+- Remove dollarsigns on `for` lvalues
