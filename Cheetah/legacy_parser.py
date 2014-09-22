@@ -1266,7 +1266,6 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(
                 self, 'Expected #def, #block or another @decorator',
             )
-        self.eatDirective()
 
     def eatDef(self):
         self._eatDefOrBlock('def')
