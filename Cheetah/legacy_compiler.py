@@ -254,7 +254,10 @@ class MethodCompiler(GenUtils):
 
     def addChunk(self, chunk):
         self.commitStrConst()
-        chunk = '\n' + self.indentation() + chunk
+        if chunk:
+            chunk = '\n' + self.indentation() + chunk
+        else:
+            chunk = '\n'
         self._methodBodyChunks.append(chunk)
 
     def appendToPrevChunk(self, appendage):
@@ -868,7 +871,7 @@ class LegacyCompiler(SettingsManager, GenUtils):
         self.addImportedVarNames(importVarNames, raw_statement=impStatement)  # used by #extend for auto-imports
 
     def addAttribute(self, attribName, expr):
-        self._getActiveClassCompiler().addAttribute(attribName + ' =' + expr)
+        self._getActiveClassCompiler().addAttribute(attribName + ' = ' + expr)
 
     def addComment(self, comm):
         for line in comm.splitlines():
