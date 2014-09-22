@@ -19,11 +19,79 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
-## 0.0.0
-- Before hacking
+## 0.4.0 (not yet released)
+- Remove dollarsigns on `for` lvalues
 
-## 0.0.1
-- Correct dependencies
+## 0.3.5
+- Do not create `__init__.py` in `__pycache__` directories
+
+## 0.3.4
+- Invariantly create `__init__.py` in subdirectories
+
+## 0.3.3
+- dep argparse
+
+## 0.3.2
+- `cheetah-compile` takes directories
+
+## 0.3.1
+- Fix partial template testing infrastructure
+
+## 0.3.0
+- Disallow dollarsigns on `#def` / `#block` name
+- Disallow dollarsigns in function signatures
+- Require argspec for `#def`
+- Requres no argspec for `#block`
+- Require no dollarsign in `#set` lvalue
+- Disallow dollarsigns in macro arguments
+- Disallow dollarsigns in `#attr` lvalue
+- Forbid `@classmethod` / `@staticmethod`
+- Remove `#set module` directive
+- Add testing infrastructure for partial template testing
+
+## 0.2.1
+- Add `compile_directories`
+
+## 0.2.0
+- Add `#with` directive
+- **100% test coverage**
+
+## 0.1.4
+- Make filters simple functions instead of classes
+- Add and make default `markupsafe` filter
+
+## 0.1.3
+- Add `Cheetah.partial_template`, a system for importable template functions.
+
+## 0.1.2
+- Rename `Cheetah.Compiler` and `Cheetah.Parser` to `Cheetah.legacy_compiler` and `Cheetah.legacy_parser`
+- Remove `#encoding` directive, cheetah source is now invariantely `UTF-8`
+
+## 0.1.1
+- Raise on unknown macros
+- Remove `#echo` directive
+- Remove `#* ... *#` multiline comment syntax
+- Remove version checking code
+- Remove `#arg` directive
+- Remove `#closure` directive
+- Make compilation output deterministic
+- Make `<% ... %>`
+- Remove ability to specify argspecs in `#implements`
+- Remove multiple inheritance from `#extends`
+- Remove `#compiler` directive
+- Remove global imports: (`sys`, `os`, `os.path`, 'builtin`, 'getmtime`, `exists`, `types`)
+- Default `useDottedNotation` to false
+- Remove `allowNestedDefScopes` setting
+- Remove `useSearchList` setting
+- Remove `useKWsForPassingTrans` setting
+- Remove `alwaysFilterNone` setting
+- Remove cheetah ternary `#if ... then ... else ...` directive
+- Remove `namespace` argument from Template.__init__
+- **Support Python 3**
+- Expose a global `__YELP_CHEETAH__ = True` in compiled source
+- Remove `autoImportForExtends` setting (always True)
+- Disable `#extends` of an imported name
+- Add setting `future_unicode_literals` for toggling `unicode_literals` in compiled source
 
 ## 0.1.0
 - Removed Cheetah Analyzer
@@ -94,79 +162,8 @@ Differences
 - Raise on searchlist collisions
 - Fix bug with macros causing out-of-bounds when near end of source
 
-## 0.1.1
-- Raise on unknown macros
-- Remove `#echo` directive
-- Remove `#* ... *#` multiline comment syntax
-- Remove version checking code
-- Remove `#arg` directive
-- Remove `#closure` directive
-- Make compilation output deterministic
-- Make `<% ... %>`
-- Remove ability to specify argspecs in `#implements`
-- Remove multiple inheritance from `#extends`
-- Remove `#compiler` directive
-- Remove global imports: (`sys`, `os`, `os.path`, 'builtin`, 'getmtime`, `exists`, `types`)
-- Default `useDottedNotation` to false
-- Remove `allowNestedDefScopes` setting
-- Remove `useSearchList` setting
-- Remove `useKWsForPassingTrans` setting
-- Remove `alwaysFilterNone` setting
-- Remove cheetah ternary `#if ... then ... else ...` directive
-- Remove `namespace` argument from Template.__init__
-- **Support Python 3**
-- Expose a global `__YELP_CHEETAH__ = True` in compiled source
-- Remove `autoImportForExtends` setting (always True)
-- Disable `#extends` of an imported name
-- Add setting `future_unicode_literals` for toggling `unicode_literals` in compiled source
+## 0.0.1
+- Correct dependencies
 
-
-## 0.1.2
-- Rename `Cheetah.Compiler` and `Cheetah.Parser` to `Cheetah.legacy_compiler` and `Cheetah.legacy_parser`
-- Remove `#encoding` directive, cheetah source is now invariantely `UTF-8`
-
-
-## 0.1.3
-- Add `Cheetah.partial_template`, a system for importable template functions.
-
-## 0.1.4
-- Make filters simple functions instead of classes
-- Add and make default `markupsafe` filter
-
-## 0.2.0
-- Add `#with` directive
-- **100% test coverage**
-
-## 0.2.1
-- Add `compile_directories`
-
-## 0.3.0
-- Disallow dollarsigns on `#def` / `#block` name
-- Disallow dollarsigns in function signatures
-- Require argspec for `#def`
-- Requres no argspec for `#block`
-- Require no dollarsign in `#set` lvalue
-- Disallow dollarsigns in macro arguments
-- Disallow dollarsigns in `#attr` lvalue
-- Forbid `@classmethod` / `@staticmethod`
-- Remove `#set module` directive
-- Add testing infrastructure for partial template testing
-
-## 0.3.1
-- Fix partial template testing infrastructure
-
-## 0.3.2
-- `cheetah-compile` takes directories
-
-
-## 0.3.3
-- dep argparse
-
-## 0.3.4
-- Invariantly create `__init__.py` in subdirectories
-
-## 0.3.5
-- Do not create `__init__.py` in `__pycache__` directories
-
-## 0.4.0 (not yet released)
-- Remove dollarsigns on `for` lvalues
+## 0.0.0
+- Before hacking
