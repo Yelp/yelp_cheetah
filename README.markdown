@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/bukzor/yelp_cheetah.svg?branch=master)](https://travis-ci.org/bukzor/yelp_cheetah)
-[![Coverage Status](https://img.shields.io/coveralls/bukzor/yelp_cheetah.svg?branch=master)](https://coveralls.io/r/bukzor/yelp_cheetah)
+[![Build Status](https://travis-ci.org/Yelp/yelp_cheetah.svg?branch=master)](https://travis-ci.org/Yelp/yelp_cheetah)
+[![Coverage Status](https://img.shields.io/coveralls/Yelp/yelp_cheetah.svg?branch=master)](https://coveralls.io/r/Yelp/yelp_cheetah)
 
 yelp_cheetah
 ============
@@ -86,7 +86,7 @@ Differences
 - Remove `useKWsForPassingTrans` setting
 - Remove `alwaysFilterNone` setting
 - Remove cheetah ternary `#if ... then ... else ...` directive
-- Remove `namespace` argument from Template.__init__
+- Remove `namespace` argument from `Template.__init__`
 - **Support Python 3**
 - Expose a global `__YELP_CHEETAH__ = True` in compiled source
 - Remove `autoImportForExtends` setting (always True)
