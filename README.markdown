@@ -65,7 +65,7 @@ Differences
 
 ## 0.1.2
 - Rename `Cheetah.Compiler` and `Cheetah.Parser` to `Cheetah.legacy_compiler` and `Cheetah.legacy_parser`
-- Remove `#encoding` directive, cheetah source is now invariantely `UTF-8`
+- Remove `#encoding` directive, cheetah source is now invariantly `UTF-8`
 
 ## 0.1.1
 - Raise on unknown macros
