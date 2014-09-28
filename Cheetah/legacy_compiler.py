@@ -339,7 +339,7 @@ class MethodCompiler(GenUtils):
                 primary = components.lvalue
                 secondary = ''
             expr = 'self._CHEETAH__globalSetVars["{0}"]{1} {2} {3}'.format(
-                primary, secondary, components.op, components.rvalue,
+                primary, secondary, components.op, components.rvalue.strip(),
             )
 
         self.addChunk(expr)
