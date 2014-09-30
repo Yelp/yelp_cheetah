@@ -875,7 +875,7 @@ class _LowLevelParser(SourceReader):
             expr = expr[:-1]
             rawPlaceholder = self[startPos: self.pos()]
 
-        return (expr, rawPlaceholder, lineCol)
+        return expr, rawPlaceholder, lineCol
 
 
 class LegacyParser(_LowLevelParser):
@@ -981,14 +981,12 @@ class LegacyParser(_LowLevelParser):
         self._compiler.addComment(comm)
 
     def eatPlaceholder(self):
-        (expr, rawPlaceholder, lineCol) = self.getPlaceholder()
-
+        expr, rawPlaceholder, lineCol = self.getPlaceholder()
         self._compiler.addPlaceholder(
             expr,
             rawPlaceholder=rawPlaceholder,
             lineCol=lineCol,
         )
-        return
 
     def eatPSP(self):
         self.getPSPStartToken()
