@@ -58,7 +58,7 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         return lineNum + 1, pos - BOL + 1
 
     def getRowColLine(self):
-        row, col = self.getRowCol(self._pos)
+        row, col = self.getRowCol()
         return row, col, self.splitlines()[row - 1]
 
     def pos(self):
