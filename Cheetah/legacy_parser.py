@@ -843,7 +843,7 @@ class _LowLevelParser(SourceReader):
 
     def getPlaceholder(self, plain=False):
         startPos = self.pos()
-        lineCol = self.getRowCol(startPos)
+        lineCol = self.getRowCol()
         self.getCheetahVarStartToken()
 
         if self.peek() in '({[':
@@ -868,12 +868,12 @@ class _LowLevelParser(SourceReader):
                     assert restOfExpr[-1] == closurePairsRev[enclosureOpenChar]
                     restOfExpr = restOfExpr[:-1]
                     expr += restOfExpr
-            rawPlaceholder = self[startPos: self.pos()]
+            rawPlaceholder = self[startPos:self.pos()]
         else:
             expr = self.getExpression(enclosed=True, enclosures=enclosures)
             assert expr[-1] == closurePairsRev[enclosureOpenChar]
             expr = expr[:-1]
-            rawPlaceholder = self[startPos: self.pos()]
+            rawPlaceholder = self[startPos:self.pos()]
 
         return expr, rawPlaceholder, lineCol
 
@@ -982,11 +982,7 @@ class LegacyParser(_LowLevelParser):
 
     def eatPlaceholder(self):
         expr, rawPlaceholder, lineCol = self.getPlaceholder()
-        self._compiler.addPlaceholder(
-            expr,
-            rawPlaceholder=rawPlaceholder,
-            lineCol=lineCol,
-        )
+        self._compiler.addPlaceholder(expr, rawPlaceholder, lineCol)
 
     def eatPSP(self):
         self.getPSPStartToken()
@@ -1147,9 +1143,9 @@ class LegacyParser(_LowLevelParser):
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
             if directiveName in 'else elif except finally'.split():
-                callback(expr, dedent=False, lineCol=lineCol)
+                callback(expr, lineCol, dedent=False)
             else:
-                callback(expr, lineCol=lineCol)
+                callback(expr, lineCol)
 
             self.getWhiteSpace(maximum=1)
             self.parse(breakPoint=self.findEOL(gobble=True))
@@ -1162,7 +1158,7 @@ class LegacyParser(_LowLevelParser):
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             if directiveName in self._closeableDirectives:
                 self.pushToOpenDirectivesStack(directiveName)
-            callback(expr, lineCol=lineCol)
+            callback(expr, lineCol)
 
     def eatEndDirective(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
@@ -1407,6 +1403,7 @@ class LegacyParser(_LowLevelParser):
         self._compiler.addSuper(argsList)
 
     def eatSet(self):
+        line_col = self.getRowCol()
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         self.getDirectiveStartToken()
@@ -1428,7 +1425,7 @@ class LegacyParser(_LowLevelParser):
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
         expr_components = Components(lvalue, op, rvalue)
-        self._compiler.addSet(expr_components, style)
+        self._compiler.addSet(expr_components, style, line_col)
 
     def eatSlurp(self):
         if self.isLineClearToStartToken():
@@ -1554,7 +1551,7 @@ class LegacyParser(_LowLevelParser):
 
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
-            self._compiler.addIf(expr, lineCol=lineCol)
+            self._compiler.addIf(expr, lineCol)
             self.getWhiteSpace(maximum=1)
             self.parse(breakPoint=self.findEOL(gobble=True))
             self._compiler.commitStrConst()
@@ -1565,7 +1562,7 @@ class LegacyParser(_LowLevelParser):
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
             self.pushToOpenDirectivesStack('if')
-            self._compiler.addIf(expr, lineCol=lineCol)
+            self._compiler.addIf(expr, lineCol)
 
     # end directive handlers
     def handleEndDef(self):

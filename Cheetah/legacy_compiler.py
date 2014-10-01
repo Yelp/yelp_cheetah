@@ -33,11 +33,9 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
     ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
-
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('indentationStep', ' ' * 4, ''),
-
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
     ('directiveStartToken', '#', ''),
@@ -46,7 +44,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('PSPEndToken', '%>', ''),
     ('gettextTokens', ['_', 'ngettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
-
     ('future_unicode_literals', True, 'from __future__ import unicode_literals'),
 ]
 
@@ -62,7 +59,7 @@ def genPlainVar(nameChunks):
     pythonCode = chunk[0] + chunk[2]
     while nameChunks:
         chunk = nameChunks.pop()
-        pythonCode = (pythonCode + '.' + chunk[0] + chunk[2])
+        pythonCode = pythonCode + '.' + chunk[0] + chunk[2]
     return pythonCode
 
 
@@ -321,13 +318,18 @@ class MethodCompiler(GenUtils):
     def addMethComment(self, comment):
         self.addChunk('#' + comment)
 
-    def addPlaceholder(self, expr, rawPlaceholder, lineCol):
-        self.addFilteredChunk(expr, rawPlaceholder, lineCol)
-        self.appendToPrevChunk(' # from line %s, col %s' % lineCol + '.')
+    def _append_line_col_comment(self, line_col):
+        self.appendToPrevChunk(' # generated from line {0}, col {1}.'.format(
+            *line_col
+        ))
 
-    def addSet(self, components, setStyle):
+    def addPlaceholder(self, expr, rawPlaceholder, line_col):
+        self.addFilteredChunk(expr, rawPlaceholder, line_col)
+        self._append_line_col_comment(line_col)
+
+    def addSet(self, components, set_style, line_col):
         expr = ' '.join([component.strip() for component in components])
-        if setStyle is SET_GLOBAL:
+        if set_style is SET_GLOBAL:
             # we need to split the lvalue to deal with globalSetVars
             first_obj_match = re.search(r'[\[\.]', components.lvalue)
             split_pos = first_obj_match.start() if first_obj_match else -1
@@ -343,12 +345,13 @@ class MethodCompiler(GenUtils):
             )
 
         self.addChunk(expr)
+        self._append_line_col_comment(line_col)
 
-    def addIndentingDirective(self, expr, lineCol):
+    def addIndentingDirective(self, expr, line_col):
         assert expr[-1] != ':'
         expr = expr + ':'
         self.addChunk(expr)
-        self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
+        self._append_line_col_comment(line_col)
         self.indent()
 
     addWhile = addIndentingDirective
@@ -357,7 +360,7 @@ class MethodCompiler(GenUtils):
     addIf = addIndentingDirective
     addTry = addIndentingDirective
 
-    def addReIndentingDirective(self, expr, dedent=True, lineCol=None):
+    def addReIndentingDirective(self, expr, line_col, dedent=True):
         self.commitStrConst()
         if dedent:
             self.dedent()
@@ -365,16 +368,15 @@ class MethodCompiler(GenUtils):
         expr = expr + ':'
 
         self.addChunk(expr)
-        assert lineCol
-        self.appendToPrevChunk(' # generated from line %s, col %s' % lineCol)
+        self._append_line_col_comment(line_col)
         self.indent()
 
     addExcept = addReIndentingDirective
     addFinally = addReIndentingDirective
 
-    def addElse(self, expr, dedent=True, lineCol=None):
+    def addElse(self, expr, line_col, dedent=True):
         expr = re.sub(r'else[ \f\t]+if', 'elif', expr)
-        self.addReIndentingDirective(expr, dedent=dedent, lineCol=lineCol)
+        self.addReIndentingDirective(expr, line_col, dedent=dedent)
 
     addElif = addElse
 
@@ -550,10 +552,6 @@ class MethodCompiler(GenUtils):
         return ''.join(output)
 
 
-##################################################
-# CLASS COMPILERS
-
-
 class ClassCompiler(GenUtils):
     methodCompilerClass = MethodCompiler
 
@@ -656,8 +654,8 @@ class ClassCompiler(GenUtils):
         """
         self._decoratorsForNextMethod.append(decorator_expr)
 
-    def addAttribute(self, attribExpr):
-        self._generatedAttribs.append(attribExpr)
+    def addAttribute(self, attrib_expr):
+        self._generatedAttribs.append(attrib_expr)
 
     def addSuper(self, argsList):
         className = self._className
@@ -688,8 +686,6 @@ class ClassCompiler(GenUtils):
 
         # insert the code to call the block
         self.addChunk('self.{0}()'.format(methodName))
-
-    # code wrapping methods
 
     def classDef(self):
         ind = self.setting('indentationStep')
@@ -725,10 +721,6 @@ class ClassCompiler(GenUtils):
             for attrib in self._generatedAttribs
         ]
         return '\n\n'.join(attribs)
-
-
-##################################################
-# MODULE COMPILERS
 
 
 class LegacyCompiler(SettingsManager, GenUtils):
