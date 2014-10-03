@@ -38,7 +38,7 @@ class Template(object):
       baseclasses.
 
       Instance attributes look like this:
-          self._CHEETAH__globalSetVars (_CHEETAH__xxx with 2 underscores)
+          self._CHEETAH__searchList (_CHEETAH__xxx with 2 underscores)
     """
 
     def __init__(
@@ -92,10 +92,8 @@ class Template(object):
                 'but got {0}'.format(type(searchList))
             )
 
-        self._CHEETAH__globalSetVars = {}
-
         # create our own searchList
-        self._CHEETAH__searchList = [self._CHEETAH__globalSetVars, self]
+        self._CHEETAH__searchList = [self]
         if searchList is not None:
             self._CHEETAH__searchList.extend(list(searchList))
 
