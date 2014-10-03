@@ -23,10 +23,6 @@ else:  # pragma: no cover (PY3 only)
 
 
 python_token_re = re.compile(PseudoToken)
-
-SET_LOCAL = 0
-SET_GLOBAL = 1
-
 identchars = string.ascii_letters + '_'
 namechars = identchars + string.digits
 
@@ -1409,12 +1405,6 @@ class LegacyParser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(3)
         self.getWhiteSpace()
-        style = SET_LOCAL
-        if self.startswith('global'):
-            self.getIdentifier()
-            self.getWhiteSpace()
-            style = SET_GLOBAL
-
         lvalue = self.get_python_expression(
             'lvalue of #set cannot contain `$`',
             pyTokensToBreakAt=assignmentOps,
@@ -1425,7 +1415,7 @@ class LegacyParser(_LowLevelParser):
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
         expr_components = Components(lvalue, op, rvalue)
-        self._compiler.addSet(expr_components, style, line_col)
+        self._compiler.addSet(expr_components, line_col)
 
     def eatSlurp(self):
         if self.isLineClearToStartToken():

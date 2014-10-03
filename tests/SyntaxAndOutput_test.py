@@ -1190,11 +1190,6 @@ $testDict['two']""",
         self.verify("   #set testVar = [1, 2, 3]  \n$testVar",
                     "[1, 2, 3]")
 
-    def test10(self):
-        """simple #set global with a list"""
-        self.verify("   #set global testVar = [1, 2, 3]  \n$testVar",
-                    "[1, 2, 3]")
-
     def test14(self):
         """simple #set without NameMapper on"""
         self.verify(
@@ -1211,11 +1206,6 @@ $testDict['two']""",
         self.verify("""#set testVar = 1 \n$testVar""",
                     "1")
 
-    def test16(self):
-        """simple #set global without $"""
-        self.verify("""#set global testVar = 1 \n$testVar""",
-                    "1")
-
     def test18(self):
         """#set with i,j=list style assignment"""
         self.verify("""#set i,j = [1,2]\n$i$j""",
@@ -1230,32 +1220,6 @@ $testDict['two']""",
         """#set with i, (j,k)=list style assignment"""
         self.verify("""#set i, (j,k) = [1,(2,3)]\n$i$j$k""",
                     "123")
-
-
-class GlobalSetClass(object):
-    pass
-
-
-GLOBAL_SET_SL = [{'global_set_cls': GlobalSetClass}]
-
-
-def test_global_set_directive():
-    # Eventually I'd like to remove global set, but for now it'd be better
-    # if it is tested.
-    cls = compile_to_class(
-        '#set global foo = {}\n'
-        "#set global foo['bar'] = $global_set_cls()\n"
-        "#set global foo['bar'].baz = 'herp'\n"
-        "$foo['bar'].baz\n"
-        '#set global bar = $global_set_cls()\n'
-        "#set global bar.baz = 'derp'\n"
-        '$bar.baz\n'
-        '#set global baz = $global_set_cls()\n'
-        '#set global baz.herp = {}\n'
-        "#set global baz.herp['derp'] = 'harpdarp'\n"
-        "$baz.herp['derp']\n"
-    )
-    assert cls(searchList=GLOBAL_SET_SL).respond() == 'herp\nderp\nharpdarp\n'
 
 
 def test_del_directive():
@@ -1745,15 +1709,6 @@ $spacer()
 $spacer()
 """,
                     '<img src="spacer.gif" width="1" height="1" alt="" />\n')
-
-    def test4(self):
-        """#extends with globals and searchList test"""
-        self.verify("""#extends testing.templates.extends_test_template
-#set global g="Hello"
-#implements respond
-$g $numOne
-""",
-                    'Hello 1\n')
 
 
 def test_extends_with_partial_baseclass_import():
