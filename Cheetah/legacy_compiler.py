@@ -17,7 +17,6 @@ import warnings
 
 from Cheetah import five
 from Cheetah.legacy_parser import LegacyParser
-from Cheetah.legacy_parser import SET_GLOBAL
 from Cheetah.legacy_parser import escapedNewlineRE
 from Cheetah.SettingsManager import SettingsManager
 
@@ -327,24 +326,8 @@ class MethodCompiler(GenUtils):
         self.addFilteredChunk(expr, rawPlaceholder, line_col)
         self._append_line_col_comment(line_col)
 
-    def addSet(self, components, set_style, line_col):
-        expr = ' '.join([component.strip() for component in components])
-        if set_style is SET_GLOBAL:
-            # we need to split the lvalue to deal with globalSetVars
-            first_obj_match = re.search(r'[\[\.]', components.lvalue)
-            split_pos = first_obj_match.start() if first_obj_match else -1
-
-            if split_pos > 0:
-                primary = components.lvalue[:split_pos]
-                secondary = components.lvalue[split_pos:]
-            else:
-                primary = components.lvalue
-                secondary = ''
-            expr = 'self._CHEETAH__globalSetVars["{0}"]{1} {2} {3}'.format(
-                primary, secondary, components.op, components.rvalue.strip(),
-            )
-
-        self.addChunk(expr)
+    def addSet(self, components, line_col):
+        self.addChunk(' '.join([component.strip() for component in components]))
         self._append_line_col_comment(line_col)
 
     def addIndentingDirective(self, expr, line_col):
