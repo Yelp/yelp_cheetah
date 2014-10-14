@@ -115,10 +115,6 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         self.checkPos(self._pos + offset)
         self._pos += offset
 
-    def rev(self, offset=1):
-        self.checkPos(self._pos - offset)
-        self._pos -= offset
-
     def readTo(self, to, start=None):
         self.checkPos(to)
         if start is None:
@@ -140,10 +136,7 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         return self._src.find(it, pos)
 
     def startswith(self, it, pos=None):
-        if self.find(it, pos) == self.pos():
-            return True
-        else:
-            return False
+        return self.find(it, pos) == self.pos()
 
     def findBOL(self, pos=None):
         if pos is None:
