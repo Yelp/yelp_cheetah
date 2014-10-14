@@ -305,7 +305,7 @@ class MethodCompiler(object):
                 call_id
             )
         )
-        self.addChunk('write = trans.response().write')
+        self.addChunk('write = trans.write')
 
     def endCallRegion(self):
         call_details = self._callRegionsStack.pop()
@@ -319,10 +319,10 @@ class MethodCompiler(object):
         self.addChunk(
             'self.transaction = trans = _orig_trans{0}'.format(call_id),
         )
-        self.addChunk('write = trans.response().write')
+        self.addChunk('write = trans.write')
         self.addChunk('del _orig_trans{0}'.format(call_id))
 
-        self.addChunk('_call_arg{0} = _call{0}.response().getvalue()'.format(call_id))
+        self.addChunk('_call_arg{0} = _call{0}.getvalue()'.format(call_id))
         self.addChunk('del _call{0}'.format(call_id))
 
         args = (', ' + args).strip()
@@ -380,7 +380,7 @@ class MethodCompiler(object):
         self.indent()
         self.addChunk('_dummyTrans = False')
         self.dedent()
-        self.addChunk('write = trans.response().write')
+        self.addChunk('write = trans.write')
         if self.setting('useNameMapper'):
             self.addChunk('SL = self._CHEETAH__searchList')
         self.addChunk('_filter = self._CHEETAH__currentFilter')
@@ -399,7 +399,7 @@ class MethodCompiler(object):
             self.addChunk('if _dummyTrans:')
             self.indent()
             self.addChunk('self.transaction = None')
-            self.addChunk('return trans.response().getvalue()')
+            self.addChunk('return trans.getvalue()')
             self.dedent()
             self.addChunk('else:')
             self.indent()
