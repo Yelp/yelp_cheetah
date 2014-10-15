@@ -22,6 +22,7 @@ Differences
 ## 0.4.0 (not yet released)
 - Remove dollarsigns on `for` lvalues
 - Remove `#set global` directive
+- Remove `future_unicode_literals` setting
 
 ## 0.3.5
 - Do not create `__init__.py` in `__pycache__` directories
