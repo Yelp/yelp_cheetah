@@ -629,12 +629,10 @@ class _LowLevelParser(SourceReader):
             elif self.matchCheetahVarStart():
                 # it has syntax that is only valid at the top level
                 self._raiseErrorAboutInvalidCheetahVarSyntaxInExpr()
+            elif self.peek() in ('{', '(', '['):
+                addBit(self.getExpression(enclosed=True))
             else:
-                token = self.getPyToken()
-                if token in ('{', '(', '['):
-                    self.rev()
-                    token = self.getExpression(enclosed=True)
-                addBit(token)
+                addBit(self.getPyToken())
 
         return ''.join(argStringBits)
 
@@ -683,12 +681,10 @@ class _LowLevelParser(SourceReader):
                 raise ParseError(self, '$ is not allowed here.')
             elif self.matchIdentifier() and not onDefVal:
                 argList.add_argument(self.getIdentifier())
+            elif onDefVal and c in ('{', '(', '['):
+                argList.add_default(self.getExpression(enclosed=True))
             elif onDefVal:
-                token = self.getPyToken()
-                if token in ('{', '(', '['):
-                    self.rev()
-                    token = self.getExpression(enclosed=True)
-                argList.add_default(token)
+                argList.add_default(self.getPyToken())
             elif c == '*' and not onDefVal:
                 varName = self.getc()
                 if self.peek() == '*':
