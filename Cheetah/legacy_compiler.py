@@ -43,7 +43,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('PSPEndToken', '%>', ''),
     ('gettextTokens', ['_', 'ngettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
-    ('future_unicode_literals', True, 'from __future__ import unicode_literals'),
 ]
 
 DEFAULT_COMPILER_SETTINGS = dict([(v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS])
@@ -182,11 +181,6 @@ class MethodCompiler(object):
 
         reprstr = repr(strConst)
 
-        if self.setting('future_unicode_literals'):
-            out = []
-        else:
-            out = ['u']
-
         # If our repr starts with u, trim it off
         if reprstr.startswith('u'):  # pragma: no cover (py2 only)
             reprstr = reprstr[1:]
@@ -194,9 +188,9 @@ class MethodCompiler(object):
         body = escapedNewlineRE.sub('\\1\n', reprstr[1:-1])
 
         if reprstr[0] == "'":
-            out.extend(["'''", body, "'''"])
+            out = ("'''", body, "'''")
         else:
-            out.extend(['"""', body, '"""'])
+            out = ('"""', body, '"""')
         self.addWriteChunk(''.join(out))
 
     def handleWSBeforeDirective(self):
@@ -850,13 +844,9 @@ class LegacyCompiler(SettingsManager):
         self._parser.parse()
         self._swallowClassCompiler(self._popActiveClassCompiler())
 
-        futures = ''
-        if self.setting('future_unicode_literals'):
-            futures += 'from __future__ import unicode_literals\n'
-
         moduleDef = textwrap.dedent(
             """
-            %(futures)s
+            from __future__ import unicode_literals
             %(imports)s
 
             # This is compiled yelp_cheetah sourcecode
@@ -869,7 +859,6 @@ class LegacyCompiler(SettingsManager):
             %(footer)s
             """
         ).strip() % {
-            'futures': futures,
             'imports': self.importStatements(),
             'constants': self.moduleConstants(),
             'classes': self.classDefs(),
