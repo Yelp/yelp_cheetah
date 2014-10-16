@@ -35,12 +35,12 @@ def default_self(func):
     def default_self_wrapper(self=NO_ARGUMENT, *args, **kwargs):
         if not isinstance(self, Template):
             if not (
-                self is NO_ARGUMENT or
-                (
-                    isinstance(self, type) and
-                    issubclass(self, Template) and
-                    self.__name__ == func.__name__
-                )
+                    self is NO_ARGUMENT or
+                    (
+                        isinstance(self, type) and
+                        issubclass(self, Template) and
+                        self.__name__ == func.__name__
+                    )
             ):
                 args = (self,) + args
             try:
