@@ -1761,68 +1761,35 @@ class FilterDirective(OutputTest):
                     "")
 
 
-class VarExists(OutputTest):               # Template.varExists()
-
-    def test1(self):
-        """$varExists('$anInt')
-        """
-        self.verify("$varExists('$anInt')",
-                    repr(True))
-
+class VarExists(OutputTest):
     def test2(self):
-        """$varExists('anInt')
-        """
         self.verify("$varExists('anInt')",
                     repr(True))
 
     def test3(self):
-        """$varExists('$anInt')
-        """
-        self.verify("$varExists('$bogus')",
+        self.verify("$varExists('bogus')",
                     repr(False))
 
     def test4(self):
-        """$varExists('$anInt') combined with #if false
-        """
-        self.verify("#if $varExists('$bogus')\n1234\n#else\n999\n#end if",
+        self.verify("#if $varExists('bogus')\n1234\n#else\n999\n#end if",
                     "999\n")
 
     def test5(self):
-        """$varExists('$anInt') combined with #if true
-        """
-        self.verify("#if $varExists('$anInt')\n1234\n#else\n999#end if",
+        self.verify("#if $varExists('anInt')\n1234\n#else\n999#end if",
                     "1234\n")
 
 
-class GetVar(OutputTest):               # Template.getVar()
-    def test1(self):
-        """$getVar('$anInt')
-        """
-        self.verify("$getVar('$anInt')",
-                    "1")
-
+class GetVar(OutputTest):
     def test2(self):
-        """$getVar('anInt')
-        """
         self.verify("$getVar('anInt')",
                     "1")
 
     def test3(self):
-        """$self.getVar('anInt')
-        """
         self.verify("$self.getVar('anInt')",
                     "1")
 
     def test4(self):
-        """$getVar('bogus', 1234)
-        """
         self.verify("$getVar('bogus',  1234)",
-                    "1234")
-
-    def test5(self):
-        """$getVar('$bogus', 1234)
-        """
-        self.verify("$getVar('$bogus',  1234)",
                     "1234")
 
 

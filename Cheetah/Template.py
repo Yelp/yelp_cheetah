@@ -111,8 +111,9 @@ class Template(object):
         in the searchList, it returns the default value if one was given, or
         raises NameMapper.NotFound.
         """
+        assert '$' not in varName, varName
         try:
-            return valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, useDottedNotation)
+            return valueFromSearchList(self.searchList(), varName, autoCall, useDottedNotation)
         except NotFound:
             if default is not UNSPECIFIED:
                 return default
@@ -122,7 +123,7 @@ class Template(object):
     def varExists(self, varName, autoCall=False, useDottedNotation=True):
         """Test if a variable name exists in the searchList."""
         try:
-            valueFromSearchList(self.searchList(), varName.replace('$', ''), autoCall, useDottedNotation)
+            valueFromSearchList(self.searchList(), varName, autoCall, useDottedNotation)
             return True
         except NotFound:
             return False
