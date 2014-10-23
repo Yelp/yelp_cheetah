@@ -25,6 +25,8 @@ CallDetails = collections.namedtuple(
     'CallDetails', ['call_id', 'function_name', 'args', 'lineCol'],
 )
 
+INDENT = 4 * ' '
+
 
 # Settings format: (key, default, docstring)
 _DEFAULT_COMPILER_SETTINGS = [
@@ -34,7 +36,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
-    ('indentationStep', ' ' * 4, ''),
     ('cheetahVarStartToken', '$', ''),
     ('commentStartToken', '##', ''),
     ('directiveStartToken', '#', ''),
@@ -45,7 +46,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('macroDirectives', {}, 'For providing macros'),
 ]
 
-DEFAULT_COMPILER_SETTINGS = dict([(v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS])
+DEFAULT_COMPILER_SETTINGS = dict((v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS)
 
 
 def genPlainVar(nameChunks):
@@ -59,21 +60,28 @@ def genPlainVar(nameChunks):
     return pythonCode
 
 
+def _arg_chunk_to_text(chunk):
+    if chunk[1] is not None:
+        return '{0}={1}'.format(*chunk)
+    else:
+        return chunk[0]
+
+
+def arg_string_list_to_text(arg_string_list):
+    return ', '.join(_arg_chunk_to_text(chunk) for chunk in arg_string_list)
+
+
 class MethodCompiler(object):
     def __init__(
             self,
             methodName,
-            classCompiler,
+            class_compiler,
             initialMethodComment,
             decorators=None,
     ):
         self._next_variable_id = 0
-        self._settingsManager = classCompiler
-        self._classCompiler = classCompiler
-        self._moduleCompiler = classCompiler._moduleCompiler
         self._methodName = methodName
         self._initialMethodComment = initialMethodComment
-        self._indent = self.setting('indentationStep')
         self._indentLev = 2
         self._pendingStrConstChunks = []
         self._methodBodyChunks = []
@@ -83,9 +91,6 @@ class MethodCompiler(object):
         self._isGenerator = False
         self._argStringList = [('self', None)]
         self._decorators = decorators or []
-
-    def setting(self, key):
-        return self._settingsManager.setting(key)
 
     def cleanupState(self):
         """Called by the containing class compiler instance"""
@@ -116,7 +121,7 @@ class MethodCompiler(object):
     # methods for managing indentation
 
     def indentation(self):
-        return self._indent * self._indentLev
+        return INDENT * self._indentLev
 
     def indent(self):
         self._indentLev += 1
@@ -141,7 +146,7 @@ class MethodCompiler(object):
 
     # methods for adding code
 
-    def addChunk(self, chunk):
+    def addChunk(self, chunk=''):
         self.commitStrConst()
         if chunk:
             chunk = '\n' + self.indentation() + chunk
@@ -337,7 +342,7 @@ class MethodCompiler(object):
                 col=col,
             )
         )
-        self.addChunk('')
+        self.addChunk()
 
     def setFilter(self, filter_name):
         filter_id = self.next_id()
@@ -375,19 +380,16 @@ class MethodCompiler(object):
         self.addChunk('_dummyTrans = False')
         self.dedent()
         self.addChunk('write = trans.write')
-        if self.setting('useNameMapper'):
-            self.addChunk('SL = self._CHEETAH__searchList')
+        self.addChunk('SL = self._CHEETAH__searchList')
         self.addChunk('_filter = self._CHEETAH__currentFilter')
-        self.addChunk('')
-        self.addChunk("#" * 40)
+        self.addChunk()
         self.addChunk('## START - generated method body')
-        self.addChunk('')
+        self.addChunk()
 
     def _addAutoCleanupCode(self):
-        self.addChunk('')
-        self.addChunk("#" * 40)
+        self.addChunk()
         self.addChunk('## END - generated method body')
-        self.addChunk('')
+        self.addChunk()
 
         if not self._isGenerator:
             self.addChunk('if _dummyTrans:')
@@ -399,41 +401,27 @@ class MethodCompiler(object):
             self.indent()
             self.addChunk('return NO_CONTENT')
             self.dedent()
-        self.addChunk('')
+        self.addChunk()
 
-    def addMethArg(self, name, defVal=None):
+    def addMethArg(self, name, defVal):
         self._argStringList.append((name, defVal))
 
     def methodSignature(self):
-        argStringChunks = []
-        for arg in self._argStringList:
-            chunk = arg[0]
-            if arg[1] is not None:
-                chunk += '=' + arg[1]
-            argStringChunks.append(chunk)
-        argString = (', ').join(argStringChunks)
-
-        output = []
-        if self._decorators:
-            output.append(''.join([self._indent + decorator + '\n'
-                                   for decorator in self._decorators]))
-        output.append(self._indent + "def "
-                      + self.methodName() + "(" +
-                      argString + "):\n\n")
-        return ''.join(output)
+        arg_text = arg_string_list_to_text(self._argStringList)
+        return ''.join((
+            ''.join(
+                INDENT + decorator + '\n' for decorator in self._decorators
+            ),
+            INDENT + 'def ' + self.methodName() + '(' + arg_text + '):\n\n'
+        ))
 
 
 class ClassCompiler(object):
     methodCompilerClass = MethodCompiler
 
-    def __init__(self, className, mainMethodName='respond',
-                 moduleCompiler=None,
-                 settingsManager=None):
-
-        self._settingsManager = settingsManager
-        self._className = className
-        self._moduleCompiler = moduleCompiler
-        self._mainMethodName = mainMethodName
+    def __init__(self, clsname, main_method_name):
+        self._clsname = clsname
+        self._mainMethodName = main_method_name
         self._decoratorsForNextMethod = []
         self._activeMethodsList = []        # stack while parsing/generating
         self._finishedMethodsList = []      # store by order
@@ -442,14 +430,11 @@ class ClassCompiler(object):
         # printed after methods in the gen class def:
         self._generatedAttribs = []
         methodCompiler = self._spawnMethodCompiler(
-            mainMethodName,
+            main_method_name,
             '## CHEETAH: main method generated for this template'
         )
 
         self._setActiveMethodCompiler(methodCompiler)
-
-    def setting(self, key):
-        return self._settingsManager.setting(key)
 
     def __getattr__(self, name):
         """Provide access to the methods and attributes of the MethodCompiler
@@ -463,7 +448,7 @@ class ClassCompiler(object):
             self._swallowMethodCompiler(methCompiler)
 
     def className(self):
-        return self._className
+        return self._clsname
 
     def setBaseClass(self, baseClassName):
         self._baseClass = baseClassName
@@ -481,14 +466,13 @@ class ClassCompiler(object):
         self._mainMethodName = methodName
 
     def _spawnMethodCompiler(self, methodName, initialMethodComment):
-        decorators = self._decoratorsForNextMethod or []
-        self._decoratorsForNextMethod = []
         methodCompiler = self.methodCompilerClass(
             methodName,
-            classCompiler=self,
+            class_compiler=self,
             initialMethodComment=initialMethodComment,
-            decorators=decorators,
+            decorators=self._decoratorsForNextMethod,
         )
+        self._decoratorsForNextMethod = []
         self._methodsIndex[methodName] = methodCompiler
         return methodCompiler
 
@@ -529,19 +513,12 @@ class ClassCompiler(object):
         self._generatedAttribs.append(attrib_expr)
 
     def addSuper(self, argsList):
-        className = self._className
         methodName = self._getActiveMethodCompiler().methodName()
-
-        argStringChunks = []
-        for arg in argsList:
-            chunk = arg[0]
-            if arg[1] is not None:
-                chunk += '=' + arg[1]
-            argStringChunks.append(chunk)
-        argString = ','.join(argStringChunks)
-
+        arg_text = arg_string_list_to_text(argsList)
         self.addFilteredChunk(
-            'super({0}, self).{1}({2})'.format(className, methodName, argString)
+            'super({0}, self).{1}({2})'.format(
+                self._clsname, methodName, arg_text,
+            )
         )
 
     def closeDef(self):
@@ -559,39 +536,19 @@ class ClassCompiler(object):
         self.addChunk('self.{0}()'.format(methodName))
 
     def classDef(self):
-        ind = self.setting('indentationStep')
-        classDefChunks = [self.classSignature()]
-
-        classDefChunks.extend([
-            ind + '#' * 50,
-            ind + '## CHEETAH GENERATED METHODS',
-            '\n',
-            self.methodDefs(),
-        ])
-
-        classDefChunks.extend([
-            ind + '#' * 50,
-            ind + '## CHEETAH GENERATED ATTRIBUTES',
-            '\n',
-            self.attributes(),
-        ])
-
-        classDef = '\n'.join(classDefChunks)
-        return classDef
-
-    def classSignature(self):
-        return 'class {0}({1}):'.format(self.className(), self._baseClass)
+        return '\n'.join((
+            'class {0}({1}):'.format(self.className(), self._baseClass),
+            INDENT + '## CHEETAH GENERATED METHODS', '\n', self.methodDefs(),
+            INDENT + '## CHEETAH GENERATED ATTRIBUTES', '\n', self.attributes(),
+        ))
 
     def methodDefs(self):
-        methodDefs = [methGen.methodDef() for methGen in self._finishedMethods()]
-        return '\n\n'.join(methodDefs)
+        return '\n\n'.join(
+            method.methodDef() for method in self._finishedMethods()
+        )
 
     def attributes(self):
-        attribs = [
-            self.setting('indentationStep') + five.text(attrib)
-            for attrib in self._generatedAttribs
-        ]
-        return '\n\n'.join(attribs)
+        return '\n\n'.join(INDENT + attrib for attrib in self._generatedAttribs)
 
 
 class LegacyCompiler(SettingsManager):
@@ -603,13 +560,12 @@ class LegacyCompiler(SettingsManager):
         if settings:
             self.updateSettings(settings)
 
-        self._moduleName = moduleName
         self._mainClassName = moduleName
 
         assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == '':
-            warnings.warn("You supplied an empty string for the source!", )
+            warnings.warn('You supplied an empty string for the source!')
 
         self._parser = self.parserClass(source, compiler=self)
         self._activeClassesList = []
@@ -617,7 +573,6 @@ class LegacyCompiler(SettingsManager):
         self._finishedClassIndex = {}  # listed by name
         self._importStatements = [
             'from Cheetah.DummyTransaction import DummyTransaction',
-            'from Cheetah.NameMapper import NotFound',
             'from Cheetah.NameMapper import valueForName as VFN',
             'from Cheetah.NameMapper import valueFromSearchList as VFSL',
             'from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL',
@@ -625,12 +580,13 @@ class LegacyCompiler(SettingsManager):
             'from Cheetah.Template import Template',
         ]
 
-        self._moduleConstants = []
-
         self._importedVarNames = [
             'DummyTransaction',
-            'NotFound',
+            'NO_CONTENT',
             'Template',
+            'VFN',
+            'VFSL',
+            'VFFSL',
         ]
 
     def __getattr__(self, name):
@@ -642,12 +598,10 @@ class LegacyCompiler(SettingsManager):
     def _initializeSettings(self):
         self.updateSettings(copy.deepcopy(DEFAULT_COMPILER_SETTINGS))
 
-    def _spawnClassCompiler(self, className):
+    def _spawnClassCompiler(self, clsname):
         return self.classCompilerClass(
-            className,
-            moduleCompiler=self,
-            mainMethodName=self.setting('mainMethodName'),
-            settingsManager=self,
+            clsname=clsname,
+            main_method_name=self.setting('mainMethodName'),
         )
 
     def _addActiveClassCompiler(self, classCompiler):
@@ -698,7 +652,7 @@ class LegacyCompiler(SettingsManager):
         output in a dummy method that is never called.
         """
         # @@TR: this should be in the compiler not here
-        self.addChunk("if False:")
+        self.addChunk('if False:')
         self.indent()
         self.addChunk(genPlainVar(nameChunks[:]))
         self.dedent()
@@ -854,15 +808,12 @@ class LegacyCompiler(SettingsManager):
             # This is compiled yelp_cheetah sourcecode
             __YELP_CHEETAH__ = True
 
-            %(constants)s
-
             %(classes)s
 
             %(footer)s
             """
         ).strip() % {
             'imports': self.importStatements(),
-            'constants': self.moduleConstants(),
             'classes': self.classDefs(),
             'footer': self.moduleFooter(),
             'mainClassName': self._mainClassName,
@@ -872,9 +823,6 @@ class LegacyCompiler(SettingsManager):
 
     def importStatements(self):
         return '\n'.join(self._importStatements)
-
-    def moduleConstants(self):
-        return '\n'.join(self._moduleConstants)
 
     def classDefs(self):
         classDefs = [klass.classDef() for klass in self._finishedClassesList]
