@@ -19,10 +19,11 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
-## 0.4.0 (not yet released)
+## 0.4.0
 - Remove dollarsigns on `for` lvalues
 - Remove `#set global` directive
 - Remove `future_unicode_literals` setting
+- Disallow dollarsigns in `getVar` / `varExists`
 
 ## 0.3.5
 - Do not create `__init__.py` in `__pycache__` directories
