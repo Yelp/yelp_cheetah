@@ -42,7 +42,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('directiveEndToken', '#', ''),
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
-    ('gettextTokens', ['_', 'ngettext'], ''),
+    ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
 ]
 
