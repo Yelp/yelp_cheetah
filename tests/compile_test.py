@@ -37,6 +37,44 @@ def test_compile_source_returns_text():
     assert "write('''Hello, world!''')" in ret
 
 
+def test_compile_gettext_functions_returns_scannable_output():
+    ret = compile_source("$_('Hello, world!')")
+    assert type(ret) is five.text
+    assert "_('Hello, world!')" in ret
+
+    ret = compile_source("$gettext('Hello, world!')")
+    assert type(ret) is five.text
+    assert "gettext('Hello, world!')" in ret
+
+    ret = compile_source("$ngettext('${n} puppy', '${n} puppies', 1)")
+    assert type(ret) is five.text
+    assert "ngettext('${n} puppy', '${n} puppies', 1)" in ret
+
+
+def test_compile_gettext_as_attribute_functions_returns_scannable_output():
+    # Use gettext functions as object's attributes
+    ret = compile_source("$translator._('Hello, world!')")
+    assert type(ret) is five.text
+    assert "translator._('Hello, world!')" in ret
+
+    ret = compile_source("$translator.gettext('Hello, world!')")
+    assert type(ret) is five.text
+    assert "translator.gettext('Hello, world!')" in ret
+
+    ret = compile_source("$translator.ngettext('${n} puppy', '${n} puppies', 1)")
+    assert type(ret) is five.text
+    assert "translator.ngettext('${n} puppy', '${n} puppies', 1)" in ret
+
+    # Verify attribute access few more levels deep
+    ret = compile_source("$foo.bar.translator._('Hello, world!')")
+    assert type(ret) is five.text
+    assert "foo.bar.translator._('Hello, world!')" in ret
+
+    ret = compile_source("$foo.translator.ngettext('${n} puppy', '${n} puppies', 1)")
+    assert type(ret) is five.text
+    assert "foo.translator.ngettext('${n} puppy', '${n} puppies', 1)" in ret
+
+
 def test_compile_source_with_encoding_returns_text():
     ret = compile_source('Hello, world! ☃')
     assert type(ret) is five.text

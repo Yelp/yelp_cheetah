@@ -42,7 +42,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('directiveEndToken', '#', ''),
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
-    ('gettextTokens', ['_', 'ngettext'], ''),
+    ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
 ]
 
@@ -637,6 +637,12 @@ class LegacyCompiler(SettingsManager):
     def genCheetahVar(self, nameChunks, plain=False):
         if nameChunks[0][0] in self.setting('gettextTokens'):
             self.addGetTextVar(nameChunks)
+        # Look for tokens within the object's attributes (if any)
+        # This covers cases e.g. `$a.token_fnc()` or `$a.b.token_fnc()`
+        # where `token_fnc()` is a possible token
+        elif len(nameChunks) > 1:
+            if nameChunks[1][0] in self.setting('gettextTokens'):
+                self.addGetTextVar(nameChunks)
         if self.setting('useNameMapper') and not plain:
             return self.genNameMapperVar(nameChunks)
         else:
