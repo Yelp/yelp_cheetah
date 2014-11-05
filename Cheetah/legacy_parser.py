@@ -514,7 +514,8 @@ class _LowLevelParser(SourceReader):
 
     def getCheetahVarBody(self, plain=False):
         # @@TR: this should be in the compiler
-        return self._compiler.genCheetahVar(self.getCheetahVarNameChunks(), plain=plain)
+        lineCol = self.getRowCol()
+        return self._compiler.genCheetahVar(self.getCheetahVarNameChunks(), lineCol, plain=plain)
 
     def getCheetahVarNameChunks(self):
         """nameChunks = list of Cheetah $var subcomponents represented as tuples
@@ -848,7 +849,7 @@ class _LowLevelParser(SourceReader):
 
         if self.matchIdentifier():
             nameChunks = self.getCheetahVarNameChunks()
-            expr = self._compiler.genCheetahVar(nameChunks[:], plain=plain)
+            expr = self._compiler.genCheetahVar(nameChunks[:], lineCol, plain=plain)
             restOfExpr = None
             if enclosures:
                 whitespace = self.getWhiteSpace()
