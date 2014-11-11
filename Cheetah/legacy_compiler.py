@@ -42,7 +42,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('directiveEndToken', '#', ''),
     ('PSPStartToken', '<%', ''),
     ('PSPEndToken', '%>', ''),
-    ('gettextTokens', ['_', 'ngettext'], ''),
+    ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
 ]
 
@@ -589,6 +589,8 @@ class LegacyCompiler(SettingsManager):
             'VFFSL',
         ]
 
+        self._gettextScannables = []
+
     def __getattr__(self, name):
         """Provide one-way access to the methods and attributes of the
         ClassCompiler, and thereby the MethodCompilers as well.
@@ -634,28 +636,24 @@ class LegacyCompiler(SettingsManager):
 
     # methods for adding stuff to the module and class definitions
 
-    def genCheetahVar(self, nameChunks, plain=False):
-        if nameChunks[0][0] in self.setting('gettextTokens'):
-            self.addGetTextVar(nameChunks)
+    def genCheetahVar(self, nameChunks, lineCol, plain=False):
+        # Look for gettext tokens within nameChunks (if any)
+        if any(nameChunk[0] in self.setting('gettextTokens') for nameChunk in nameChunks):
+            self.addGetTextVar(nameChunks, lineCol)
         if self.setting('useNameMapper') and not plain:
             return self.genNameMapperVar(nameChunks)
         else:
             return genPlainVar(nameChunks)
 
-    def addGetTextVar(self, nameChunks):
+    def addGetTextVar(self, nameChunks, lineCol):
         """Output something that gettext can recognize.
 
         This is a harmless side effect necessary to make gettext work when it
         is scanning compiled templates for strings marked for translation.
-
-        @@TR: another marginally more efficient approach would be to put the
-        output in a dummy method that is never called.
         """
-        # @@TR: this should be in the compiler not here
-        self.addChunk('if False:')
-        self.indent()
-        self.addChunk(genPlainVar(nameChunks[:]))
-        self.dedent()
+        scannable = genPlainVar(nameChunks[:])
+        scannable += ' # generated from line {0}, col {1}.'.format(*lineCol)
+        self._gettextScannables.append(scannable)
 
     def genNameMapperVar(self, nameChunks):
         """Generate valid Python code for a Cheetah $var, using NameMapper
@@ -810,11 +808,14 @@ class LegacyCompiler(SettingsManager):
 
             %(classes)s
 
+            %(scannables)s
+
             %(footer)s
             """
         ).strip() % {
             'imports': self.importStatements(),
             'classes': self.classDefs(),
+            'scannables': self.gettextScannables(),
             'footer': self.moduleFooter(),
             'mainClassName': self._mainClassName,
         }
@@ -839,3 +840,14 @@ if __name__ == '__main__':
     from sys import stdout
     stdout.write({main_class_name}(searchList=[environ]).respond())
 """.format(main_class_name=self._mainClassName)
+
+    def gettextScannables(self):
+        scannables = tuple(INDENT + nameChunks for nameChunks in self._gettextScannables)
+        if scannables:
+            return '\n'.join((
+                '\n', '## CHEETAH GENERATED SCANNABLE GETTEXT', '\n'
+                'def __CHEETAH_scannables():',
+                ) + scannables
+            )
+        else:
+            return ''
