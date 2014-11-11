@@ -19,6 +19,11 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.4.1
+- Scan gettext variables in attributes `$translator.gettext(...)`
+- Scan more types of gettext variables (`gettext`, `pgettext`, `npgettext`).
+- Remove some runtime overhead of gettext variables
+
 ## 0.4.0
 - Remove dollarsigns on `for` lvalues
 - Remove `#set global` directive
