@@ -2,7 +2,6 @@ import gc
 import pytest
 import sys
 
-from Cheetah.NameMapper import valueFromFrame
 from Cheetah.NameMapper import valueFromFrameOrSearchList
 from Cheetah.NameMapper import valueFromSearchList
 
@@ -31,34 +30,24 @@ class NameSpaceObject2(object):
     (
         (valueFromSearchList, 'searchlist'),
         (valueFromFrameOrSearchList, 'searchlist'),
-        (valueFromFrameOrSearchList, 'both'),
-        (valueFromFrame, 'frame'),
+        (valueFromFrameOrSearchList, 'frame'),
     ),
 )
 def test_refcounting(getter_func, namespace, style):
-    if style == 'frame':
-        locals().update(vars(namespace))
-        SL = None
-    elif style == 'searchlist':
+    if style == 'searchlist':
         locals()  # see: http://stackoverflow.com/questions/22263023
         SL = [namespace]
-    elif style == 'both':
+    elif style == 'frame':
         locals().update(vars(namespace))
         SL = []
     else:
         raise AssertionError('Unknown style: {0}'.format(style))
 
-    # VFF has a differrent signature
-    if SL is not None:
-        args = (SL, 'ns1.ns2.ns3', True, False)
-    else:
-        args = ('ns1.ns2.ns3', True, False)
-
     # Collect refcounts before
     refcounts_before = get_refcount_tree(namespace)
 
     # Run the function
-    result = getter_func(*args)
+    result = getter_func(SL, 'ns1.ns2.ns3', True, False)
 
     # Collect refcounts after
     refcounts_after = get_refcount_tree(namespace)
@@ -88,7 +77,7 @@ def test_get_refcount_tree_1():
 
     assert len(t1) == 4, t1.keys()
 
-    assert t1['<global>'][0] == 17
+    assert t1['<global>'][0] == 15
     assert t1['<global>.ns1'][0] == 7
     assert t1['<global>.ns1.ns2'][0] == 7
     assert t1['<global>.ns1.ns2.ns3'][0] == 7
@@ -99,7 +88,7 @@ def test_get_refcount_tree_2():
 
     assert len(t1) == 3, t1.keys()
 
-    assert t1['<global>'][0] == 17
+    assert t1['<global>'][0] == 15
     assert t1['<global>.ns1'][0] == 8
     assert t1['<global>.ns1.ns2'][0] == 7
 

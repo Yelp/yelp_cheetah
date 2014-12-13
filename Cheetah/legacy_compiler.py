@@ -565,7 +565,6 @@ class LegacyCompiler(SettingsManager):
         self._importStatements = [
             'from Cheetah.DummyTransaction import DummyTransaction',
             'from Cheetah.NameMapper import valueForName as VFN',
-            'from Cheetah.NameMapper import valueFromSearchList as VFSL',
             'from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
             'from Cheetah.Template import Template',
@@ -576,7 +575,6 @@ class LegacyCompiler(SettingsManager):
             'NO_CONTENT',
             'Template',
             'VFN',
-            'VFSL',
             'VFFSL',
         ]
 
@@ -835,9 +833,10 @@ if __name__ == '__main__':
     def gettextScannables(self):
         scannables = tuple(INDENT + nameChunks for nameChunks in self._gettextScannables)
         if scannables:
-            return '\n'.join((
-                '\n', '## CHEETAH GENERATED SCANNABLE GETTEXT', '\n'
-                'def __CHEETAH_scannables():',
+            return '\n'.join(
+                (
+                    '\n', '## CHEETAH GENERATED SCANNABLE GETTEXT', '\n'
+                    'def __CHEETAH_scannables():',
                 ) + scannables
             )
         else:
