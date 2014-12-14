@@ -19,6 +19,9 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.5.0
+- `**KWS` is no longer added to every template method definition
+
 ## 0.4.1
 - Scan gettext variables in attributes `$translator.gettext(...)`
 - Scan more types of gettext variables (`gettext`, `pgettext`, `npgettext`).
