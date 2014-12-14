@@ -96,15 +96,6 @@ class MethodCompiler(object):
         """Called by the containing class compiler instance"""
         self.commitStrConst()
 
-        has_double_star_arg = any(
-            argname.strip().startswith('**')
-            for argname, _ in self._argStringList
-        )
-
-        # TODO: make it not so
-        if not has_double_star_arg:
-            self.addMethArg('**KWS', None)
-
         self._indentLev = 2
         mainBodyChunks = self._methodBodyChunks
         self._methodBodyChunks = []
