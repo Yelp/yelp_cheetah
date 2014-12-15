@@ -97,13 +97,11 @@ class PartialTemplateType(type):
                 default_self_function = default_self(value)
                 setattr(module, attrname, default_self_function)
 
-                if name == attrname:
-                    # If the class and function names collide, overwrite the class with the function.
-                    result = default_self_function
+                assert name != attrname
         return result
 
 
 # Roughly stolen from six.with_metaclass
-partial_template = type.__new__(
+YelpCheetahTemplate = type.__new__(
     PartialTemplateType, str('partial_template'), (Template,), {},
 )

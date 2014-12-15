@@ -105,8 +105,8 @@ def test_method_with_non_standard_first_argument():
 
 
 def test_partial_template_integration(compile_testing_templates):
-    from testing.templates.src.uses_partial import uses_partial
-    ret = uses_partial().respond()
+    from testing.templates.src.uses_partial import YelpCheetahTemplate
+    ret = YelpCheetahTemplate().respond()
 
     assert ret == (
         '\n'
@@ -122,7 +122,7 @@ def test_partial_with_same_name_retains_class_and_keeps_function(compile_testing
 
     original_cls = partial_with_same_name.PARTIAL_TEMPLATE_CLASS
     assert issubclass(original_cls, Template)
-    assert original_cls.__name__ == 'partial_with_same_name'
+    assert original_cls.__name__ == 'YelpCheetahTemplate'
 
     assert partial_with_same_name.partial_with_same_name(
         Template()

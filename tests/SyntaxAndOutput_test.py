@@ -1692,23 +1692,13 @@ $anInt//comment
                     "1\n1\n")
 
 
-class ExtendsDirective(OutputTest):
-
-    def test2(self):
-        """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
-        self.verify("""#extends testing.templates.extends_test_template
-#implements respond
-$spacer()
-""",
-                    '<img src="spacer.gif" width="1" height="1" alt="" />\n')
-
-    def test3(self):
-        """#extends Cheetah.Templates.SyntaxAndOutput without #import"""
-        self.verify("""#extends testing.templates.extends_test_template.extends_test_template
-#implements respond
-$spacer()
-""",
-                    '<img src="spacer.gif" width="1" height="1" alt="" />\n')
+def test_extends():
+    ret = compile_to_class(
+        '#extends testing.templates.extends_test_template\n'
+        '#implements respond\n'
+        '$spacer()\n'
+    )().respond()
+    assert ret == '<img src="spacer.gif" width="1" height="1" alt="" />\n'
 
 
 def test_extends_with_partial_baseclass_import():
@@ -1725,8 +1715,8 @@ def test_extends_with_partial_baseclass_import():
 
 @pytest.mark.usefixtures('compile_testing_templates')
 def test_super_directive():
-    from testing.templates.src.super_child import super_child
-    ret = super_child().respond()
+    from testing.templates.src.super_child import YelpCheetahTemplate
+    ret = YelpCheetahTemplate().respond()
     assert ret.strip() == (
         'this is base foo    This is child foo\n'
         'this is base foo    super-1234\n'

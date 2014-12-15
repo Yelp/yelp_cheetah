@@ -26,11 +26,6 @@ def test_compile_source_requires_text():
         compile_source(b'not text')
 
 
-def test_compile_source_cls_name_requires_text():
-    with pytest.raises(TypeError):
-        compile_source('text', cls_name=b'not text')
-
-
 def test_compile_source_returns_text():
     ret = compile_source('Hello, world!')
     assert type(ret) is five.text
@@ -176,11 +171,6 @@ def test_compile_source_with_encoding_returns_text():
         assert "write('''Hello, world! ☃''')" in ret
 
 
-def test_compile_cls_name_in_output():
-    ret = compile_source('Hello, world!', cls_name='my_cls_name')
-    assert 'class my_cls_name(' in ret
-
-
 def test_compile_source_follows_settings():
     tmpl = textwrap.dedent(
         '''
@@ -212,11 +202,6 @@ def test_compile_file_filename_requires_text():
         compile_file(b'not_text.tmpl')
 
 
-def test_compile_file_complains_when_cls_name_is_specified():
-    with pytest.raises(ValueError):
-        compile_file('temp.tmpl', cls_name='foo')
-
-
 @pytest.yield_fixture
 def tmpfile(tmpdir):
     tmpfile_path = os.path.join(tmpdir.strpath, 'temp.tmpl')
@@ -232,7 +217,7 @@ def test_compile_file(tmpfile):
     assert os.path.exists(compiled_python_file)
     python_file_contents = io.open(compiled_python_file).read()
     assert python_file_contents.splitlines()[0] == '# -*- coding: UTF-8 -*-'
-    assert 'class temp(' in python_file_contents
+    assert 'class YelpCheetahTemplate(' in python_file_contents
 
 
 def test_compile_file_returns_target(tmpfile):
@@ -245,7 +230,7 @@ def test_compile_file_destination(tmpfile, tmpdir):
     compile_file(tmpfile, target=output_file)
     assert os.path.exists(output_file)
     python_file_contents = io.open(output_file).read()
-    assert 'class temp(' in python_file_contents
+    assert 'class YelpCheetahTemplate(' in python_file_contents
     assert "write('''Hello, world!''')" in python_file_contents
 
 
@@ -255,7 +240,7 @@ def test_compile_file_as_script(tmpfile):
     module = _create_module_from_source(
         '\n'.join(io.open(pyfile).read().splitlines()[1:])
     )
-    result = module.temp().respond()
+    result = module.YelpCheetahTemplate().respond()
     assert 'Hello, world!' == result
 
 
@@ -296,7 +281,7 @@ def test_create_module_from_source():
 
 def test_compile_to_class_default_class_name():
     ret = compile_to_class('Hello, world!')
-    assert ret.__name__ == 'DynamicallyCompiledTemplate'
+    assert ret.__name__ == 'YelpCheetahTemplate'
     assert ret.__module__ == 'created_module'
     assert ret.__module_obj__
     assert issubclass(ret, Template)
@@ -309,20 +294,8 @@ def test_compile_to_class_default_class_name():
     assert 'created_module' not in sys.modules
 
 
-def test_compile_to_class_non_default_class_name():
-    ret = compile_to_class('Hello, world!', cls_name='foo')
-    assert ret.__name__ == 'foo'
-    assert issubclass(ret, Template)
-
-    assert ret.__module_obj__.__name__ == 'created_module'
-
-    assert 'Hello, world!' == ret().respond()
-    assert 'created_module' not in sys.modules
-    assert 'foo' not in sys.modules
-
-
 def test_compile_to_class_traceback():
-    ret = compile_to_class('$(1/0)', cls_name='foo')
+    ret = compile_to_class('$(1/0)')
 
     try:
         ret().respond()
