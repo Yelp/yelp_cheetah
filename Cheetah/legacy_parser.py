@@ -79,7 +79,6 @@ EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
 escapedNewlineRE = re.compile(r'(?<!\\)((\\\\)*)\\(n|012)')
 
-# TODO(buck): audit all directives. delete with prejudice.
 directiveNamesAndParsers = {
     # importing and inheritance
     'import': None,
@@ -1351,14 +1350,14 @@ class LegacyParser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len('extends'))
         self.getWhiteSpace()
-        basecls_name = self.readToEOL(gobble=False)
+        extends_value = self.readToEOL(gobble=False)
 
-        if ',' in basecls_name:
+        if ',' in extends_value:
             raise ParseError(
                 self, 'yelp_cheetah does not support multiple inheritance'
             )
 
-        self._compiler.setBaseClass(basecls_name)
+        self._compiler.set_extends(extends_value)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
     def eatImplements(self):

@@ -133,3 +133,5 @@ class Template(object):
 
 
 Template.Reserved_SearchList = set(dir(Template))
+# Alias for #extends
+YelpCheetahTemplate = Template

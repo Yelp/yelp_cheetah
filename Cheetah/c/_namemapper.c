@@ -149,20 +149,6 @@ static int PyNamemapper_hasKey(PyObject *obj, char *key)
 }
 
 
-static PyObject *PyNamemapper_valueForKey(PyObject *obj, char *key)
-{
-    PyObject *theValue = NULL;
-
-    if (PyMapping_Check(obj) && PyMapping_HasKeyString(obj, key)) {
-        theValue = PyMapping_GetItemString(obj, key);
-    } else if (PyObject_HasAttrString(obj, key)) {
-        theValue = PyObject_GetAttrString(obj, key);
-    } else {
-        setNotFoundException(key);
-    }
-    return theValue;
-}
-
 static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], int numChunks, int executeCallables, int useDottedNotation)
 {
     int i;
@@ -235,24 +221,12 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
 /* *************************************************************************** */
 
 
-static PyObject *namemapper_valueForKey(PyObject *self, PyObject *args)
-{
-    PyObject *obj;
-    char *key;
-
-    if (!PyArg_ParseTuple(args, "Os", &obj, &key)) {
-        return NULL;
-    }
-
-    return PyNamemapper_valueForKey(obj, key);
-}
-
 static PyObject *namemapper_valueForName(PYARGS)
 {
     PyObject *obj;
     char *name;
     int executeCallables = 0;
-    int useDottedNotation = 1;
+    int useDottedNotation = 0;
 
     char *nameCopy = NULL;
     char *tmpPntr1 = NULL;
@@ -284,7 +258,7 @@ static PyObject *namemapper_valueFromSearchList(PYARGS)
     PyObject *searchList;
     char *name;
     int executeCallables = 0;
-    int useDottedNotation = 1;
+    int useDottedNotation = 0;
 
     char *nameCopy = NULL;
     char *tmpPntr1 = NULL;
@@ -338,7 +312,7 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     /* python function args */
     char *name;
     int executeCallables = 0;
-    int useDottedNotation = 1;
+    int useDottedNotation = 0;
     PyObject *searchList = NULL;
 
     /* locals */
@@ -365,6 +339,12 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
     nameSpace = PyEval_GetLocals();
     checkForNameInNameSpaceAndReturnIfFound(FALSE);
 
+    nameSpace = PyEval_GetGlobals();
+    checkForNameInNameSpaceAndReturnIfFound(FALSE);
+
+    nameSpace = PyEval_GetBuiltins();
+    checkForNameInNameSpaceAndReturnIfFound(FALSE);
+
     iterator = PyObject_GetIter(searchList);
     if (iterator == NULL) {
         PyErr_SetString(PyExc_TypeError, "This searchList is not iterable!");
@@ -383,59 +363,10 @@ static PyObject *namemapper_valueFromFrameOrSearchList(PyObject *self, PyObject 
         goto done;
     }
 
-    nameSpace = PyEval_GetGlobals();
-    checkForNameInNameSpaceAndReturnIfFound(FALSE);
-
-    nameSpace = PyEval_GetBuiltins();
-    checkForNameInNameSpaceAndReturnIfFound(FALSE);
-
     setNotFoundException(nameChunks[0]);
 
 done:
     Py_XDECREF(iterator);
-    free(nameCopy);
-
-    return theValue;
-}
-
-static PyObject *namemapper_valueFromFrame(PyObject *self, PyObject *args, PyObject *keywds)
-{
-    /* python function args */
-    char *name;
-    int executeCallables = 0;
-    int useDottedNotation = 1;
-
-    /* locals */
-    char *tmpPntr1 = NULL;
-    char *tmpPntr2 = NULL;
-
-    char *nameCopy = NULL;
-    char *nameChunks[MAXCHUNKS];
-    int numChunks;
-
-    PyObject *nameSpace = NULL;
-    PyObject *theValue = NULL;
-    PyObject *theValue_tmp = NULL;
-
-    static char *kwlist[] = {"name", "executeCallables", "useDottedNotation", NULL};
-
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "s|ii", kwlist, &name, &executeCallables, &useDottedNotation)) {
-        return NULL;
-    }
-
-    createNameCopyAndChunks();
-
-    nameSpace = PyEval_GetLocals();
-    checkForNameInNameSpaceAndReturnIfFound(FALSE);
-
-    nameSpace = PyEval_GetGlobals();
-    checkForNameInNameSpaceAndReturnIfFound(FALSE);
-
-    nameSpace = PyEval_GetBuiltins();
-    checkForNameInNameSpaceAndReturnIfFound(FALSE);
-
-    setNotFoundException(nameChunks[0]);
-done:
     free(nameCopy);
 
     return theValue;
@@ -446,10 +377,8 @@ done:
 /* Method registration table: name-string -> function-pointer */
 
 static struct PyMethodDef namemapper_methods[] = {
-  {"valueForKey", namemapper_valueForKey,  1},
   {"valueForName", (PyCFunction)namemapper_valueForName,  METH_VARARGS|METH_KEYWORDS},
   {"valueFromSearchList", (PyCFunction)namemapper_valueFromSearchList,  METH_VARARGS|METH_KEYWORDS},
-  {"valueFromFrame", (PyCFunction)namemapper_valueFromFrame,  METH_VARARGS|METH_KEYWORDS},
   {"valueFromFrameOrSearchList", (PyCFunction)namemapper_valueFromFrameOrSearchList,  METH_VARARGS|METH_KEYWORDS},
   {NULL,         NULL}
 };

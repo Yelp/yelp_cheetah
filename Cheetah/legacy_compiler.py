@@ -10,6 +10,7 @@
 from __future__ import unicode_literals
 
 import collections
+import contextlib
 import copy
 import re
 import textwrap
@@ -47,6 +48,9 @@ _DEFAULT_COMPILER_SETTINGS = [
 ]
 
 DEFAULT_COMPILER_SETTINGS = dict((v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS)
+
+CLASS_NAME = 'YelpCheetahTemplate'
+BASE_CLASS_NAME = 'YelpCheetahBaseClass'
 
 
 def genPlainVar(nameChunks):
@@ -410,14 +414,12 @@ class MethodCompiler(object):
 class ClassCompiler(object):
     methodCompilerClass = MethodCompiler
 
-    def __init__(self, clsname, main_method_name):
-        self._clsname = clsname
+    def __init__(self, main_method_name):
         self._mainMethodName = main_method_name
         self._decoratorsForNextMethod = []
         self._activeMethodsList = []        # stack while parsing/generating
         self._finishedMethodsList = []      # store by order
         self._methodsIndex = {}      # store by name
-        self._baseClass = 'Template'
         # printed after methods in the gen class def:
         self._generatedAttribs = []
         methodCompiler = self._spawnMethodCompiler(
@@ -437,12 +439,6 @@ class ClassCompiler(object):
         while self._activeMethodsList:
             methCompiler = self._popActiveMethodCompiler()
             self._swallowMethodCompiler(methCompiler)
-
-    def className(self):
-        return self._clsname
-
-    def setBaseClass(self, baseClassName):
-        self._baseClass = baseClassName
 
     def setMainMethodName(self, methodName):
         if methodName == self._mainMethodName:
@@ -508,7 +504,7 @@ class ClassCompiler(object):
         arg_text = arg_string_list_to_text(argsList)
         self.addFilteredChunk(
             'super({0}, self).{1}({2})'.format(
-                self._clsname, methodName, arg_text,
+                CLASS_NAME, methodName, arg_text,
             )
         )
 
@@ -526,9 +522,9 @@ class ClassCompiler(object):
         # insert the code to call the block
         self.addChunk('self.{0}()'.format(methodName))
 
-    def classDef(self):
+    def class_def(self):
         return '\n'.join((
-            'class {0}({1}):'.format(self.className(), self._baseClass),
+            'class {0}({1}):'.format(CLASS_NAME, BASE_CLASS_NAME),
             INDENT + '## CHEETAH GENERATED METHODS', '\n', self.methodDefs(),
             INDENT + '## CHEETAH GENERATED ATTRIBUTES', '\n', self.attributes(),
         ))
@@ -546,12 +542,10 @@ class LegacyCompiler(SettingsManager):
     parserClass = LegacyParser
     classCompilerClass = ClassCompiler
 
-    def __init__(self, source, moduleName, settings=None):
+    def __init__(self, source, settings=None):
         super(LegacyCompiler, self).__init__()
         if settings:
             self.updateSettings(settings)
-
-        self._mainClassName = moduleName
 
         assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
 
@@ -559,24 +553,21 @@ class LegacyCompiler(SettingsManager):
             warnings.warn('You supplied an empty string for the source!')
 
         self._parser = self.parserClass(source, compiler=self)
-        self._activeClassesList = []
-        self._finishedClassesList = []  # listed by ordered
-        self._finishedClassIndex = {}  # listed by name
+        self._class_compiler = None
+        self._base_import = 'from Cheetah.Template import {0} as {1}'.format(
+            CLASS_NAME, BASE_CLASS_NAME,
+        )
         self._importStatements = [
             'from Cheetah.DummyTransaction import DummyTransaction',
             'from Cheetah.NameMapper import valueForName as VFN',
-            'from Cheetah.NameMapper import valueFromSearchList as VFSL',
             'from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
-            'from Cheetah.Template import Template',
         ]
 
         self._importedVarNames = [
             'DummyTransaction',
             'NO_CONTENT',
-            'Template',
             'VFN',
-            'VFSL',
             'VFFSL',
         ]
 
@@ -586,31 +577,24 @@ class LegacyCompiler(SettingsManager):
         """Provide one-way access to the methods and attributes of the
         ClassCompiler, and thereby the MethodCompilers as well.
         """
-        return getattr(self._activeClassesList[-1], name)
+        return getattr(self._class_compiler, name)
 
     def _initializeSettings(self):
         self.updateSettings(copy.deepcopy(DEFAULT_COMPILER_SETTINGS))
 
-    def _spawnClassCompiler(self, clsname):
+    def _spawnClassCompiler(self):
         return self.classCompilerClass(
-            clsname=clsname,
             main_method_name=self.setting('mainMethodName'),
         )
 
-    def _addActiveClassCompiler(self, classCompiler):
-        self._activeClassesList.append(classCompiler)
-
-    def _getActiveClassCompiler(self):
-        return self._activeClassesList[-1]
-
-    def _popActiveClassCompiler(self):
-        return self._activeClassesList.pop()
-
-    def _swallowClassCompiler(self, classCompiler):
-        classCompiler.cleanupState()
-        self._finishedClassesList.append(classCompiler)
-        self._finishedClassIndex[classCompiler.className()] = classCompiler
-        return classCompiler
+    @contextlib.contextmanager
+    def _set_class_compiler(self, class_compiler):
+        orig = self._class_compiler
+        self._class_compiler = class_compiler
+        try:
+            yield
+        finally:
+            self._class_compiler = orig
 
     def importedVarNames(self):
         return self._importedVarNames
@@ -719,7 +703,7 @@ class LegacyCompiler(SettingsManager):
 
         return pythonCode
 
-    def setBaseClass(self, extends_name):
+    def set_extends(self, extends_name):
         self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
 
         if extends_name in self.importedVarNames():
@@ -727,35 +711,9 @@ class LegacyCompiler(SettingsManager):
                 'yelp_cheetah only supports extends by module name'
             )
 
-        # The #extends directive results in the base class being imported
-        # There are (basically) three cases:
-        # 1. #extends foo
-        #    import added: from foo import foo
-        #    baseclass: foo
-        # 2. #extends foo.bar
-        #    import added: from foo.bar import bar
-        #    baseclass: bar
-        # 3. #extends foo.bar.bar
-        #    import added: from foo.bar import bar
-        #    baseclass: bar
-        chunks = extends_name.split('.')
-        # Case 1
-        # If we only have one part, assume it's like from {chunk} import {chunk}
-        if len(chunks) == 1:
-            chunks *= 2
-
-        class_name = chunks[-1]
-        if class_name != chunks[-2]:
-            # Case 2
-            # we assume the class name to be the module name
-            module = '.'.join(chunks)
-        else:
-            # Case 3
-            module = '.'.join(chunks[:-1])
-        self._getActiveClassCompiler().setBaseClass(class_name)
-        importStatement = 'from {0} import {1}'.format(module, class_name)
-        self.addImportStatement(importStatement)
-        self.addImportedVarNames((class_name,))
+        self._base_import = 'from {0} import {1} as {2}'.format(
+            extends_name, CLASS_NAME, BASE_CLASS_NAME,
+        )
 
     def setCompilerSettings(self, settingsStr):
         self.updateSettingsFromConfigStr(settingsStr)
@@ -772,10 +730,10 @@ class LegacyCompiler(SettingsManager):
         importVarNames = impStatement[impStatement.find('import') + len('import'):].split(',')
         importVarNames = [var.split()[-1] for var in importVarNames]  # handles aliases
         importVarNames = [var for var in importVarNames if not var == '*']
-        self.addImportedVarNames(importVarNames, raw_statement=impStatement)  # used by #extend for auto-imports
+        self.addImportedVarNames(importVarNames, raw_statement=impStatement)
 
     def addAttribute(self, attribName, expr):
-        self._getActiveClassCompiler().addAttribute(attribName + ' = ' + expr)
+        self._class_compiler.addAttribute(attribName + ' = ' + expr)
 
     def addComment(self, comm):
         for line in comm.splitlines():
@@ -784,15 +742,16 @@ class LegacyCompiler(SettingsManager):
     # methods for module code wrapping
 
     def getModuleCode(self):
-        classCompiler = self._spawnClassCompiler(self._mainClassName)
-        self._addActiveClassCompiler(classCompiler)
-        self._parser.parse()
-        self._swallowClassCompiler(self._popActiveClassCompiler())
+        class_compiler = self._spawnClassCompiler()
+        with self._set_class_compiler(class_compiler):
+            self._parser.parse()
+            class_compiler.cleanupState()
 
         moduleDef = textwrap.dedent(
             """
             from __future__ import unicode_literals
             %(imports)s
+            %(base_import)s
 
             # This is compiled yelp_cheetah sourcecode
             __YELP_CHEETAH__ = True
@@ -805,20 +764,16 @@ class LegacyCompiler(SettingsManager):
             """
         ).strip() % {
             'imports': self.importStatements(),
-            'classes': self.classDefs(),
+            'base_import': self._base_import,
+            'classes': class_compiler.class_def(),
             'scannables': self.gettextScannables(),
             'footer': self.moduleFooter(),
-            'mainClassName': self._mainClassName,
         }
 
         return moduleDef
 
     def importStatements(self):
         return '\n'.join(self._importStatements)
-
-    def classDefs(self):
-        classDefs = [klass.classDef() for klass in self._finishedClassesList]
-        return '\n\n'.join(classDefs)
 
     def moduleFooter(self):
         return """
@@ -830,14 +785,15 @@ if __name__ == '__main__':
     from os import environ
     from sys import stdout
     stdout.write({main_class_name}(searchList=[environ]).respond())
-""".format(main_class_name=self._mainClassName)
+""".format(main_class_name=CLASS_NAME)
 
     def gettextScannables(self):
         scannables = tuple(INDENT + nameChunks for nameChunks in self._gettextScannables)
         if scannables:
-            return '\n'.join((
-                '\n', '## CHEETAH GENERATED SCANNABLE GETTEXT', '\n'
-                'def __CHEETAH_scannables():',
+            return '\n'.join(
+                (
+                    '\n', '## CHEETAH GENERATED SCANNABLE GETTEXT', '\n'
+                    'def __CHEETAH_scannables():',
                 ) + scannables
             )
         else:

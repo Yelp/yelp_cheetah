@@ -122,8 +122,6 @@ Cheetah uses the optimized C version (_namemapper.c) invariantly
 
 # pylint:disable=unused-import
 from Cheetah._namemapper import NotFound  # noqa (intentionally unused)
-from Cheetah._namemapper import valueForKey  # noqa (intentionally unused)
 from Cheetah._namemapper import valueForName  # noqa (intentionally unused)
-from Cheetah._namemapper import valueFromSearchList  # noqa (intentionally unused)
 from Cheetah._namemapper import valueFromFrameOrSearchList  # noqa (intentionally unused)
-from Cheetah._namemapper import valueFromFrame  # noqa (intentionally unused)
+from Cheetah._namemapper import valueFromSearchList  # noqa (intentionally unused)
