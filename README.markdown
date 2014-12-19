@@ -19,6 +19,11 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.6.0
+- Cheetah classes now invariantly have `YelpCheetahTemplate` as the classname
+- Variable lookup is now `locals()`, `globals()`, `builtins`, `self`, `searchList`
+- `#extends` no longer supports `#extends foo.foo` and should instead be `#extends foo`
+
 ## 0.5.0
 - `**KWS` is no longer added to every template method definition
 
