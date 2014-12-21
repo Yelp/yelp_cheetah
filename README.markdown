@@ -95,7 +95,7 @@ Differences
 - Remove ability to specify argspecs in `#implements`
 - Remove multiple inheritance from `#extends`
 - Remove `#compiler` directive
-- Remove global imports: (`sys`, `os`, `os.path`, 'builtin`, 'getmtime`, `exists`, `types`)
+- Remove global imports: (`sys`, `os`, `os.path`, `builtin`, `getmtime`, `exists`, `types`)
 - Default `useDottedNotation` to false
 - Remove `allowNestedDefScopes` setting
 - Remove `useSearchList` setting
