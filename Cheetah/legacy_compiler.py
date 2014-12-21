@@ -29,6 +29,9 @@ CallDetails = collections.namedtuple(
 INDENT = 4 * ' '
 
 
+BUILTIN_NAMES = frozenset(dir(five.builtins))
+
+
 # Settings format: (key, default, docstring)
 _DEFAULT_COMPILER_SETTINGS = [
     ('useNameMapper', True, 'Enable NameMapper for dotted notation and searchList support'),
@@ -612,13 +615,23 @@ class LegacyCompiler(SettingsManager):
     # methods for adding stuff to the module and class definitions
 
     def genCheetahVar(self, nameChunks, lineCol, plain=False):
+        plain = (
+            not self.setting('useNameMapper') or
+            plain or (
+                not self.setting('useAutocalling') and
+                not self.setting('useDottedNotation') and
+                nameChunks[0][0].partition('.')[0] in BUILTIN_NAMES
+            )
+        )
+
         # Look for gettext tokens within nameChunks (if any)
         if any(nameChunk[0] in self.setting('gettextTokens') for nameChunk in nameChunks):
             self.addGetTextVar(nameChunks, lineCol)
-        if self.setting('useNameMapper') and not plain:
-            return self.genNameMapperVar(nameChunks)
-        else:
+
+        if plain:
             return genPlainVar(nameChunks)
+        else:
+            return self.genNameMapperVar(nameChunks)
 
     def addGetTextVar(self, nameChunks, lineCol):
         """Output something that gettext can recognize.
