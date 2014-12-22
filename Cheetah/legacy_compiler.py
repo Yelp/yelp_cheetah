@@ -599,9 +599,6 @@ class LegacyCompiler(SettingsManager):
         finally:
             self._class_compiler = orig
 
-    def importedVarNames(self):
-        return self._importedVarNames
-
     def addImportedVarNames(self, varNames, raw_statement=None):
         settings = self.settings()
         if not varNames:
@@ -615,12 +612,18 @@ class LegacyCompiler(SettingsManager):
     # methods for adding stuff to the module and class definitions
 
     def genCheetahVar(self, nameChunks, lineCol, plain=False):
+        first_accessed_var = nameChunks[0][0].partition('.')[0]
         plain = (
             not self.setting('useNameMapper') or
             plain or (
                 not self.setting('useAutocalling') and
-                not self.setting('useDottedNotation') and
-                nameChunks[0][0].partition('.')[0] in BUILTIN_NAMES
+                not self.setting('useDottedNotation') and (
+                    first_accessed_var in [
+                        var for var, _ in self._argStringList
+                    ] or
+                    first_accessed_var in self._importedVarNames or
+                    first_accessed_var in BUILTIN_NAMES
+                )
             )
         )
 
@@ -719,7 +722,7 @@ class LegacyCompiler(SettingsManager):
     def set_extends(self, extends_name):
         self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
 
-        if extends_name in self.importedVarNames():
+        if extends_name in self._importedVarNames:
             raise AssertionError(
                 'yelp_cheetah only supports extends by module name'
             )

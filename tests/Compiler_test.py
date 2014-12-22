@@ -94,3 +94,20 @@ def test_no_optimization_with_autokey():
     # With optimizations this errors:
     # AttributeError: 'dict' object has no attribute 'bar'
     assert cls().foo({'bar': 5}).strip() == '5'
+
+
+def test_optimization_globals():
+    src = compile_source(
+        '#import os\n'
+        '$os.path.join("foo", "bar")\n'
+    )
+    assert '_v = os.path.join(' in src
+
+
+def test_optimization_parameters():
+    src = compile_source(
+        '#def foo(bar)\n'
+        '$bar\n'
+        '#end def\n'
+    )
+    assert '_v = bar' in src
