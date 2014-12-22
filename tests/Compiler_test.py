@@ -111,3 +111,27 @@ def test_optimization_parameters():
         '#end def\n'
     )
     assert '_v = bar' in src
+
+
+def test_optimization_import_dotted_name():
+    src = compile_source(
+        '#import os.path\n'
+        '$os.path.join("foo", "bar")\n'
+    )
+    assert '_v = os.path.join(' in src
+
+
+def test_optimization_import_as_name():
+    src = compile_source(
+        '#import os.path as herp\n'
+        '$herp.join("foo", "bar")\n'
+    )
+    assert '_v = herp.join(' in src
+
+
+def test_optimization_from_imports():
+    src = compile_source(
+        '#from os import path\n'
+        '$path.join("foo", "bar")\n'
+    )
+    assert '_v = path.join(' in src

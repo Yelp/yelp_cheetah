@@ -9,6 +9,7 @@
 '''
 from __future__ import unicode_literals
 
+import ast
 import collections
 import contextlib
 import copy
@@ -76,6 +77,14 @@ def _arg_chunk_to_text(chunk):
 
 def arg_string_list_to_text(arg_string_list):
     return ', '.join(_arg_chunk_to_text(chunk) for chunk in arg_string_list)
+
+
+def imported_names_from_dotted_name(name):
+    names = [name]
+    while '.' in name:
+        name, _ = name.rsplit('.')
+        names.append(name)
+    return names
 
 
 class MethodCompiler(object):
@@ -566,13 +575,9 @@ class LegacyCompiler(SettingsManager):
             'from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
-
-        self._importedVarNames = [
-            'DummyTransaction',
-            'NO_CONTENT',
-            'VFN',
-            'VFFSL',
-        ]
+        self._importedVarNames = set((
+            'DummyTransaction', 'NO_CONTENT', 'VFN', 'VFFSL',
+        ))
 
         self._gettextScannables = []
 
@@ -607,7 +612,7 @@ class LegacyCompiler(SettingsManager):
             if raw_statement and getattr(self, '_methodBodyChunks'):
                 self.addChunk(raw_statement)
         else:
-            self._importedVarNames.extend(varNames)
+            self._importedVarNames.update(varNames)
 
     # methods for adding stuff to the module and class definitions
 
@@ -735,18 +740,23 @@ class LegacyCompiler(SettingsManager):
         self.updateSettingsFromConfigStr(settingsStr)
         self._parser.configureParser()
 
-    def addImportStatement(self, impStatement):
-        settings = self.settings()
-        if not self._methodBodyChunks or settings.get('useLegacyImportMode'):
-            # In the case where we are importing inline in the middle of a source block
-            # we don't want to inadvertantly import the module at the top of the file either
-            self._importStatements.append(impStatement)
+    def addImportStatement(self, imp_statement):
+        ast_import = ast.parse(imp_statement).body[0]
+        imported_names = [
+            imported_name
+            for name in ast_import.names
+            for imported_name in imported_names_from_dotted_name(
+                name.asname or name.name
+            )
+            if imported_name != '*'
+        ]
 
-        # @@TR 2005-01-01: there's almost certainly a cleaner way to do this!
-        importVarNames = impStatement[impStatement.find('import') + len('import'):].split(',')
-        importVarNames = [var.split()[-1] for var in importVarNames]  # handles aliases
-        importVarNames = [var for var in importVarNames if not var == '*']
-        self.addImportedVarNames(importVarNames, raw_statement=impStatement)
+        if not self._methodBodyChunks or self.setting('useLegacyImportMode'):
+            # In the case where we are importing inline in the middle of a
+            # source block we don't want to inadvertantly import the module at
+            # the top of the file either
+            self._importStatements.append(imp_statement)
+        self.addImportedVarNames(imported_names, raw_statement=imp_statement)
 
     def addAttribute(self, attribName, expr):
         self._class_compiler.addAttribute(attribName + ' = ' + expr)
