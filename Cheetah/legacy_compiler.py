@@ -49,6 +49,7 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('PSPEndToken', '%>', ''),
     ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
+    ('optimize_lookup', True, ''),
 ]
 
 DEFAULT_COMPILER_SETTINGS = dict((v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS)
@@ -621,6 +622,7 @@ class LegacyCompiler(SettingsManager):
         plain = (
             not self.setting('useNameMapper') or
             plain or (
+                self.setting('optimize_lookup') and
                 not self.setting('useAutocalling') and
                 not self.setting('useDottedNotation') and (
                     first_accessed_var in [
