@@ -1352,14 +1352,6 @@ class IfDirective(OutputTest):
                     "blarg\n")
 
 
-def test_simple_psp():
-    """Let's be fair, this is really only useful for
-    <% import pdb; pdb.set_trace() %>
-    """
-    cls = compile_to_class('<% write(u"hello world") %>')
-    assert cls().respond() == 'hello world'
-
-
 class WhileDirective(OutputTest):
     def test1(self):
         """simple #while with a counter"""
