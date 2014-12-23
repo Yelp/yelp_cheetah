@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+set -o pipefail
 
 if [ "$BENCH" = 'false' ]; then
     echo "Skipping bench(BENCH=$BENCH)"
