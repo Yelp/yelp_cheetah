@@ -423,16 +423,14 @@ class ClassCompiler(object):
         self._mainMethodName = main_method_name
         self._decoratorsForNextMethod = []
         self._activeMethodsList = []        # stack while parsing/generating
-        self._finishedMethodsList = []      # store by order
-        self._methodsIndex = {}      # store by name
         # printed after methods in the gen class def:
         self._generatedAttribs = []
-        methodCompiler = self._spawnMethodCompiler(
+        self._finishedMethodsList = []      # store by order
+
+        self._main_method = self._spawnMethodCompiler(
             main_method_name,
             '## CHEETAH: main method generated for this template'
         )
-
-        self._setActiveMethodCompiler(methodCompiler)
 
     def __getattr__(self, name):
         """Provide access to the methods and attributes of the MethodCompiler
@@ -446,16 +444,7 @@ class ClassCompiler(object):
             self._swallowMethodCompiler(methCompiler)
 
     def setMainMethodName(self, methodName):
-        if methodName == self._mainMethodName:
-            return
-        # change the name in the methodCompiler and add new reference
-        mainMethod = self._methodsIndex[self._mainMethodName]
-        mainMethod.setMethodName(methodName)
-        self._methodsIndex[methodName] = mainMethod
-
-        # get rid of the old reference and update self._mainMethodName
-        del self._methodsIndex[self._mainMethodName]
-        self._mainMethodName = methodName
+        self._main_method.setMethodName(methodName)
 
     def _spawnMethodCompiler(self, methodName, initialMethodComment):
         methodCompiler = self.methodCompilerClass(
@@ -465,11 +454,8 @@ class ClassCompiler(object):
             decorators=self._decoratorsForNextMethod,
         )
         self._decoratorsForNextMethod = []
-        self._methodsIndex[methodName] = methodCompiler
-        return methodCompiler
-
-    def _setActiveMethodCompiler(self, methodCompiler):
         self._activeMethodsList.append(methodCompiler)
+        return methodCompiler
 
     def _getActiveMethodCompiler(self):
         return self._activeMethodsList[-1]
@@ -486,7 +472,6 @@ class ClassCompiler(object):
         methodCompiler = self._spawnMethodCompiler(
             methodName, parserComment,
         )
-        self._setActiveMethodCompiler(methodCompiler)
         for argName, defVal in argsList:
             methodCompiler.addMethArg(argName, defVal)
 
