@@ -36,7 +36,7 @@ def test_TryExceptImportTestFailCase():
             #try
                 #import sys
             #except ImportError
-                $print "This will never happen!"
+                This will never happen!
             #end try
         #end def
     '''
