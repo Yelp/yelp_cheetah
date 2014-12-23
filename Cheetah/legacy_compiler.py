@@ -45,8 +45,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('commentStartToken', '##', ''),
     ('directiveStartToken', '#', ''),
     ('directiveEndToken', '#', ''),
-    ('PSPStartToken', '<%', ''),
-    ('PSPEndToken', '%>', ''),
     ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
     ('optimize_lookup', True, ''),
@@ -281,12 +279,6 @@ class MethodCompiler(object):
     addRaise = addChunk
     addBreak = addChunk
     addContinue = addChunk
-
-    def addPSP(self, PSP):
-        self.commitStrConst()
-
-        for line in PSP.splitlines():
-            self.addChunk(line)
 
     def next_id(self):
         self._next_variable_id += 1

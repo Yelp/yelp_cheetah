@@ -91,7 +91,7 @@ Differences
 - Remove `#arg` directive
 - Remove `#closure` directive
 - Make compilation output deterministic
-- Make `<% ... %>`
+- Remove `<%=...%>`
 - Remove ability to specify argspecs in `#implements`
 - Remove multiple inheritance from `#extends`
 - Remove `#compiler` directive

@@ -244,18 +244,16 @@ class _LowLevelParser(SourceReader):
         self._makeCheetahVarREs()
         self._makeCommentREs()
         self._makeDirectiveREs()
-        self._makePspREs()
         self._possibleNonStrConstantChars = (
             self.setting('commentStartToken')[0] +
             self.setting('cheetahVarStartToken')[0] +
-            self.setting('directiveStartToken')[0] +
-            self.setting('PSPStartToken')[0])
+            self.setting('directiveStartToken')[0]
+        )
         self._nonStrConstMatchers = [
             self.matchCommentStartToken,
             self.matchVariablePlaceholderStart,
             self.matchExpressionPlaceholderStart,
             self.matchDirective,
-            self.matchPSPStartToken,
         ]
 
     # regex setup
@@ -305,15 +303,6 @@ class _LowLevelParser(SourceReader):
         self.directiveStartTokenRE = re.compile(''.join(reParts))
         self.directiveEndTokenRE = re.compile(escCharLookBehind + endTokenEsc)
 
-    def _makePspREs(self):
-        """Setup the regexs for PSP parsing."""
-        startToken = self.setting('PSPStartToken')
-        startTokenEsc = re.escape(startToken)
-        self.PSPStartTokenRE = re.compile(escCharLookBehind + startTokenEsc)
-        endToken = self.setting('PSPEndToken')
-        endTokenEsc = re.escape(endToken)
-        self.PSPEndTokenRE = re.compile(escCharLookBehind + endTokenEsc)
-
     def _unescapeCheetahVars(self, theString):
         r"""Unescape any escaped Cheetah \$vars in the string."""
         token = self.setting('cheetahVarStartToken')
@@ -333,7 +322,6 @@ class _LowLevelParser(SourceReader):
             self.matchVariablePlaceholderStart
             self.matchExpressionPlaceholderStart
             self.matchDirective
-            self.matchPSPStartToken
 
         Returns None if no match.
         """
@@ -465,20 +453,6 @@ class _LowLevelParser(SourceReader):
             else:  # non-whitespace, non-commment chars found
                 return True
         return False
-
-    def matchPSPStartToken(self):
-        return self.PSPStartTokenRE.match(self.src(), self.pos())
-
-    def matchPSPEndToken(self):
-        return self.PSPEndTokenRE.match(self.src(), self.pos())
-
-    def getPSPStartToken(self):
-        match = self.matchPSPStartToken()
-        return self.readTo(match.end())
-
-    def getPSPEndToken(self):
-        match = self.matchPSPEndToken()
-        return self.readTo(match.end())
 
     def matchCheetahVarStart(self):
         """includes the enclosure"""
@@ -938,8 +912,6 @@ class LegacyParser(_LowLevelParser):
                 self.eatPlaceholder()
             elif self.matchDirective():
                 self.eatDirective()
-            elif self.matchPSPStartToken():
-                self.eatPSP()
             else:
                 self.eatPlainText()
         if assertEmptyStack:
@@ -975,15 +947,6 @@ class LegacyParser(_LowLevelParser):
     def eatPlaceholder(self):
         expr, rawPlaceholder, lineCol = self.getPlaceholder()
         self._compiler.addPlaceholder(expr, rawPlaceholder, lineCol)
-
-    def eatPSP(self):
-        self.getPSPStartToken()
-        startPos = self.pos()
-        while not self.matchPSPEndToken():
-            self.advance()
-        pspString = self.readTo(self.pos(), start=startPos).strip()
-        self._compiler.addPSP(pspString)
-        self.getPSPEndToken()
 
     _simpleIndentingDirectives = [
         'else', 'elif', 'for', 'while', 'try', 'except', 'finally', 'with',
