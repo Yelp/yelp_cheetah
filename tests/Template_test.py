@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
-from Cheetah import five
+import six
+
 from Cheetah.compile import compile_to_class
 from Cheetah.Template import Template
 
@@ -16,7 +17,7 @@ def test_raises_using_reserved_variable():
         # Should raise, getVar is a member of Template
         cls(searchList=[{template_var_name: 'lol'}])
     except AssertionError as e:
-        assert template_var_name in five.text(e)
+        assert template_var_name in six.text_type(e)
         return
 
     raise AssertionError('Should have raised `AssertionError`')

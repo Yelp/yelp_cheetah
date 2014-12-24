@@ -16,7 +16,8 @@ import re
 import textwrap
 import warnings
 
-from Cheetah import five
+import six
+
 from Cheetah.ast_utils import get_imported_names
 from Cheetah.ast_utils import get_lvalues
 from Cheetah.legacy_parser import LegacyParser
@@ -31,7 +32,7 @@ CallDetails = collections.namedtuple(
 INDENT = 4 * ' '
 
 
-BUILTIN_NAMES = frozenset(dir(five.builtins))
+BUILTIN_NAMES = frozenset(dir(six.moves.builtins))
 
 
 # Settings format: (key, default, docstring)
@@ -547,7 +548,7 @@ class LegacyCompiler(SettingsManager):
         if settings:
             self.updateSettings(settings)
 
-        assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
+        assert isinstance(source, six.text_type), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == '':
             warnings.warn('You supplied an empty string for the source!')

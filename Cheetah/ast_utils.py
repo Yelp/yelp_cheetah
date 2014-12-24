@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 
 import ast
 
+import six
+
 
 def _to_top_level_name(name):
     # We only really care about the first segment for name resolution
@@ -25,6 +27,13 @@ class TargetsVisitor(ast.NodeVisitor):
     def visit_Name(self, node):
         self.lvalues.append(node.id)
 
+    def visit_ExceptHandler(self, node):
+        if node.name:
+            if six.PY2:  # pragma: no cover (PY2)
+                self.visit(node.name)
+            else:  # pragma: no cover (PY3)
+                self.lvalues.append(node.name)
+
 
 class TopLevelVisitor(ast.NodeVisitor):
     def __init__(self):
@@ -34,16 +43,18 @@ class TopLevelVisitor(ast.NodeVisitor):
         for target in node.targets:
             self.targets_visitor.visit(target)
 
-    def visit_With(self, node):
+    def visit_withitem(self, node):
         if node.optional_vars:
             self.targets_visitor.visit(node.optional_vars)
+
+    if six.PY2:  # pragma: no cover (PY2)
+        visit_With = visit_withitem
 
     def visit_For(self, node):
         self.targets_visitor.visit(node.target)
 
     def visit_ExceptHandler(self, node):
-        if node.name:
-            self.targets_visitor.visit(node.name)
+        self.targets_visitor.visit(node)
 
 
 def get_lvalues(expression):

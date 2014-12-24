@@ -7,8 +7,8 @@ import unittest
 import warnings
 
 import markupsafe
+import six
 
-from Cheetah import five
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ParseError
 from Cheetah.NameMapper import NotFound
@@ -1828,7 +1828,7 @@ def test_macros(macro_name):
         settings=MACRO_SETTINGS,
     )
 
-    if five.PY2:
+    if six.PY2:
         assert cls().respond() == (
             'before\n'
             'Hello from {0}\n'
@@ -1855,7 +1855,7 @@ def test_short_form_macros(macro_name):
         settings=MACRO_SETTINGS,
     )
 
-    if five.PY2:
+    if six.PY2:
         assert cls().respond() == (
             'before\n'
             'Hello from {0}\n'

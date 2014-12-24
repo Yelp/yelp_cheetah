@@ -4,7 +4,8 @@ See the docstring in the Template class and the Users' Guide for more informatio
 """
 from __future__ import unicode_literals
 
-from Cheetah import five
+import six
+
 from Cheetah.filters import filters
 from Cheetah.NameMapper import NotFound, valueFromSearchList
 
@@ -55,7 +56,7 @@ class Template(object):
             template variable) and may perform some output filtering.
         :param filters: dict mapping filter names to filter functions
         """
-        if not isinstance(filter_name, five.text):
+        if not isinstance(filter_name, six.text_type):
             raise AssertionError(
                 'Expected `filter_name` to be `text` but got {0}'.format(
                     type(filter_name),

@@ -2,19 +2,18 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import markupsafe
-
-from Cheetah import five
+import six
 
 
 def unicode_filter(val):
     if val is None:
         return ''
-    elif isinstance(val, five.text):
+    elif isinstance(val, six.text_type):
         return val
     elif isinstance(val, bytes):
         return val.decode('UTF-8')
     else:
-        return five.text(val)
+        return six.text_type(val)
 
 
 def markup_filter(val):
