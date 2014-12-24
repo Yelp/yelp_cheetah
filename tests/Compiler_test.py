@@ -4,6 +4,8 @@ from __future__ import unicode_literals
 import io
 import os.path
 
+import pytest
+
 from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
 from Cheetah.compile import _create_module_from_source
@@ -41,12 +43,12 @@ def test_comments():
 def test_optimized_builtins():
     src = compile_source('$int("9001")')
     # Instead of _v = VFFSL(SL, "int"...
-    assert '_v = int("9001")' in src
+    assert ' _v = int("9001") #' in src
 
 
 def test_optimized_attributes_of_builtins():
     src = compile_source('$ValueError.__name__')
-    assert '_v = ValueError.__name__' in src
+    assert ' _v = ValueError.__name__ #' in src
 
 
 def test_optimized_attributes_of_builtins_function_args():
@@ -56,7 +58,7 @@ def test_optimized_attributes_of_builtins_function_args():
 
 def test_non_optimized_searchlist():
     src = compile_source('$int($foo)')
-    assert '_v = int(VFFSL(SL, "foo"' in src
+    assert ' _v = int(VFFSL(SL, "foo"' in src
 
 
 def test_optimization_still_prefers_locals():
@@ -70,7 +72,7 @@ def test_optimization_still_prefers_locals():
 
 def test_no_optimization_with_setting_off():
     src = compile_source('$int(5)', settings={'optimize_lookup': False})
-    assert '_v = VFFSL(SL, "int"' in src
+    assert ' _v = VFFSL(SL, "int"' in src
 
 
 def test_no_optimization_with_autocall():
@@ -106,7 +108,7 @@ def test_optimization_globals():
         '#import os\n'
         '$os.path.join("foo", "bar")\n'
     )
-    assert '_v = os.path.join(' in src
+    assert ' _v = os.path.join(' in src
 
 
 def test_optimization_parameters():
@@ -115,7 +117,7 @@ def test_optimization_parameters():
         '$bar\n'
         '#end def\n'
     )
-    assert '_v = bar' in src
+    assert ' _v = bar #' in src
 
 
 def test_optimization_import_dotted_name():
@@ -123,7 +125,7 @@ def test_optimization_import_dotted_name():
         '#import os.path\n'
         '$os.path.join("foo", "bar")\n'
     )
-    assert '_v = os.path.join(' in src
+    assert ' _v = os.path.join(' in src
 
 
 def test_optimization_import_as_name():
@@ -131,7 +133,7 @@ def test_optimization_import_as_name():
         '#import os.path as herp\n'
         '$herp.join("foo", "bar")\n'
     )
-    assert '_v = herp.join(' in src
+    assert ' _v = herp.join(' in src
 
 
 def test_optimization_from_imports():
@@ -139,4 +141,68 @@ def test_optimization_from_imports():
         '#from os import path\n'
         '$path.join("foo", "bar")\n'
     )
-    assert '_v = path.join(' in src
+    assert ' _v = path.join(' in src
+
+
+@pytest.mark.parametrize('directive', ('set', 'silent'))
+def test_optimization_assign(directive):
+    src = compile_source(
+        '#{0} foo = "bar"\n'
+        '$foo\n'.format(directive)
+    )
+    assert ' _v = foo #' in src
+
+
+def test_optimization_with():
+    src = compile_source(
+        '#with foo() as bar:\n'
+        '    $bar\n'
+        '#end with\n'
+    )
+    assert ' _v = bar #' in src
+
+
+def test_optimization_for():
+    src = compile_source(
+        '#for foo in bar:\n'
+        '    $foo\n'
+        '#end for\n'
+    )
+    assert ' _v = foo #' in src
+
+
+def test_optimization_except():
+    src = compile_source(
+        '#try\n'
+        '    #pass\n'
+        '#except Exception as e\n'
+        '    $e\n'
+        '#end try\n'
+    )
+    assert ' _v = e #' in src
+
+
+@pytest.mark.parametrize('directive', ('set', 'silent'))
+def test_optimization_multiple_assign(directive):
+    src = compile_source(
+        '#{0} x = y = z = 0\n'
+        '$x\n'
+        '$y\n'
+        '$z\n'.format(directive)
+    )
+    assert ' _v = x #' in src
+    assert ' _v = y #' in src
+    assert ' _v = z #' in src
+
+
+@pytest.mark.parametrize('directive', ('set', 'silent'))
+def test_optimization_tuple_assign(directive):
+    src = compile_source(
+        '#{0} x, (y, z) = (1, (2, 3))\n'
+        '$x\n'
+        '$y\n'
+        '$z\n'.format(directive)
+    )
+    assert ' _v = x #' in src
+    assert ' _v = y #' in src
+    assert ' _v = z #' in src

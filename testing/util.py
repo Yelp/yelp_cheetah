@@ -2,7 +2,7 @@ import contextlib
 import subprocess
 import sys
 
-from Cheetah import five
+import six
 
 
 @contextlib.contextmanager
@@ -11,7 +11,7 @@ def assert_raises_exactly(cls, text):
         yield
     except Exception as e:
         assert type(e) is cls
-        assert five.text(e) == text
+        assert six.text_type(e) == text
     else:
         raise AssertionError('expected to raise')
 

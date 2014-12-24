@@ -36,6 +36,7 @@ setup(
     install_requires=[
         'argparse',
         'markupsafe',
+        'six',
     ],
     extras_require={
         'testing': ['pyquery'],

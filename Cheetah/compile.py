@@ -4,7 +4,8 @@ import imp
 import io
 import os.path
 
-from Cheetah import five
+import six
+
 from Cheetah.legacy_compiler import CLASS_NAME
 from Cheetah.legacy_compiler import LegacyCompiler
 
@@ -23,7 +24,7 @@ def compile_source(
     :rtype: text
     :raises TypeError: if source is not text.
     """
-    if not isinstance(source, five.text):
+    if not isinstance(source, six.text_type):
         raise TypeError(
             '`source` must be `text` but got {0!r}'.format(type(source))
         )
@@ -38,7 +39,7 @@ def compile_file(filename, target=None, **kwargs):
     :param text filename: Filename of the file to open
     :param kwargs: Keyword args passed to `compile`
     """
-    if not isinstance(filename, five.text):
+    if not isinstance(filename, six.text_type):
         raise TypeError(
             '`filename` must be `text` but got {0!r}'.format(type(filename))
         )
@@ -65,7 +66,7 @@ def _create_module_from_source(source, filename='<generated cheetah module>'):
     :param text source: Sourcecode to put into new module.
     :return: A Module object.
     """
-    assert type(source) is five.text
+    assert type(source) is six.text_type
 
     module = imp.new_module('created_module')
     module.__file__ = filename

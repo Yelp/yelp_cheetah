@@ -591,3 +591,17 @@ def test_lvalue_for():
             '$foo\n'
             '#end for\n',
         )
+
+
+def test_uncaught_syntax_error():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
+        'Line 1, column 1\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#set x = $y = 1\n'
+        '     ^\n'
+    ):
+        compile_to_class('#set x = $y = 1\n')

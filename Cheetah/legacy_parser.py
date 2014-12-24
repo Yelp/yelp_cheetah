@@ -8,18 +8,15 @@ Classes:
 """
 from __future__ import unicode_literals
 
-import collections
+import functools
 import re
 import string
+import sys
 from tokenize import PseudoToken
 
-from Cheetah import five
-from Cheetah.SourceReader import SourceReader
+import six
 
-if five.PY2:  # pragma: no cover (PY2 only)
-    from itertools import izip_longest  # pylint:disable=no-name-in-module
-else:  # pragma: no cover (PY3 only)
-    from itertools import zip_longest as izip_longest  # pylint:disable=no-name-in-module
+from Cheetah.SourceReader import SourceReader
 
 
 python_token_re = re.compile(PseudoToken)
@@ -55,10 +52,6 @@ tripleQuotedStringPairs = {
 
 closurePairs = {')': '(', ']': '[', '}': '{'}
 closurePairsRev = {'(': ')', '[': ']', '{': '}'}
-
-
-# Used for #set global
-Components = collections.namedtuple('Components', ['lvalue', 'op', 'rvalue'])
 
 
 tripleQuotedStringREs = {}
@@ -190,6 +183,27 @@ class ParseError(ValueError):
         return report
 
 
+def fail_with_our_parse_error(func):
+    @functools.wraps(func)
+    def inner(self, *args, **kwargs):
+        try:
+            before_pos = self.pos()
+            return func(self, *args, **kwargs)
+        except ParseError:
+            raise
+        except Exception as e:
+            self.setPos(before_pos)
+            six.reraise(
+                ParseError,
+                ParseError(
+                    self,
+                    '{0}: {1}\n'.format(type(e).__name__, e)
+                ),
+                sys.exc_info()[2]
+            )
+    return inner
+
+
 class UnknownDirectiveError(ParseError):
     pass
 
@@ -216,8 +230,8 @@ class ArgList(object):
         self.defaults[count] += token
 
     def merge(self):
-        defaults = (isinstance(d, five.text) and d.strip() or None for d in self.defaults)
-        return list(izip_longest((a.strip() for a in self.arguments), defaults))
+        defaults = (isinstance(d, six.text_type) and d.strip() or None for d in self.defaults)
+        return list(six.moves.zip_longest((a.strip() for a in self.arguments), defaults))
 
 
 class _LowLevelParser(SourceReader):
@@ -865,7 +879,7 @@ class LegacyParser(_LowLevelParser):
 
     def _initDirectives(self):
         def normalizeParserVal(val):
-            if isinstance(val, five.text):
+            if isinstance(val, six.text_type):
                 return getattr(self, val)
             elif isinstance(val, type):
                 return val(self)
@@ -897,6 +911,7 @@ class LegacyParser(_LowLevelParser):
             self._macros[macroName] = normalizeParserVal(callback)
             self._directiveNamesAndParsers[macroName] = self.eatMacroCall
 
+    @fail_with_our_parse_error
     def parse(self, breakPoint=None, assertEmptyStack=True):
         if breakPoint:
             origBP = self.breakPoint()
@@ -982,10 +997,7 @@ class LegacyParser(_LowLevelParser):
             assert directiveName in self._simpleExprDirectives
             handlerName = self._normalize_handler_name(directiveName)
             handler = getattr(self._compiler, handlerName)
-            if directiveName == 'silent':
-                includeDirectiveNameInExpr = False
-            else:
-                includeDirectiveNameInExpr = True
+            includeDirectiveNameInExpr = directiveName != 'silent'
             expr = self.eatSimpleExprDirective(
                 directiveName,
                 includeDirectiveNameInExpr=includeDirectiveNameInExpr)
@@ -1370,11 +1382,11 @@ class LegacyParser(_LowLevelParser):
         ).strip()
         op = self.getAssignmentOperator()
         rvalue = self.getExpression()
+        expr = ' '.join((lvalue, op, rvalue))
 
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
-        expr_components = Components(lvalue, op, rvalue)
-        self._compiler.addSet(expr_components, line_col)
+        self._compiler.addSet(expr, line_col)
 
     def eatSlurp(self):
         if self.isLineClearToStartToken():

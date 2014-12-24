@@ -8,12 +8,13 @@ import os
 import os.path
 import sys
 
-from Cheetah import five
+import six
+
 from Cheetah.compile import compile_file
 
 
 def compile_template(filename, **kwargs):
-    if not isinstance(filename, five.text):
+    if not isinstance(filename, six.text_type):
         filename = filename.decode('UTF-8')
     print('Compiling {0}'.format(filename))
     return compile_file(filename, **kwargs)

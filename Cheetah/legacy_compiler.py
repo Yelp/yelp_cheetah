@@ -9,7 +9,6 @@
 '''
 from __future__ import unicode_literals
 
-import ast
 import collections
 import contextlib
 import copy
@@ -17,7 +16,10 @@ import re
 import textwrap
 import warnings
 
-from Cheetah import five
+import six
+
+from Cheetah.ast_utils import get_imported_names
+from Cheetah.ast_utils import get_lvalues
 from Cheetah.legacy_parser import LegacyParser
 from Cheetah.legacy_parser import escapedNewlineRE
 from Cheetah.SettingsManager import SettingsManager
@@ -30,7 +32,7 @@ CallDetails = collections.namedtuple(
 INDENT = 4 * ' '
 
 
-BUILTIN_NAMES = frozenset(dir(five.builtins))
+BUILTIN_NAMES = frozenset(dir(six.moves.builtins))
 
 
 # Settings format: (key, default, docstring)
@@ -78,14 +80,6 @@ def arg_string_list_to_text(arg_string_list):
     return ', '.join(_arg_chunk_to_text(chunk) for chunk in arg_string_list)
 
 
-def imported_names_from_dotted_name(name):
-    names = [name]
-    while '.' in name:
-        name, _ = name.rsplit('.')
-        names.append(name)
-    return names
-
-
 class MethodCompiler(object):
     def __init__(
             self,
@@ -104,7 +98,8 @@ class MethodCompiler(object):
         self._filterRegionsStack = []
         self._hasReturnStatement = False
         self._isGenerator = False
-        self._argStringList = [('self', None)]
+        self._arguments = [('self', None)]
+        self._local_vars = set(('self',))
         self._decorators = decorators or []
 
     def cleanupState(self):
@@ -205,7 +200,7 @@ class MethodCompiler(object):
         self.addWriteChunk(''.join(out))
 
     def handleWSBeforeDirective(self):
-        """Truncate the pending strCont to the beginning of the current line.
+        """Truncate the pending strConst to the beginning of the current line.
         """
         if self._pendingStrConstChunks:
             src = self._pendingStrConstChunks[-1]
@@ -221,12 +216,16 @@ class MethodCompiler(object):
             *line_col
         ))
 
+    def _update_locals(self, expr):
+        self._local_vars.update(get_lvalues(expr))
+
     def addPlaceholder(self, expr, rawPlaceholder, line_col):
         self.addFilteredChunk(expr, rawPlaceholder, line_col)
         self._append_line_col_comment(line_col)
 
-    def addSet(self, components, line_col):
-        self.addChunk(' '.join([component.strip() for component in components]))
+    def addSet(self, expr, line_col):
+        self._update_locals(expr)
+        self.addChunk(expr)
         self._append_line_col_comment(line_col)
 
     def addIndentingDirective(self, expr, line_col):
@@ -237,10 +236,15 @@ class MethodCompiler(object):
         self.indent()
 
     addWhile = addIndentingDirective
-    addFor = addIndentingDirective
-    addWith = addIndentingDirective
     addIf = addIndentingDirective
     addTry = addIndentingDirective
+
+    def _add_lvalue_indenting_directive(self, expr, line_col):
+        self._update_locals(expr + ':\n    pass')
+        self.addIndentingDirective(expr, line_col)
+
+    addFor = _add_lvalue_indenting_directive
+    addWith = _add_lvalue_indenting_directive
 
     def addReIndentingDirective(self, expr, line_col, dedent=True):
         self.commitStrConst()
@@ -253,8 +257,11 @@ class MethodCompiler(object):
         self._append_line_col_comment(line_col)
         self.indent()
 
-    addExcept = addReIndentingDirective
     addFinally = addReIndentingDirective
+
+    def addExcept(self, expr, line_col, dedent=True):
+        self._update_locals('try:\n    pass\n' + expr + ':\n    pass')
+        self.addReIndentingDirective(expr, line_col, dedent=dedent)
 
     def addElse(self, expr, line_col, dedent=True):
         expr = re.sub(r'else[ \f\t]+if', 'elif', expr)
@@ -272,7 +279,10 @@ class MethodCompiler(object):
         self._isGenerator = True
         self.addChunk(expr)
 
-    addSilent = addChunk
+    def addSilent(self, expr):
+        self._update_locals(expr)
+        self.addChunk(expr)
+
     addPass = addChunk
     addDel = addChunk
     addAssert = addChunk
@@ -403,11 +413,12 @@ class MethodCompiler(object):
             self.dedent()
         self.addChunk()
 
-    def addMethArg(self, name, defVal):
-        self._argStringList.append((name, defVal))
+    def addMethArg(self, name, val):
+        self._arguments.append((name, val))
+        self._local_vars.add(name)
 
     def methodSignature(self):
-        arg_text = arg_string_list_to_text(self._argStringList)
+        arg_text = arg_string_list_to_text(self._arguments)
         return ''.join((
             ''.join(
                 INDENT + decorator + '\n' for decorator in self._decorators
@@ -537,7 +548,7 @@ class LegacyCompiler(SettingsManager):
         if settings:
             self.updateSettings(settings)
 
-        assert isinstance(source, five.text), 'the yelp-cheetah compiler requires text, not bytes.'
+        assert isinstance(source, six.text_type), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == '':
             warnings.warn('You supplied an empty string for the source!')
@@ -553,7 +564,7 @@ class LegacyCompiler(SettingsManager):
             'from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
-        self._importedVarNames = set((
+        self._global_vars = set((
             'DummyTransaction', 'NO_CONTENT', 'VFN', 'VFFSL',
         ))
 
@@ -590,7 +601,7 @@ class LegacyCompiler(SettingsManager):
             if raw_statement and getattr(self, '_methodBodyChunks'):
                 self.addChunk(raw_statement)
         else:
-            self._importedVarNames.update(varNames)
+            self._global_vars.update(varNames)
 
     # methods for adding stuff to the module and class definitions
 
@@ -602,10 +613,8 @@ class LegacyCompiler(SettingsManager):
                 self.setting('optimize_lookup') and
                 not self.setting('useAutocalling') and
                 not self.setting('useDottedNotation') and (
-                    first_accessed_var in [
-                        var for var, _ in self._argStringList
-                    ] or
-                    first_accessed_var in self._importedVarNames or
+                    first_accessed_var in self._local_vars or
+                    first_accessed_var in self._global_vars or
                     first_accessed_var in BUILTIN_NAMES
                 )
             )
@@ -706,7 +715,7 @@ class LegacyCompiler(SettingsManager):
     def set_extends(self, extends_name):
         self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
 
-        if extends_name in self._importedVarNames:
+        if extends_name in self._global_vars:
             raise AssertionError(
                 'yelp_cheetah only supports extends by module name'
             )
@@ -720,15 +729,7 @@ class LegacyCompiler(SettingsManager):
         self._parser.configureParser()
 
     def addImportStatement(self, imp_statement):
-        ast_import = ast.parse(imp_statement).body[0]
-        imported_names = [
-            imported_name
-            for name in ast_import.names
-            for imported_name in imported_names_from_dotted_name(
-                name.asname or name.name
-            )
-            if imported_name != '*'
-        ]
+        imported_names = get_imported_names(imp_statement)
 
         if not self._methodBodyChunks or self.setting('useLegacyImportMode'):
             # In the case where we are importing inline in the middle of a
