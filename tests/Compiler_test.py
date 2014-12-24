@@ -4,6 +4,8 @@ from __future__ import unicode_literals
 import io
 import os.path
 
+import pytest
+
 from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
 from Cheetah.compile import _create_module_from_source
@@ -140,3 +142,67 @@ def test_optimization_from_imports():
         '$path.join("foo", "bar")\n'
     )
     assert '_v = path.join(' in src
+
+
+@pytest.mark.parametrize('directive', ('set', 'silent'))
+def test_optimization_assign(directive):
+    src = compile_source(
+        '#{0} foo = "bar"\n'
+        '$foo\n'.format(directive)
+    )
+    assert '_v = foo' in src
+
+
+def test_optimization_with():
+    src = compile_source(
+        '#with foo() as bar:\n'
+        '    $bar\n'
+        '#end with\n'
+    )
+    assert '_v = bar' in src
+
+
+def test_optimization_for():
+    src = compile_source(
+        '#for foo in bar:\n'
+        '    $foo\n'
+        '#end for\n'
+    )
+    assert '_v = foo' in src
+
+
+def test_optimization_except():
+    src = compile_source(
+        '#try\n'
+        '    #pass\n'
+        '#except Exception as e\n'
+        '    $e\n'
+        '#end try\n'
+    )
+    assert '_v = e' in src
+
+
+@pytest.mark.parametrize('directive', ('set', 'silent'))
+def test_optimization_multiple_assign(directive):
+    src = compile_source(
+        '#{0} x = y = z = 0\n'
+        '$x\n'
+        '$y\n'
+        '$z\n'.format(directive)
+    )
+    assert '_v = x' in src
+    assert '_v = y' in src
+    assert '_v = z' in src
+
+
+@pytest.mark.parametrize('directive', ('set', 'silent'))
+def test_optimization_tuple_assign(directive):
+    src = compile_source(
+        '#{0} x, (y, z) = (1, (2, 3))\n'
+        '$x\n'
+        '$y\n'
+        '$z\n'.format(directive)
+    )
+    assert '_v = x' in src
+    assert '_v = y' in src
+    assert '_v = z' in src

@@ -8,7 +8,6 @@ Classes:
 """
 from __future__ import unicode_literals
 
-import collections
 import re
 import string
 from tokenize import PseudoToken
@@ -55,10 +54,6 @@ tripleQuotedStringPairs = {
 
 closurePairs = {')': '(', ']': '[', '}': '{'}
 closurePairsRev = {'(': ')', '[': ']', '{': '}'}
-
-
-# Used for #set global
-Components = collections.namedtuple('Components', ['lvalue', 'op', 'rvalue'])
 
 
 tripleQuotedStringREs = {}
@@ -982,10 +977,7 @@ class LegacyParser(_LowLevelParser):
             assert directiveName in self._simpleExprDirectives
             handlerName = self._normalize_handler_name(directiveName)
             handler = getattr(self._compiler, handlerName)
-            if directiveName == 'silent':
-                includeDirectiveNameInExpr = False
-            else:
-                includeDirectiveNameInExpr = True
+            includeDirectiveNameInExpr = directiveName != 'silent'
             expr = self.eatSimpleExprDirective(
                 directiveName,
                 includeDirectiveNameInExpr=includeDirectiveNameInExpr)
@@ -1370,11 +1362,11 @@ class LegacyParser(_LowLevelParser):
         ).strip()
         op = self.getAssignmentOperator()
         rvalue = self.getExpression()
+        expr = ' '.join((lvalue, op, rvalue))
 
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
-        expr_components = Components(lvalue, op, rvalue)
-        self._compiler.addSet(expr_components, line_col)
+        self._compiler.addSet(expr, line_col)
 
     def eatSlurp(self):
         if self.isLineClearToStartToken():

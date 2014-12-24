@@ -14,7 +14,6 @@ from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
 from Cheetah.compile import _create_module_from_source
 from Cheetah.legacy_parser import directiveNamesAndParsers
-from Cheetah.NameMapper import NotFound
 from Cheetah.Template import Template
 
 
@@ -193,7 +192,7 @@ def test_compile_source_follows_settings():
         tmpl,
         settings={'useDottedNotation': False},
     )
-    with pytest.raises(NotFound):
+    with pytest.raises(AttributeError):
         ret(searchList=[]).respond()
 
 
