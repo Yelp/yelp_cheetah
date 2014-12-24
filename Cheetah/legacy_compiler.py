@@ -593,12 +593,15 @@ class LegacyCompiler(SettingsManager):
 
     def genCheetahVar(self, nameChunks, lineCol, plain=False):
         first_accessed_var = nameChunks[0][0].partition('.')[0]
+        optimize_enabled = (
+            self.setting('optimize_lookup') and
+            not self.setting('useAutocalling') and
+            not self.setting('useDottedNotation')
+        )
         plain = (
             not self.setting('useNameMapper') or
             plain or (
-                self.setting('optimize_lookup') and
-                not self.setting('useAutocalling') and
-                not self.setting('useDottedNotation') and (
+                optimize_enabled and (
                     first_accessed_var in self._local_vars or
                     first_accessed_var in self._global_vars or
                     first_accessed_var in BUILTIN_NAMES
@@ -613,7 +616,9 @@ class LegacyCompiler(SettingsManager):
         if plain:
             return genPlainVar(nameChunks)
         else:
-            return self.genNameMapperVar(nameChunks)
+            return self.genNameMapperVar(
+                nameChunks, optimize_enabled=optimize_enabled,
+            )
 
     def addGetTextVar(self, nameChunks, lineCol):
         """Output something that gettext can recognize.
@@ -625,7 +630,7 @@ class LegacyCompiler(SettingsManager):
         scannable += ' # generated from line {0}, col {1}.'.format(*lineCol)
         self._gettext_scannables.append(scannable)
 
-    def genNameMapperVar(self, nameChunks):
+    def genNameMapperVar(self, nameChunks, optimize_enabled):
         """Generate valid Python code for a Cheetah $var, using NameMapper
         (Unified Dotted Notation with the SearchList).
 
@@ -679,22 +684,33 @@ class LegacyCompiler(SettingsManager):
         nameChunks.reverse()
         name, useAC, remainder = nameChunks.pop()
 
-        pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
-            name,
-            defaultUseAC and useAC,
-            useDottedNotation,
-            remainder,
-        )
-
-        while nameChunks:
-            name, useAC, remainder = nameChunks.pop()
-            pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (
-                pythonCode,
+        if optimize_enabled:
+            namept1, dot, rest = name.partition('.')
+            pythonCode = 'VFFSL(SL, "{0}"){1}{2}{3}'.format(
+                namept1, dot, rest, remainder,
+            )
+        else:
+            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
                 name,
                 defaultUseAC and useAC,
                 useDottedNotation,
                 remainder,
             )
+
+        while nameChunks:
+            name, useAC, remainder = nameChunks.pop()
+            useAC = defaultUseAC and useAC
+
+            if optimize_enabled:
+                pythonCode = '{0}.{1}{2}'.format(pythonCode, name, remainder)
+            else:
+                pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (
+                    pythonCode,
+                    name,
+                    useAC,
+                    useDottedNotation,
+                    remainder,
+                )
 
         return pythonCode
 

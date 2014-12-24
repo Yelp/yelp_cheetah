@@ -11,7 +11,6 @@ import six
 
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ParseError
-from Cheetah.NameMapper import NotFound
 
 
 def dummydecorator(func):
@@ -598,7 +597,7 @@ class NameMapper(OutputTest):
     def test22a(self):
         """nested dictionary access - NameMapper style, with dotted notation
         disabled"""
-        with pytest.raises(NotFound):
+        with pytest.raises(AttributeError):
             self.verify("#compiler-settings\n"
                         "useDottedNotation = False\n"
                         "#end compiler-settings\n"
