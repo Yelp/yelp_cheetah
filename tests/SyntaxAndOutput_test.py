@@ -500,6 +500,16 @@ class Placeholders_Calls(OutputTest):
                     "")
 
 
+def test_placeholder_addition():
+    # To restore coverage
+    cls = compile_to_class(
+        '#set x = 1\n'
+        '#set y = 2\n'
+        '${x + y}'
+    )
+    assert cls().respond() == '3'
+
+
 class NameMapper(OutputTest):
     def test1(self):
         """calling"""
