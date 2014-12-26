@@ -500,6 +500,16 @@ class Placeholders_Calls(OutputTest):
                     "")
 
 
+def test_placeholder_addition():
+    # To restore coverage
+    cls = compile_to_class(
+        '#set x = 1\n'
+        '#set y = 2\n'
+        '${x + y}'
+    )
+    assert cls().respond() == '3'
+
+
 class NameMapper(OutputTest):
     def test1(self):
         """calling"""
@@ -543,7 +553,6 @@ class NameMapper(OutputTest):
         self.verify("$aDict['nestedDict']['two']",
                     "nestedItem2")
 
-    @pytest.mark.xfail(reason='Issue #23')
     def test13(self):
         """nested dictionary access using method"""
         self.verify("$aDict.get('nestedDict')['two']", "nestedItem2")

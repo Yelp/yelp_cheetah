@@ -541,10 +541,11 @@ class _LowLevelParser(SourceReader):
 
             dottedName = self.getDottedName()
             if not self.atEnd() and self.peek() in '([':
-                if self.peek() == '(':
-                    rest = self.getCallArgString()
-                else:
-                    rest = self.getExpression(enclosed=True)
+                while not self.atEnd() and self.peek() in '([':
+                    if self.peek() == '(':
+                        rest += self.getCallArgString()
+                    else:
+                        rest += self.getExpression(enclosed=True)
 
                 period = max(dottedName.rfind('.'), 0)
                 if period:
