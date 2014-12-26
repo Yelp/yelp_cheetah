@@ -187,12 +187,10 @@ def fail_with_our_parse_error(func):
     @functools.wraps(func)
     def inner(self, *args, **kwargs):
         try:
-            before_pos = self.pos()
             return func(self, *args, **kwargs)
         except ParseError:
             raise
         except Exception as e:
-            self.setPos(before_pos)
             six.reraise(
                 ParseError,
                 ParseError(

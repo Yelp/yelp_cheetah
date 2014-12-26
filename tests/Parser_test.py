@@ -598,10 +598,12 @@ def test_uncaught_syntax_error():
         ParseError,
         '\n\n'
         "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
-        'Line 1, column 1\n\n'
+        'Line 3, column 16\n\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
-        '1   |#set x = $y = 1\n'
-        '     ^\n'
+        '1   |Hello\n'
+        '2   |World\n'
+        '3   |#set x = $y = 1\n'
+        '                    ^\n'
     ):
-        compile_to_class('#set x = $y = 1\n')
+        compile_to_class('Hello\nWorld\n#set x = $y = 1\n')
