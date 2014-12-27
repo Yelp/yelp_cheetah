@@ -212,28 +212,38 @@ class MethodCompiler(object):
         self.addFilteredChunk(expr, rawPlaceholder, line_col)
         self._append_line_col_comment(line_col)
 
-    def addSet(self, expr, line_col):
+    def _add_with_line_col(self, expr, line_col):
         self._update_locals(expr)
         self.addChunk(expr)
         self._append_line_col_comment(line_col)
 
-    def addIndentingDirective(self, expr, line_col):
+    addSet = addSilent = addPy = addPass = addDel = _add_with_line_col
+    addAssert = addRaise = addBreak = addContinue = _add_with_line_col
+
+    def addReturn(self, expr, line_col):
+        assert not self._isGenerator
+        self._hasReturnStatement = True
+        self._add_with_line_col(expr, line_col)
+
+    def addYield(self, expr, line_col):
+        assert not self._hasReturnStatement
+        self._isGenerator = True
+        self._add_with_line_col(expr, line_col)
+
+    def _add_indenting_directive(self, expr, line_col):
         assert expr[-1] != ':'
         expr = expr + ':'
         self.addChunk(expr)
         self._append_line_col_comment(line_col)
         self.indent()
 
-    addWhile = addIndentingDirective
-    addIf = addIndentingDirective
-    addTry = addIndentingDirective
+    addWhile = addIf = addTry = _add_indenting_directive
 
     def _add_lvalue_indenting_directive(self, expr, line_col):
         self._update_locals(expr + ':\n    pass')
-        self.addIndentingDirective(expr, line_col)
+        self._add_indenting_directive(expr, line_col)
 
-    addFor = _add_lvalue_indenting_directive
-    addWith = _add_lvalue_indenting_directive
+    addFor = addWith = _add_lvalue_indenting_directive
 
     def addReIndentingDirective(self, expr, line_col, dedent=True):
         self.commitStrConst()
@@ -253,31 +263,10 @@ class MethodCompiler(object):
         self.addReIndentingDirective(expr, line_col, dedent=dedent)
 
     def addElse(self, expr, line_col, dedent=True):
-        expr = re.sub(r'else[ \f\t]+if', 'elif', expr)
+        expr = re.sub('else +if', 'elif', expr)
         self.addReIndentingDirective(expr, line_col, dedent=dedent)
 
     addElif = addElse
-
-    def addReturn(self, expr):
-        assert not self._isGenerator
-        self.addChunk(expr)
-        self._hasReturnStatement = True
-
-    def addYield(self, expr):
-        assert not self._hasReturnStatement
-        self._isGenerator = True
-        self.addChunk(expr)
-
-    def addSilent(self, expr):
-        self._update_locals(expr)
-        self.addChunk(expr)
-
-    addPass = addChunk
-    addDel = addChunk
-    addAssert = addChunk
-    addRaise = addChunk
-    addBreak = addChunk
-    addContinue = addChunk
 
     def next_id(self):
         self._next_variable_id += 1
@@ -714,7 +703,7 @@ class LegacyCompiler(SettingsManager):
         self.updateSettingsFromConfigStr(settingsStr)
         self._parser.configureParser()
 
-    def _add_import_statement(self, imp_statement):
+    def _add_import_statement(self, imp_statement, line_col):
         imported_names = get_imported_names(imp_statement)
 
         if not self._methodBodyChunks or self.setting('useLegacyImportMode'):

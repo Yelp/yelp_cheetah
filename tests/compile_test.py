@@ -401,6 +401,7 @@ $spacer()
 
 #set arr = [1, 2, 3]
 #silent arr.append(4)
+#py arr.append(5)
 $arr
 
 #block infinite_loop_meybs

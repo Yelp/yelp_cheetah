@@ -23,10 +23,6 @@ python_token_re = re.compile(PseudoToken)
 identchars = string.ascii_letters + '_'
 namechars = identchars + string.digits
 
-assignmentOps = (
-    '=', '+=', '-=', '/=', '*=', '**=', '^=', '%=', '>>=', '<<=', '&=', '|=',
-)
-
 single3 = "'''"
 double3 = '"""'
 
@@ -83,6 +79,7 @@ directiveNamesAndParsers = {
     # output, filtering, and caching
     'slurp': 'eatSlurp',
     'filter': 'eatFilter',
+    'py': None,
     'silent': None,
 
     'call': 'eatCall',
@@ -93,7 +90,7 @@ directiveNamesAndParsers = {
     'block': 'eatBlock',
     '@': 'eatDecorator',
 
-    'set': 'eatSet',
+    'set': None,
     'del': None,
 
     # flow control
@@ -397,16 +394,6 @@ class _LowLevelParser(SourceReader):
         match = self.matchIdentifier()
         if not match:
             raise ParseError(self, 'Invalid identifier')
-        return self.readTo(match.end())
-
-    def matchAssignmentOperator(self):
-        match = self.matchPyToken()
-        assert match.group() in assignmentOps
-        return match
-
-    def getAssignmentOperator(self):
-        match = self.matchAssignmentOperator()
-        assert match
         return self.readTo(match.end())
 
     def matchDirective(self):
@@ -965,35 +952,33 @@ class LegacyParser(_LowLevelParser):
         'if', 'else', 'elif', 'for', 'while', 'try', 'except', 'finally',
         'with',
     ]
-    _simpleExprDirectives = [
+    _py_expr_directives = ['py', 'set', 'silent']
+    _simple_expr_directives = [
         'pass', 'continue', 'return', 'yield', 'break', 'del', 'assert',
-        'raise', 'silent', 'import', 'from',
-    ]
-
-    def _normalize_handler_name(self, directive_name):
-        return 'add{0}'.format(directive_name.capitalize())
+        'raise', 'import', 'from',
+    ] + _py_expr_directives
 
     def eatDirective(self):
-        directiveName = self.matchDirective()
+        directive = self.matchDirective()
 
         # subclasses can override the default behaviours here by providing an
-        # eater method in self._directiveNamesAndParsers[directiveName]
-        directiveParser = self._directiveNamesAndParsers.get(directiveName)
+        # eater method in self._directiveNamesAndParsers[directive]
+        directiveParser = self._directiveNamesAndParsers.get(directive)
         if directiveParser:
             directiveParser()
-        elif directiveName in self._simpleIndentingDirectives:
-            handlerName = self._normalize_handler_name(directiveName)
-            handler = getattr(self._compiler, handlerName)
-            self.eatSimpleIndentingDirective(directiveName, callback=handler)
         else:
-            assert directiveName in self._simpleExprDirectives
-            handlerName = self._normalize_handler_name(directiveName)
-            handler = getattr(self._compiler, handlerName)
-            includeDirectiveNameInExpr = directiveName != 'silent'
-            expr = self.eatSimpleExprDirective(
-                directiveName,
-                includeDirectiveNameInExpr=includeDirectiveNameInExpr)
-            handler(expr)
+            handler = getattr(self._compiler, 'add' + directive.capitalize())
+
+            if directive in self._simpleIndentingDirectives:
+                self.eatSimpleIndentingDirective(directive, callback=handler)
+            else:
+                assert directive in self._simple_expr_directives
+                line_col = self.getRowCol()
+                include_name = directive not in self._py_expr_directives
+                expr = self.eatSimpleExprDirective(
+                    directive, include_name=include_name,
+                )
+                handler(expr, line_col=line_col)
 
     def _eatRestOfDirectiveTag(self, isLineClearToStartToken, endOfFirstLinePos):
         foundComment = False
@@ -1080,14 +1065,13 @@ class LegacyParser(_LowLevelParser):
             self._compiler.handleWSBeforeDirective()
         return textEaten
 
-    def eatSimpleExprDirective(self, directiveName, includeDirectiveNameInExpr=True):
+    def eatSimpleExprDirective(self, directive, include_name=True):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLine = self.findEOL()
         self.getDirectiveStartToken()
-        if not includeDirectiveNameInExpr:
-            self.advance(len(directiveName))
+        if not include_name:
+            self.advance(len(directive))
         expr = self.getExpression().strip()
-        directiveName = expr.split()[0]
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         return expr
 
@@ -1191,7 +1175,8 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(self, '#attr directive must not contain `$`')
         attribName = self.getIdentifier()
         self.getWhiteSpace()
-        self.getAssignmentOperator()
+        assert self.peek() == '='
+        self.getc()
         self.getWhiteSpace()
         expr = self.get_python_expression(
             'Invalid #attr directive. '
@@ -1360,25 +1345,6 @@ class LegacyParser(_LowLevelParser):
         self.getExpression()  # throw away and unwanted crap that got added in
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         self._compiler.addSuper(argsList)
-
-    def eatSet(self):
-        line_col = self.getRowCol()
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLine = self.findEOL()
-        self.getDirectiveStartToken()
-        self.advance(3)
-        self.getWhiteSpace()
-        lvalue = self.get_python_expression(
-            'lvalue of #set cannot contain `$`',
-            pyTokensToBreakAt=assignmentOps,
-        ).strip()
-        op = self.getAssignmentOperator()
-        rvalue = self.getExpression()
-        expr = ' '.join((lvalue, op, rvalue))
-
-        self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
-
-        self._compiler.addSet(expr, line_col)
 
     def eatSlurp(self):
         if self.isLineClearToStartToken():
