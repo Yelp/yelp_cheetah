@@ -959,8 +959,7 @@ class LegacyParser(_LowLevelParser):
         self._compiler.addComment(comm)
 
     def eatPlaceholder(self):
-        expr, rawPlaceholder, lineCol = self.getPlaceholder()
-        self._compiler.addPlaceholder(expr, rawPlaceholder, lineCol)
+        self._compiler.addPlaceholder(*self.getPlaceholder())
 
     _simpleIndentingDirectives = [
         'else', 'elif', 'for', 'while', 'try', 'except', 'finally', 'with',
@@ -969,16 +968,9 @@ class LegacyParser(_LowLevelParser):
         'pass', 'continue', 'return', 'yield', 'break', 'del', 'assert',
         'raise', 'silent', 'import', 'from',
     ]
-    _directiveHandlerNames = {
-        'import': 'addImportStatement',
-        'from': 'addImportStatement',
-    }
 
-    def _normalize_handler_name(self, directiveName):
-        return self._directiveHandlerNames.get(
-            directiveName,
-            'add{0}'.format(directiveName.capitalize())
-        )
+    def _normalize_handler_name(self, directive_name):
+        return 'add{0}'.format(directive_name.capitalize())
 
     def eatDirective(self):
         directiveName = self.matchDirective()
@@ -1204,7 +1196,7 @@ class LegacyParser(_LowLevelParser):
             'Invalid #attr directive. '
             'It should contain simple Python literals.'
         )
-        self._compiler.addAttribute(attribName, expr)
+        self._compiler.addAttribute(attribName + ' = ' + expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 
     def eatDecorator(self):
