@@ -97,7 +97,7 @@ directiveNamesAndParsers = {
     'del': None,
 
     # flow control
-    'if': 'eatIf',
+    'if': None,
     'while': None,
     'for': None,
     'else': None,
@@ -962,7 +962,8 @@ class LegacyParser(_LowLevelParser):
         self._compiler.addPlaceholder(*self.getPlaceholder())
 
     _simpleIndentingDirectives = [
-        'else', 'elif', 'for', 'while', 'try', 'except', 'finally', 'with',
+        'if', 'else', 'elif', 'for', 'while', 'try', 'except', 'finally',
+        'with',
     ]
     _simpleExprDirectives = [
         'pass', 'continue', 'return', 'yield', 'break', 'del', 'assert',
@@ -1491,30 +1492,6 @@ class LegacyParser(_LowLevelParser):
             self.pushToOpenDirectivesStack('filter')
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             self._compiler.setFilter(theFilter)
-
-    def eatIf(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLine = self.findEOL()
-        lineCol = self.getRowCol()
-        self.getDirectiveStartToken()
-
-        expressionParts = self.getExpressionParts(pyTokensToBreakAt=[':'])
-        expr = ''.join(expressionParts).strip()
-
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self._compiler.addIf(expr, lineCol)
-            self.getWhiteSpace(maximum=1)
-            self.parse(breakPoint=self.findEOL(gobble=True))
-            self._compiler.commitStrConst()
-            self._compiler.dedent()
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
-            self.pushToOpenDirectivesStack('if')
-            self._compiler.addIf(expr, lineCol)
 
     # end directive handlers
     def handleEndDef(self):
