@@ -136,14 +136,7 @@ class MethodCompiler(object):
 
     def methodDef(self):
         self.commitStrConst()
-        return ''.join((
-            self.methodSignature(),
-            '\n',
-            self.methodBody(),
-        ))
-
-    def methodBody(self):
-        return ''.join(self._methodBodyChunks)
+        return self.methodSignature() + ''.join(self._methodBodyChunks)
 
     # methods for adding code
 
@@ -208,7 +201,8 @@ class MethodCompiler(object):
             if BOL < len(src):
                 self._pendingStrConstChunks[-1] = src[:BOL]
 
-    def addMethComment(self, comment):
+    def addComment(self, comment):
+        comment = comment.rstrip('\n')
         self.addChunk('#' + comment)
 
     def _append_line_col_comment(self, line_col):
@@ -399,9 +393,9 @@ class MethodCompiler(object):
     def _addAutoCleanupCode(self):
         self.addChunk()
         self.addChunk('## END - generated method body')
-        self.addChunk()
 
         if not self._isGenerator:
+            self.addChunk()
             self.addChunk('if _dummyTrans:')
             self.indent()
             self.addChunk('self.transaction = None')
@@ -411,7 +405,6 @@ class MethodCompiler(object):
             self.indent()
             self.addChunk('return NO_CONTENT')
             self.dedent()
-        self.addChunk()
 
     def addMethArg(self, name, val):
         self._arguments.append((name, val))
@@ -423,7 +416,7 @@ class MethodCompiler(object):
             ''.join(
                 INDENT + decorator + '\n' for decorator in self._decorators
             ),
-            INDENT + 'def ' + self.methodName() + '(' + arg_text + '):\n\n'
+            INDENT + 'def ' + self.methodName() + '(' + arg_text + '):'
         ))
 
 
@@ -435,7 +428,7 @@ class ClassCompiler(object):
         self._decoratorsForNextMethod = []
         self._activeMethodsList = []        # stack while parsing/generating
         # printed after methods in the gen class def:
-        self._generatedAttribs = []
+        self._attrs = []
         self._finishedMethodsList = []      # store by order
 
         self._main_method = self._spawnMethodCompiler(
@@ -497,8 +490,8 @@ class ClassCompiler(object):
         """
         self._decoratorsForNextMethod.append(decorator_expr)
 
-    def addAttribute(self, attrib_expr):
-        self._generatedAttribs.append(attrib_expr)
+    def addAttribute(self, attr_expr):
+        self._attrs.append(attr_expr)
 
     def addSuper(self, argsList):
         methodName = self._getActiveMethodCompiler().methodName()
@@ -525,9 +518,9 @@ class ClassCompiler(object):
 
     def class_def(self):
         return '\n'.join((
-            'class {0}({1}):'.format(CLASS_NAME, BASE_CLASS_NAME),
-            INDENT + '## CHEETAH GENERATED METHODS', '\n', self.methodDefs(),
-            INDENT + '## CHEETAH GENERATED ATTRIBUTES', '\n', self.attributes(),
+            'class {0}({1}):\n'.format(CLASS_NAME, BASE_CLASS_NAME),
+            self.attributes(),
+            self.methodDefs(),
         ))
 
     def methodDefs(self):
@@ -536,7 +529,10 @@ class ClassCompiler(object):
         )
 
     def attributes(self):
-        return '\n\n'.join(INDENT + attrib for attrib in self._generatedAttribs)
+        if self._attrs:
+            return '\n'.join(INDENT + attr for attr in self._attrs) + '\n'
+        else:
+            return ''
 
 
 class LegacyCompiler(SettingsManager):
@@ -568,7 +564,7 @@ class LegacyCompiler(SettingsManager):
             'DummyTransaction', 'NO_CONTENT', 'VFN', 'VFFSL',
         ))
 
-        self._gettextScannables = []
+        self._gettext_scannables = []
 
     def __getattr__(self, name):
         """Provide one-way access to the methods and attributes of the
@@ -637,7 +633,7 @@ class LegacyCompiler(SettingsManager):
         """
         scannable = genPlainVar(nameChunks[:])
         scannable += ' # generated from line {0}, col {1}.'.format(*lineCol)
-        self._gettextScannables.append(scannable)
+        self._gettext_scannables.append(scannable)
 
     def genNameMapperVar(self, nameChunks):
         """Generate valid Python code for a Cheetah $var, using NameMapper
@@ -728,7 +724,7 @@ class LegacyCompiler(SettingsManager):
         self.updateSettingsFromConfigStr(settingsStr)
         self._parser.configureParser()
 
-    def addImportStatement(self, imp_statement):
+    def _add_import_statement(self, imp_statement):
         imported_names = get_imported_names(imp_statement)
 
         if not self._methodBodyChunks or self.setting('useLegacyImportMode'):
@@ -738,12 +734,7 @@ class LegacyCompiler(SettingsManager):
             self._importStatements.append(imp_statement)
         self.addImportedVarNames(imported_names, raw_statement=imp_statement)
 
-    def addAttribute(self, attribName, expr):
-        self._class_compiler.addAttribute(attribName + ' = ' + expr)
-
-    def addComment(self, comm):
-        for line in comm.splitlines():
-            self.addMethComment(line)
+    addFrom = addImport = _add_import_statement
 
     # methods for module code wrapping
 
@@ -756,51 +747,37 @@ class LegacyCompiler(SettingsManager):
         moduleDef = textwrap.dedent(
             """
             from __future__ import unicode_literals
-            %(imports)s
-            %(base_import)s
+            {imports}
+            {base_import}
+
 
             # This is compiled yelp_cheetah sourcecode
             __YELP_CHEETAH__ = True
 
-            %(classes)s
 
-            %(scannables)s
+            {class_def}
 
-            %(footer)s
+            {scannables}
+            if __name__ == '__main__':
+                from os import environ
+                from sys import stdout
+                stdout.write({class_name}(searchList=[environ]).respond())
             """
-        ).strip() % {
-            'imports': self.importStatements(),
-            'base_import': self._base_import,
-            'classes': class_compiler.class_def(),
-            'scannables': self.gettextScannables(),
-            'footer': self.moduleFooter(),
-        }
+        ).strip().format(
+            imports='\n'.join(self._importStatements),
+            base_import=self._base_import,
+            class_def=class_compiler.class_def(),
+            scannables=self.gettext_scannables(),
+            class_name=CLASS_NAME,
+        ) + '\n'
 
         return moduleDef
 
-    def importStatements(self):
-        return '\n'.join(self._importStatements)
-
-    def moduleFooter(self):
-        return """
-# CHEETAH was developed by Tavis Rudd and Mike Orr
-# with code, advice and input from many other volunteers.
-# For more information visit http://www.CheetahTemplate.org/
-
-if __name__ == '__main__':
-    from os import environ
-    from sys import stdout
-    stdout.write({main_class_name}(searchList=[environ]).respond())
-""".format(main_class_name=CLASS_NAME)
-
-    def gettextScannables(self):
-        scannables = tuple(INDENT + nameChunks for nameChunks in self._gettextScannables)
+    def gettext_scannables(self):
+        scannables = tuple(INDENT + nameChunks for nameChunks in self._gettext_scannables)
         if scannables:
             return '\n'.join(
-                (
-                    '\n', '## CHEETAH GENERATED SCANNABLE GETTEXT', '\n'
-                    'def __CHEETAH_scannables():',
-                ) + scannables
-            )
+                ('\ndef __CHEETAH_gettext_scannables():',) + scannables
+            ) + '\n\n'
         else:
             return ''

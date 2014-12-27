@@ -36,7 +36,7 @@ def test_compile_gettext_alias_function_returns_scannable_output():
     ret = compile_source("$_('Hello, world!')")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     _('Hello, world!')\
 """
     assert expected in ret
@@ -46,7 +46,7 @@ def test_compile_gettext_function_returns_scannable_output():
     ret = compile_source("$gettext('Hello, world!')")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     gettext('Hello, world!')\
 """
     assert expected in ret
@@ -56,7 +56,7 @@ def test_compile_ngettext_function_returns_scannable_output():
     ret = compile_source("$ngettext('${n} puppy', '${n} puppies', 1)")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     ngettext('${n} puppy', '${n} puppies', 1)\
 """
     assert expected in ret
@@ -67,7 +67,7 @@ def test_compile_gettext_alias_as_attribute_function_returns_scannable_output():
     ret = compile_source("$translator._('Hello, world!')")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     translator._('Hello, world!')\
 """
     assert expected in ret
@@ -77,7 +77,7 @@ def test_compile_gettext_as_attribute_function_returns_scannable_output():
     ret = compile_source("$translator.gettext('Hello, world!')")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     translator.gettext('Hello, world!')\
 """
     assert expected in ret
@@ -87,7 +87,7 @@ def test_compile_translator_with_name_variable_arg_and_gettext_attribute_returns
     ret = compile_source("$translator($interface_locale).gettext('Hello, world!')")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     translator(VFFSL(SL, "interface_locale", False, False)).gettext('Hello, world!')\
 """
     assert expected in ret
@@ -97,7 +97,7 @@ def test_compile_translator_with_literal_arg_and_gettext_attribute_returns_scann
     ret = compile_source("$translator('en_US').gettext('Hello, world!')")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     translator('en_US').gettext('Hello, world!')\
 """
     assert expected in ret
@@ -107,7 +107,7 @@ def test_compile_ngettext_as_attribute_function_returns_scannable_output():
     ret = compile_source("$translator.ngettext('${n} puppy', '${n} puppies', 1)")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     translator.ngettext('${n} puppy', '${n} puppies', 1)\
 """
     assert expected in ret
@@ -118,7 +118,7 @@ def test_compile_gettext_as_multi_level_attribute_function_returns_scannable_out
     ret = compile_source("$foo.bar.translator._('Hello, world!')")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     foo.bar.translator._('Hello, world!')\
 """
     assert expected in ret
@@ -129,7 +129,7 @@ def test_compile_gettext_as_multi_level_callable_attribute_function_returns_scan
     ret = compile_source("$foo.bar().baz().womp().gettext('Hello, world!')")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     foo.bar().baz().womp().gettext('Hello, world!')\
 """
     assert expected in ret
@@ -139,7 +139,7 @@ def test_compile_ngettext_as_multi_level_attribute_function_returns_scannable_ou
     ret = compile_source("$foo.translator.ngettext('${n} puppy', '${n} puppies', 1)")
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     foo.translator.ngettext('${n} puppy', '${n} puppies', 1)\
 """
     assert expected in ret
@@ -154,7 +154,7 @@ $ngettext('${n} puppy', '${n} puppies', 1)")
     ret = compile_source(source_template)
     assert type(ret) is six.text_type
     expected = """\
-def __CHEETAH_scannables():
+def __CHEETAH_gettext_scannables():
     gettext('Hello, world!') # generated from line 1, col 1.
     _('I am hungry') # generated from line 2, col 1.
     ngettext('${n} puppy', '${n} puppies', 1) # generated from line 3, col 1.
