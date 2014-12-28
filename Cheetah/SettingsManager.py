@@ -31,10 +31,6 @@ class SettingsManager(object):
         """Set a setting in self._settings."""
         self._settings[name] = value
 
-    def settings(self):
-        """Return a reference to the settings dictionary"""
-        return self._settings
-
     def updateSettings(self, newSettings):
         """Update the settings with a selective merge or a complete overwrite."""
         self._settings.update(newSettings)
