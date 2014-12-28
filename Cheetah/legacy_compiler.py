@@ -178,12 +178,7 @@ class MethodCompiler(object):
         if not strConst:
             return
 
-        reprstr = repr(strConst)
-
-        # If our repr starts with u, trim it off
-        if reprstr.startswith('u'):  # pragma: no cover (py2 only)
-            reprstr = reprstr[1:]
-
+        reprstr = repr(strConst).lstrip('u')
         body = escapedNewlineRE.sub('\\1\n', reprstr[1:-1])
 
         if reprstr[0] == "'":
@@ -427,7 +422,6 @@ class ClassCompiler(object):
         self._mainMethodName = main_method_name
         self._decoratorsForNextMethod = []
         self._activeMethodsList = []        # stack while parsing/generating
-        # printed after methods in the gen class def:
         self._attrs = []
         self._finishedMethodsList = []      # store by order
 
@@ -479,9 +473,6 @@ class ClassCompiler(object):
         for argName, defVal in argsList:
             methodCompiler.addMethArg(argName, defVal)
 
-    def _finishedMethods(self):
-        return self._finishedMethodsList
-
     def addDecorator(self, decorator_expr):
         """Set the decorator to be used with the next method in the source.
 
@@ -525,7 +516,7 @@ class ClassCompiler(object):
 
     def methodDefs(self):
         return '\n\n'.join(
-            method.methodDef() for method in self._finishedMethods()
+            method.methodDef() for method in self._finishedMethodsList
         )
 
     def attributes(self):
@@ -590,10 +581,9 @@ class LegacyCompiler(SettingsManager):
             self._class_compiler = orig
 
     def addImportedVarNames(self, varNames, raw_statement=None):
-        settings = self.settings()
         if not varNames:
             return
-        if not settings.get('useLegacyImportMode'):
+        if not self.setting('useLegacyImportMode'):
             if raw_statement and getattr(self, '_methodBodyChunks'):
                 self.addChunk(raw_statement)
         else:
