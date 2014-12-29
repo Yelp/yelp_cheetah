@@ -137,7 +137,7 @@ Differences
 - Remove `#unicode` directive
 - Remove `#breakpoint` directive
 - Remove `#unless` directive
-- Remove `#repeate` directive
+- Remove `#repeat` directive
 - Remove `#capture` directive
 - Improve compiling interface.  There are now three functions: (`compile_source`, `compile_file`, `compile_to_class`)
 - Remove `#defmacro` directive
