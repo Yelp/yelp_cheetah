@@ -144,7 +144,7 @@ def test_optimization_from_imports():
     assert ' _v = path.join(' in src
 
 
-@pytest.mark.parametrize('directive', ('set', 'silent'))
+@pytest.mark.parametrize('directive', ('set', 'silent', 'py'))
 def test_optimization_assign(directive):
     src = compile_source(
         '#{0} foo = "bar"\n'
@@ -182,7 +182,7 @@ def test_optimization_except():
     assert ' _v = e #' in src
 
 
-@pytest.mark.parametrize('directive', ('set', 'silent'))
+@pytest.mark.parametrize('directive', ('set', 'silent', 'py'))
 def test_optimization_multiple_assign(directive):
     src = compile_source(
         '#{0} x = y = z = 0\n'
@@ -195,7 +195,7 @@ def test_optimization_multiple_assign(directive):
     assert ' _v = z #' in src
 
 
-@pytest.mark.parametrize('directive', ('set', 'silent'))
+@pytest.mark.parametrize('directive', ('set', 'silent', 'py'))
 def test_optimization_tuple_assign(directive):
     src = compile_source(
         '#{0} x, (y, z) = (1, (2, 3))\n'

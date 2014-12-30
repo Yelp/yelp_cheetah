@@ -512,13 +512,13 @@ def test_set_with_dollar_signs_raises():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        'lvalue of #set cannot contain `$`\n'
-        'Line 1, column 6\n'
+        "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
+        'Line 1, column 14\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#set $foo = 1\n'
-        '          ^\n'
+        '                  ^\n'
     ):
         compile_to_class('#set $foo = 1\n')
 
