@@ -27,3 +27,8 @@ SL_SRC = (
     '#from constants import ITERATIONS\n'
     '#silent [$foo for _ in range(ITERATIONS)]\n'
 )
+
+DOTTED_SL_SRC = (
+    '#from constants import ITERATIONS\n'
+    '#silent [$foo.bar[0].upper() for _ in range(ITERATIONS)]\n'
+)
