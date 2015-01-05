@@ -3,6 +3,6 @@
 coverage
 flake8
 mock
+pre-commit
 pylint
 pytest
-pre-commit

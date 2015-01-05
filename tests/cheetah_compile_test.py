@@ -3,13 +3,14 @@ from __future__ import unicode_literals
 
 import io
 import os.path
+
 import pytest
 
 from Cheetah.cheetah_compile import _compile_files_in_directory
 from Cheetah.cheetah_compile import _touch_init_if_not_exists
+from Cheetah.cheetah_compile import compile_all
 from Cheetah.cheetah_compile import compile_directories
 from Cheetah.cheetah_compile import compile_template
-from Cheetah.cheetah_compile import compile_all
 from testing.util import run_python
 
 

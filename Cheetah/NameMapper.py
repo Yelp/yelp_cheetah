@@ -119,7 +119,6 @@ Implementation details
 
 Cheetah uses the optimized C version (_namemapper.c) invariantly
 """
-
 # pylint:disable=unused-import
 from Cheetah._namemapper import NotFound  # noqa (intentionally unused)
 from Cheetah._namemapper import valueForName  # noqa (intentionally unused)

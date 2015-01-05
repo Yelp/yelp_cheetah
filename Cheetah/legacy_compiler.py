@@ -20,8 +20,8 @@ import six
 
 from Cheetah.ast_utils import get_imported_names
 from Cheetah.ast_utils import get_lvalues
-from Cheetah.legacy_parser import LegacyParser
 from Cheetah.legacy_parser import escapedNewlineRE
+from Cheetah.legacy_parser import LegacyParser
 from Cheetah.SettingsManager import SettingsManager
 
 

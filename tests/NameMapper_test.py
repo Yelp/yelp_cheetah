@@ -5,9 +5,9 @@ import pytest
 
 from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
+from Cheetah.NameMapper import valueForName as VFN
 from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL
 from Cheetah.NameMapper import valueFromSearchList as VFSL
-from Cheetah.NameMapper import valueForName as VFN
 
 
 def test_VFN_attribute_error():

@@ -7,7 +7,8 @@ from __future__ import unicode_literals
 import six
 
 from Cheetah.filters import filters
-from Cheetah.NameMapper import NotFound, valueFromSearchList
+from Cheetah.NameMapper import NotFound
+from Cheetah.NameMapper import valueFromSearchList
 
 
 # pylint:disable=abstract-class-not-used

@@ -2,11 +2,11 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import pytest
 import unittest
 import warnings
 
 import markupsafe
+import pytest
 import six
 
 from Cheetah.compile import compile_to_class

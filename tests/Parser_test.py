@@ -6,8 +6,8 @@ import pytest
 
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ArgList
-from Cheetah.legacy_parser import UnknownDirectiveError
 from Cheetah.legacy_parser import ParseError
+from Cheetah.legacy_parser import UnknownDirectiveError
 from testing.util import assert_raises_exactly
 
 

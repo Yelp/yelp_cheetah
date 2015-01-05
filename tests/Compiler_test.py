@@ -6,10 +6,10 @@ import os.path
 
 import pytest
 
+from Cheetah.cheetah_compile import compile_template
+from Cheetah.compile import _create_module_from_source
 from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
-from Cheetah.compile import _create_module_from_source
-from Cheetah.cheetah_compile import compile_template
 from testing.util import run_python
 
 

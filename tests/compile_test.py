@@ -3,17 +3,17 @@ from __future__ import unicode_literals
 
 import io
 import os.path
-import pytest
 import subprocess
 import sys
 import textwrap
 
+import pytest
 import six
 
+from Cheetah.compile import _create_module_from_source
 from Cheetah.compile import compile_file
 from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
-from Cheetah.compile import _create_module_from_source
 from Cheetah.legacy_parser import directiveNamesAndParsers
 from Cheetah.Template import Template
 

@@ -8,8 +8,8 @@ import Cheetah.testing.all_partials_tested
 import Cheetah.testing.partial_template_test_case
 import testing.templates
 import tests
-from Cheetah.testing.all_partials_tested import discover_modules
 from Cheetah.testing.all_partials_tested import discover_classes
+from Cheetah.testing.all_partials_tested import discover_modules
 from Cheetah.testing.all_partials_tested import get_partial_methods
 from Cheetah.testing.all_partials_tested import get_partial_tests
 from Cheetah.testing.all_partials_tested import is_partial_module

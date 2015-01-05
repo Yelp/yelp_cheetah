@@ -1,6 +1,7 @@
 import gc
-import pytest
 import sys
+
+import pytest
 
 from Cheetah.NameMapper import valueFromFrameOrSearchList
 from Cheetah.NameMapper import valueFromSearchList
