@@ -256,3 +256,21 @@ def test_optimization_oneline_function():
     assert compile_to_class(cheetah_src)().respond() == '4\n'
     src = compile_source(cheetah_src)
     assert ' _v = foo(2) #' in src
+
+
+def test_optimization_args():
+    src = compile_source(
+        '#def foo(*args)\n'
+        '$args\n'
+        '#end def\n'
+    )
+    assert ' _v = args #' in src
+
+
+def test_optimization_kwargs():
+    src = compile_source(
+        '#def foo(**kwargs)\n'
+        '$kwargs\n'
+        '#end def\n'
+    )
+    assert ' _v = kwargs #' in src
