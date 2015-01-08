@@ -49,16 +49,16 @@ def test_discover_classes_module_predicate():
     assert ret == set((PartialTemplateTestCase,))
 
 
-def test_is_partial_module(compile_testing_templates):
-    import testing.templates.src.partial_template
-    import testing.templates.src.super_base
-    assert is_partial_module(testing.templates.src.partial_template)
-    assert not is_partial_module(testing.templates.src.super_base)
+def test_is_partial_module():
+    from testing.templates.src import partial_template
+    from testing.templates.src import super_base
+    assert is_partial_module(partial_template)
+    assert not is_partial_module(super_base)
 
 
-def test_get_partial_methods(compile_testing_templates):
-    import testing.templates.src
-    ret = get_partial_methods((testing.templates.src,))
+def test_get_partial_methods():
+    from testing.templates import src
+    ret = get_partial_methods((src,))
     assert ret == {
         'testing.templates.src.partial_template_no_arguments': set(['render']),
         'testing.templates.src.partial_with_same_name':
@@ -135,7 +135,6 @@ def test_all_partials_tested_can_fail():
         AllPartialsTestedFailing(methodName='test').test()
 
 
-@pytest.mark.usefixtures('compile_testing_templates')
 class TestAllPartialsTested(TestAllPartialsTestedBase):
     test_packages = (tests,)
     template_packages = (testing.templates,)

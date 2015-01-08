@@ -208,17 +208,17 @@ def test_optimization_tuple_assign(directive):
     assert ' _v = z #' in src
 
 
-VFN_opt_src = '$foo.bar[0].upper()'
+VFN_opt_src = '$foo.barvar[0].upper()'
 
 
-class fooobj:
-    bar = 'womp'
+class fooobj(object):
+    barvar = 'womp'
 
 
 def test_optimization_removes_VFN():
     src = compile_source(VFN_opt_src)
     assert 'VFN(' not in src
-    assert ' _v = VFFSL(SL, "foo").bar[0].upper() #' in src
+    assert ' _v = VFFSL(SL, "foo").barvar[0].upper() #' in src
     cls = compile_to_class(VFN_opt_src)
     assert cls([{'foo': fooobj}]).respond() == 'W'
 
@@ -228,7 +228,7 @@ def test_no_optimization_still_has_VFN():
     assert (
         ' _v = VFN('
         'VFN('
-        'VFFSL(SL, "foo", False, True), "bar", False, True'
+        'VFFSL(SL, "foo", False, True), "barvar", False, True'
         ')[0], "upper", False, True'
         ')() #'
     ) in src

@@ -69,6 +69,45 @@ EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
 escapedNewlineRE = re.compile(r'(?<!\\)((\\\\)*)\\(n|012)')
 
+VAR_START = '$'
+VAR_START_ESC = re.escape(VAR_START)
+VAR_START_RE = re.compile(
+    escCharLookBehind +
+    r'(?P<startToken>' + VAR_START_ESC + ')' +
+    r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t]*))' +  # allow WS after
+    r'(?=[A-Za-z_])',
+)
+VAR_START_TOKEN_RE = re.compile(
+    escCharLookBehind +
+    VAR_START_ESC +
+    r'(?=[A-Za-z_\*!\{\(\[])'
+)
+VAR_IN_EXPRESSION_START_TOKEN_RE = re.compile(
+    VAR_START_ESC + r'(?=[A-Za-z_])'
+)
+EXPR_PLACEHOLDER_START_RE = re.compile(
+    escCharLookBehind +
+    r'(?P<startToken>' + VAR_START_ESC + ')' +
+    r'(?:\{|\(|\[)[ \t]*'
+    + r'(?=[^\)\}\]])'
+)
+COMMENT_START_RE = re.compile(escCharLookBehind + re.escape('##'))
+DIRECTIVE_START_RE = re.compile(
+    escCharLookBehind + re.escape('#') + r'(?=[A-Za-z_@])',
+)
+DIRECTIVE_END_RE = re.compile(escCharLookBehind + re.escape('#'))
+
+
+def _unescapeCheetahVars(s):
+    r"""Unescape any escaped Cheetah \$vars in the string."""
+    return s.replace('\\$', '$')
+
+
+def _unescapeDirectives(s):
+    """Unescape any escaped Cheetah directives in the string."""
+    return s.replace('\\#', '#')
+
+
 directiveNamesAndParsers = {
     # importing and inheritance
     'import': None,
@@ -247,82 +286,6 @@ class _LowLevelParser(SourceReader):
     def setSetting(self, key, val):
         self._settingsManager.setSetting(key, val)
 
-    def configureParser(self):
-        """Is called by the Compiler instance after the parser has had a
-        settingsManager assigned with self.setSettingsManager()
-        """
-        self._makeCheetahVarREs()
-        self._makeCommentREs()
-        self._makeDirectiveREs()
-        self._possibleNonStrConstantChars = (
-            self.setting('commentStartToken')[0] +
-            self.setting('cheetahVarStartToken')[0] +
-            self.setting('directiveStartToken')[0]
-        )
-        self._nonStrConstMatchers = [
-            self.matchCommentStartToken,
-            self.matchVariablePlaceholderStart,
-            self.matchExpressionPlaceholderStart,
-            self.matchDirective,
-        ]
-
-    # regex setup
-
-    def _makeCheetahVarREs(self):
-        """Setup the regexs for Cheetah $var parsing."""
-
-        self.cheetahVarStartRE = re.compile(
-            escCharLookBehind +
-            r'(?P<startToken>' + re.escape(self.setting('cheetahVarStartToken')) + ')' +
-            r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t\f]*))' +  # allow WS after enclosure
-            r'(?=[A-Za-z_])')
-        validCharsLookAhead = r'(?=[A-Za-z_\*!\{\(\[])'
-        self.cheetahVarStartToken = self.setting('cheetahVarStartToken')
-        self.cheetahVarStartTokenRE = re.compile(
-            escCharLookBehind +
-            re.escape(self.setting('cheetahVarStartToken'))
-            + validCharsLookAhead
-        )
-
-        self.cheetahVarInExpressionStartTokenRE = re.compile(
-            re.escape(self.setting('cheetahVarStartToken'))
-            + r'(?=[A-Za-z_])'
-        )
-
-        self.expressionPlaceholderStartRE = re.compile(
-            escCharLookBehind +
-            r'(?P<startToken>' + re.escape(self.setting('cheetahVarStartToken')) + ')' +
-            r'(?:\{|\(|\[)[ \t\f]*'
-            + r'(?=[^\)\}\]])'
-        )
-
-    def _makeCommentREs(self):
-        """Construct the regex bits that are used in comment parsing."""
-        startTokenEsc = re.escape(self.setting('commentStartToken'))
-        self.commentStartTokenRE = re.compile(escCharLookBehind + startTokenEsc)
-
-    def _makeDirectiveREs(self):
-        """Construct the regexs that are used in directive parsing."""
-        startToken = self.setting('directiveStartToken')
-        endToken = self.setting('directiveEndToken')
-        startTokenEsc = re.escape(startToken)
-        endTokenEsc = re.escape(endToken)
-        validSecondCharsLookAhead = r'(?=[A-Za-z_@])'
-        reParts = [escCharLookBehind, startTokenEsc]
-        reParts.append(validSecondCharsLookAhead)
-        self.directiveStartTokenRE = re.compile(''.join(reParts))
-        self.directiveEndTokenRE = re.compile(escCharLookBehind + endTokenEsc)
-
-    def _unescapeCheetahVars(self, theString):
-        r"""Unescape any escaped Cheetah \$vars in the string."""
-        token = self.setting('cheetahVarStartToken')
-        return theString.replace('\\' + token, token)
-
-    def _unescapeDirectives(self, theString):
-        """Unescape any escaped Cheetah directives in the string."""
-        token = self.setting('directiveStartToken')
-        return theString.replace('\\' + token, token)
-
     def isLineClearToStartToken(self, pos=None):
         return self.isLineClearToPos(pos)
 
@@ -336,8 +299,13 @@ class _LowLevelParser(SourceReader):
         Returns None if no match.
         """
         match = None
-        if self.peek() in self._possibleNonStrConstantChars:
-            for matcher in self._nonStrConstMatchers:
+        if self.peek() in '#$':
+            for matcher in (
+                    self.matchCommentStartToken,
+                    self.matchVariablePlaceholderStart,
+                    self.matchExpressionPlaceholderStart,
+                    self.matchDirective,
+            ):
                 match = matcher()
                 if match:
                     break
@@ -361,7 +329,7 @@ class _LowLevelParser(SourceReader):
         return self.readTo(match.end())
 
     def matchCommentStartToken(self):
-        return self.commentStartTokenRE.match(self.src(), self.pos())
+        return COMMENT_START_RE.match(self.src(), self.pos())
 
     def getCommentStartToken(self):
         match = self.matchCommentStartToken()
@@ -429,14 +397,14 @@ class _LowLevelParser(SourceReader):
             )
 
     def matchDirectiveStartToken(self):
-        return self.directiveStartTokenRE.match(self.src(), self.pos())
+        return DIRECTIVE_START_RE.match(self.src(), self.pos())
 
     def getDirectiveStartToken(self):
         match = self.matchDirectiveStartToken()
         return self.readTo(match.end())
 
     def matchDirectiveEndToken(self):
-        return self.directiveEndTokenRE.match(self.src(), self.pos())
+        return DIRECTIVE_END_RE.match(self.src(), self.pos())
 
     def getDirectiveEndToken(self):
         match = self.matchDirectiveEndToken()
@@ -448,7 +416,7 @@ class _LowLevelParser(SourceReader):
             restOfLine = restOfLine.strip()
             if not restOfLine:
                 return False
-            elif self.commentStartTokenRE.match(restOfLine):
+            elif COMMENT_START_RE.match(restOfLine):
                 return False
             else:  # non-whitespace, non-commment chars found
                 return True
@@ -456,23 +424,23 @@ class _LowLevelParser(SourceReader):
 
     def matchCheetahVarStart(self):
         """includes the enclosure"""
-        return self.cheetahVarStartRE.match(self.src(), self.pos())
+        return VAR_START_RE.match(self.src(), self.pos())
 
     def matchCheetahVarStartToken(self):
         """includes the enclosure"""
-        return self.cheetahVarStartTokenRE.match(self.src(), self.pos())
+        return VAR_START_TOKEN_RE.match(self.src(), self.pos())
 
     def matchCheetahVarInExpressionStartToken(self):
         """no enclosures"""
-        return self.cheetahVarInExpressionStartTokenRE.match(self.src(), self.pos())
+        return VAR_IN_EXPRESSION_START_TOKEN_RE.match(self.src(), self.pos())
 
     def matchVariablePlaceholderStart(self):
         """includes the enclosure"""
-        return self.cheetahVarStartRE.match(self.src(), self.pos())
+        return VAR_START_RE.match(self.src(), self.pos())
 
     def matchExpressionPlaceholderStart(self):
         """includes the enclosure"""
-        return self.expressionPlaceholderStartRE.match(self.src(), self.pos())
+        return EXPR_PLACEHOLDER_START_RE.match(self.src(), self.pos())
 
     def getCheetahVarStartToken(self):
         """just the start token, not the enclosure"""
@@ -583,7 +551,7 @@ class _LowLevelParser(SourceReader):
                             closurePairsRev[enclosures[-1][0]], c,
                         )
                     )
-            elif c in ' \t\f\r\n':
+            elif c in ' \t\r\n':
                 addBit(self.getc())
             elif self.matchCheetahVarInExpressionStartToken():
                 startPos = self.pos()
@@ -641,7 +609,7 @@ class _LowLevelParser(SourceReader):
             c = self.peek()
             if c == ")" or self.matchDirectiveEndToken():
                 break
-            elif c in " \t\f\r\n":
+            elif c in " \t\r\n":
                 if onDefVal:
                     argList.add_default(c)
                 self.advance()
@@ -652,7 +620,7 @@ class _LowLevelParser(SourceReader):
                 argList.next()
                 onDefVal = False
                 self.advance()
-            elif self.startswith(self.cheetahVarStartToken):
+            elif self.startswith(VAR_START):
                 raise ParseError(self, '$ is not allowed here.')
             elif self.matchIdentifier() and not onDefVal:
                 argList.add_argument(self.getIdentifier())
@@ -725,7 +693,7 @@ class _LowLevelParser(SourceReader):
                         "' was found for the '" + open + "'")
                 self.advance()
 
-            elif c in " \f\t":
+            elif c in " \t":
                 exprBits.append(self.getWhiteSpace())
             elif self.matchDirectiveEndToken() and not enclosures:
                 break
@@ -858,13 +826,7 @@ class LegacyParser(_LowLevelParser):
         self._macros = {}
         self._macroDetails = {}
         self._openDirectivesStack = []
-        self.configureParser()
 
-    def configureParser(self):
-        super(LegacyParser, self).configureParser()
-        self._initDirectives()
-
-    def _initDirectives(self):
         def normalizeParserVal(val):
             if isinstance(val, six.text_type):
                 return getattr(self, val)
@@ -877,7 +839,6 @@ class LegacyParser(_LowLevelParser):
         normalizeHandlerVal = normalizeParserVal
 
         _directiveNamesAndParsers = directiveNamesAndParsers.copy()
-
         _endDirectiveNamesAndHandlers = endDirectiveNamesAndHandlers.copy()
 
         self._directiveNamesAndParsers = {}
@@ -933,8 +894,8 @@ class LegacyParser(_LowLevelParser):
             else:
                 self.advance()
         strConst = self.readTo(self.pos(), start=startPos)
-        strConst = self._unescapeCheetahVars(strConst)
-        strConst = self._unescapeDirectives(strConst)
+        strConst = _unescapeCheetahVars(strConst)
+        strConst = _unescapeDirectives(strConst)
         self._compiler.addStrConst(strConst)
         return match
 
@@ -1020,7 +981,7 @@ class LegacyParser(_LowLevelParser):
 
     def _eatToThisEndDirective(self, directiveName):
         finalPos = endRawPos = startPos = self.pos()
-        directiveChar = self.setting('directiveStartToken')[0]
+        directiveChar = '#'
         isLineClearToStartToken = False
         while True:
             if self.atEnd():

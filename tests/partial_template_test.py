@@ -104,7 +104,7 @@ def test_method_with_non_standard_first_argument():
         TemplateWithWeirdParameter().weird_first_argument()
 
 
-def test_partial_template_integration(compile_testing_templates):
+def test_partial_template_integration():
     from testing.templates.src.uses_partial import YelpCheetahTemplate
     ret = YelpCheetahTemplate().respond()
 
@@ -117,7 +117,7 @@ def test_partial_template_integration(compile_testing_templates):
     )
 
 
-def test_partial_with_same_name_retains_class_and_keeps_function(compile_testing_templates):
+def test_partial_with_same_name_retains_class_and_keeps_function():
     from testing.templates.src import partial_with_same_name
 
     original_cls = partial_with_same_name.PARTIAL_TEMPLATE_CLASS

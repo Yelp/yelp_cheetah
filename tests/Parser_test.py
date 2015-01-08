@@ -524,8 +524,8 @@ def test_set_with_dollar_signs_raises():
 
 
 def test_macros_with_arguments():
-    def herp_macro(src, foo):
-        return src + foo  # pragma: no cover
+    def herp_macro(src, arg):
+        return src + arg  # pragma: no cover
 
     with assert_raises_exactly(
         ParseError,

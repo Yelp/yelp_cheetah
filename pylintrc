@@ -12,7 +12,10 @@ const-rgx=(([A-Za-z_][A-Za-z0-9_]*)|(__.*__))$
 max-line-length=131
 
 [TYPECHECK]
-ignored-classes=pytest
+ignored-classes=pytest,_MovedItems
 
 [DESIGN]
 min-public-methods=0
+
+[SIMILARITIES]
+ignore-imports=yes
