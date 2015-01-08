@@ -1622,76 +1622,6 @@ $os.path.exists('.')""",
                     "1.0 1.0")
 
 
-class CompilerDirective(OutputTest):
-    def test1(self):
-        """overriding the commentStartToken
-        """
-        self.verify("""$anInt##comment
-#compiler-settings
-commentStartToken = //
-#end compiler-settings
-$anInt//comment
-""",
-                    "1\n1\n")
-
-    def test2(self):
-        """overriding and resetting the commentStartToken
-        """
-        self.verify("""$anInt##comment
-#compiler-settings
-commentStartToken = //
-#end compiler-settings
-$anInt//comment
-#compiler-settings
-commentStartToken = '##'
-#end compiler-settings
-$anInt//comment
-""",
-                    "1\n1\n1//comment\n")
-
-
-class CompilerSettingsDirective(OutputTest):
-
-    def test1(self):
-        """overriding the cheetahVarStartToken
-        """
-        self.verify("""$anInt
-#compiler-settings
-cheetahVarStartToken = @
-#end compiler-settings
-@anInt
-#compiler-settings
-cheetahVarStartToken = $
-#end compiler-settings
-$anInt
-""",
-                    "1\n1\n1\n")
-
-    def test2(self):
-        """overriding the directiveStartToken
-        """
-        self.verify("""#set x = 1234
-$x
-#compiler-settings
-directiveStartToken = @
-#end compiler-settings
-@set x = 1234
-$x
-""",
-                    "1234\n1234\n")
-
-    def test3(self):
-        """overriding the commentStartToken
-        """
-        self.verify("""$anInt##comment
-#compiler-settings
-commentStartToken = //
-#end compiler-settings
-$anInt//comment
-""",
-                    "1\n1\n")
-
-
 def test_extends():
     ret = compile_to_class(
         '#extends testing.templates.extends_test_template\n'
@@ -1713,7 +1643,6 @@ def test_extends_with_partial_baseclass_import():
     )
 
 
-@pytest.mark.usefixtures('compile_testing_templates')
 def test_super_directive():
     from testing.templates.src.super_child import YelpCheetahTemplate
     ret = YelpCheetahTemplate().respond()

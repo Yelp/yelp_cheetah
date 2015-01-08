@@ -20,7 +20,7 @@ class SettingsManager(object):
         self._settings = {}
         self._initializeSettings()
 
-    def _intializeSettings(self):
+    def _initializeSettings(self):
         raise NotImplementedError
 
     def setting(self, name):

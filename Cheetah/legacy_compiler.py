@@ -43,10 +43,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
-    ('cheetahVarStartToken', '$', ''),
-    ('commentStartToken', '##', ''),
-    ('directiveStartToken', '#', ''),
-    ('directiveEndToken', '#', ''),
     ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
     ('macroDirectives', {}, 'For providing macros'),
     ('optimize_lookup', True, ''),
@@ -717,7 +713,6 @@ class LegacyCompiler(SettingsManager):
 
     def setCompilerSettings(self, settingsStr):
         self.updateSettingsFromConfigStr(settingsStr)
-        self._parser.configureParser()
 
     def _add_import_statement(self, imp_statement, line_col):
         imported_names = get_imported_names(imp_statement)

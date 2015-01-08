@@ -6,7 +6,6 @@ import pytest
 from Cheetah.testing.partial_template_test_case import PartialTemplateTestCase
 
 
-@pytest.mark.usefixtures('compile_testing_templates')
 class SamplePartialTemplateTest(PartialTemplateTestCase):
     partial = 'testing.templates.src.partial_template'
     method = 'render'
@@ -18,7 +17,6 @@ class SamplePartialTemplateTest(PartialTemplateTestCase):
         assert pq.text() == 'From partial: Some text!'
 
 
-@pytest.mark.usefixtures('compile_testing_templates')
 class SampleNoArgumentsPartialTemplateTest(PartialTemplateTestCase):
     partial = 'testing.templates.src.partial_template_no_arguments'
     method = 'render'
@@ -27,7 +25,6 @@ class SampleNoArgumentsPartialTemplateTest(PartialTemplateTestCase):
         assert pq.text() == 'Look ma, no arguments!'
 
 
-@pytest.mark.usefixtures('compile_testing_templates')
 class SamplePartialWithSameNameTest(PartialTemplateTestCase):
     partial = 'testing.templates.src.partial_with_same_name'
     method = 'partial_with_same_name'
@@ -36,7 +33,6 @@ class SamplePartialWithSameNameTest(PartialTemplateTestCase):
         assert pq.text() == 'Hello world'
 
 
-@pytest.mark.usefixtures('compile_testing_templates')
 def test_it_can_fail_wrong_args():
     class Failure(PartialTemplateTestCase):
         partial = 'testing.templates.src.partial_template'
@@ -46,7 +42,6 @@ def test_it_can_fail_wrong_args():
         Failure(methodName='test_partial_template').test_partial_template()
 
 
-@pytest.mark.usefixtures('compile_testing_templates')
 def test_it_can_fail_assert_partial_arguments():
     class FailureError(ValueError):
         pass

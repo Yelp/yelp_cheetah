@@ -21,7 +21,7 @@ def test_VFN_attribute_error_dict():
 
 
 def test_VFN_attribute():
-    class C:
+    class C(object):
         attr = object()
 
     assert VFN(C, 'attr') is C.attr
@@ -41,7 +41,7 @@ def test_VFN_use_dotted_notation():
 def test_VFN_autocall_off():
     result = object()
 
-    class C:
+    class C(object):
         attr = staticmethod(lambda: result)  # pragma: no cover (intentional)
 
     assert VFN(C, 'attr') is C.attr
@@ -50,15 +50,15 @@ def test_VFN_autocall_off():
 def test_VFN_autocall_on():
     result = object()
 
-    class C:
+    class C(object):
         attr = staticmethod(lambda: result)
 
     assert VFN(C, 'attr', executeCallables=True) is result
 
 
 def test_VFN_deep_attrs():
-    class C:
-        class D:
+    class C(object):
+        class D(object):
             attr = object()
 
     assert VFN(C, 'D.attr') is C.D.attr
@@ -70,17 +70,17 @@ def test_VFN_deep_dict():
 
 
 def test_VFN_deep_mixed():
-    class C:
+    class C(object):
         attr = {'a': object()}
 
     assert VFN(C, 'attr.a', useDottedNotation=True) is C.attr['a']
 
 
 def test_VFN_deep_autocall():
-    class D:
+    class D(object):
         attr2 = object()
 
-    class C:
+    class C(object):
         attr = staticmethod(lambda: D)
     assert VFN(C, 'attr.attr2', executeCallables=True) is D.attr2
 
@@ -92,7 +92,7 @@ def test_VFN_autocall_function_raises():
     def raises():
         raise MyError()
 
-    class C:
+    class C(object):
         attr = staticmethod(raises)
 
     with pytest.raises(MyError):
@@ -116,7 +116,7 @@ def test_VFN_getattr_raises():
 
 
 def test_VFSL_failure_typeerror():
-    class C:
+    class C(object):
         attr = object()
 
     with pytest.raises(TypeError):
@@ -140,7 +140,7 @@ def test_VFSL_dictionaries():
 
 
 def test_VFSL_objects():
-    class C:
+    class C(object):
         attr = object()
 
     assert VFSL([C], 'attr') is C.attr
@@ -158,10 +158,10 @@ def test_VFSL_iterator():
 
 
 def test_VFSL_multiple_namespaces():
-    class C:
+    class C(object):
         attr = object()
 
-    class D:
+    class D(object):
         attr = object()
 
     assert VFSL([C, D], 'attr') is C.attr
