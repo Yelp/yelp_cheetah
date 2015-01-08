@@ -35,6 +35,25 @@ class SamplePartialWithSameNameTest(PartialTemplateTestCase):
         assert pq.text() == 'Hello world'
 
 
+class OptimizeNamePartialTemplateFooTest(PartialTemplateTestCase):
+    partial = 'testing.templates.src.optimize_name'
+    method = 'foo'
+
+    def assert_partial_rendering(self, pq, *_):
+        assert pq.text() == '25'
+
+
+class OptimizeNamePartialTemplateBarTest(PartialTemplateTestCase):
+    partial = 'testing.templates.src.optimize_name'
+    method = 'bar'
+
+    def get_partial_arguments(self):
+        return (3,), {}
+
+    def assert_partial_rendering(self, pq, *_):
+        assert pq.text() == '9'
+
+
 def test_it_can_fail_wrong_args():
     class Failure(PartialTemplateTestCase):
         partial = 'testing.templates.src.partial_template'

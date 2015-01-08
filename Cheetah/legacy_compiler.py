@@ -427,8 +427,11 @@ class LegacyCompiler(SettingsManager):
 
     def __init__(self, source, settings=None):
         super(LegacyCompiler, self).__init__()
-        if settings:
-            self.updateSettings(settings)
+        # Important for our compiler which finds function definitions
+        self._original_source = source
+        self._original_settings = settings or {}
+
+        self.updateSettings(self._original_settings)
 
         assert isinstance(source, six.text_type), 'the yelp-cheetah compiler requires text, not bytes.'
 
@@ -524,6 +527,14 @@ class LegacyCompiler(SettingsManager):
             extends_name, CLASS_NAME, BASE_CLASS_NAME,
         )
 
+        # TODO(#183): stop using the metaclass and just generate functions
+        # Partial templates expose their functions as globals, find all the
+        # defined functions and add them to known global vars.
+        if extends_name == 'Cheetah.partial_template':
+            self._global_vars.update(get_defined_method_names(
+                self._original_source, self._original_settings,
+            ))
+
     def add_compiler_settings(self):
         settings_str = self.getStrConst()
         self.clearStrConst()
@@ -587,3 +598,28 @@ class LegacyCompiler(SettingsManager):
             ) + '\n\n'
         else:
             return ''
+
+
+def get_defined_method_names(original_source, original_settings):
+    class CollectsMethodNamesCompiler(SettingsManager):
+        def __init__(self):
+            super(CollectsMethodNamesCompiler, self).__init__()
+            self.updateSettings(original_settings)
+            self.method_names = set()
+
+        # Implement SettingsManager
+        def _initializeSettings(self):
+            self._settings = copy.deepcopy(DEFAULT_COMPILER_SETTINGS)
+
+        # Trivially allow anything outside of startMethodDef
+        def __getattr__(self, name):
+            return lambda *args, **kwargs: ''
+
+        # Collect our function names
+        def startMethodDef(self, method_name, *args):
+            self.method_names.add(method_name)
+
+    compiler = CollectsMethodNamesCompiler()
+    parser = LegacyParser(original_source, compiler=compiler)
+    parser.parse()
+    return compiler.method_names
