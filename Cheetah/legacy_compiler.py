@@ -388,7 +388,7 @@ class MethodCompiler(object):
 
     def addMethArg(self, name, val):
         self._arguments.append((name, val))
-        self._local_vars.add(name)
+        self._local_vars.add(name.lstrip('*'))
 
     def methodSignature(self):
         arg_text = arg_string_list_to_text(self._arguments)
