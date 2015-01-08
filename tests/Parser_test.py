@@ -607,3 +607,23 @@ def test_uncaught_syntax_error():
         '                    ^\n'
     ):
         compile_to_class('Hello\nWorld\n#set x = $y = 1\n')
+
+
+def test_errors_on_invalid_setting():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        "UnexpectedSettingName: not_a_real_setting\n\n"
+        'Line 3, column 23\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#compiler-settings\n'
+        '2   |not_a_real_setting = True\n'
+        '3   |#end compiler-settings\n'
+        '                           ^\n'
+    ):
+        compile_to_class(
+            '#compiler-settings\n'
+            'not_a_real_setting = True\n'
+            '#end compiler-settings\n'
+        )

@@ -553,7 +553,7 @@ class LegacyCompiler(SettingsManager):
         return getattr(self._class_compiler, name)
 
     def _initializeSettings(self):
-        self.updateSettings(copy.deepcopy(DEFAULT_COMPILER_SETTINGS))
+        self._settings = copy.deepcopy(DEFAULT_COMPILER_SETTINGS)
 
     def _spawnClassCompiler(self):
         return self.classCompilerClass(
