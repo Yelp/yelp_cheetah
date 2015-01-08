@@ -34,6 +34,12 @@ class TargetsVisitor(ast.NodeVisitor):
             else:  # pragma: no cover (PY3)
                 self.lvalues.append(node.name)
 
+    def visit_ClassDef(self, node):
+        self.lvalues.append(node.name)
+
+    def visit_FunctionDef(self, node):
+        self.lvalues.append(node.name)
+
 
 class TopLevelVisitor(ast.NodeVisitor):
     def __init__(self):
@@ -53,8 +59,10 @@ class TopLevelVisitor(ast.NodeVisitor):
     def visit_For(self, node):
         self.targets_visitor.visit(node.target)
 
-    def visit_ExceptHandler(self, node):
+    def _target_visit(self, node):
         self.targets_visitor.visit(node)
+
+    visit_ExceptHandler = visit_ClassDef = visit_FunctionDef = _target_visit
 
 
 def get_lvalues(expression):

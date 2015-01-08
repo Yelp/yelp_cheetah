@@ -236,3 +236,23 @@ def test_no_optimization_still_has_VFN():
 
     cls = compile_to_class(VFN_opt_src, settings={'useDottedNotation': True})
     assert cls([{'foo': fooobj}]).respond() == 'W'
+
+
+def test_optimization_oneline_class():
+    cheetah_src = (
+        '#py class notlocal(object): pass\n'
+        '$notlocal.__name__\n'
+    )
+    assert compile_to_class(cheetah_src)().respond() == 'notlocal\n'
+    src = compile_source(cheetah_src)
+    assert ' _v = notlocal.__name__ #' in src
+
+
+def test_optimization_oneline_function():
+    cheetah_src = (
+        '#py def foo(x): return x * x\n'
+        '$foo(2)\n'
+    )
+    assert compile_to_class(cheetah_src)().respond() == '4\n'
+    src = compile_source(cheetah_src)
+    assert ' _v = foo(2) #' in src
