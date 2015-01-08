@@ -11,32 +11,32 @@ def convert_value(s):
     return s
 
 
-class SettingsManager(object):
-    """A mixin class that provides facilities for managing application settings.
-    """
+class UnexpectedSettingName(ValueError):
+    pass
 
+
+class SettingsManager(object):
     def __init__(self):
-        super(SettingsManager, self).__init__()
         self._settings = {}
         self._initializeSettings()
 
-    def _initializeSettings(self):
+    def _intializeSettings(self):
         raise NotImplementedError
 
     def setting(self, name):
-        """Get a setting from self._settings, with or without a default value."""
         return self._settings[name]
 
     def setSetting(self, name, value):
-        """Set a setting in self._settings."""
+        if name not in self._settings:
+            raise UnexpectedSettingName(name)
         self._settings[name] = value
 
-    def updateSettings(self, newSettings):
+    def updateSettings(self, new_settings):
         """Update the settings with a selective merge or a complete overwrite."""
-        self._settings.update(newSettings)
+        for key, value in new_settings.items():
+            self.setSetting(key, value)
 
     def updateSettingsFromConfigStr(self, config_str):
-        """See the docstring for updateSettingsFromConfigFile()"""
         values = [line.split('=') for line in config_str.strip().splitlines()]
         settings = dict(
             (key.strip(), convert_value(value.strip()))

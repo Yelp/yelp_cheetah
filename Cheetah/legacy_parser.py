@@ -16,6 +16,7 @@ from tokenize import PseudoToken
 
 import six
 
+from Cheetah.SettingsManager import UnexpectedSettingName
 from Cheetah.SourceReader import SourceReader
 
 
@@ -1154,6 +1155,8 @@ class LegacyParser(_LowLevelParser):
         settingsStr = self._eatToThisEndDirective('compiler-settings')
         try:
             self._compiler.setCompilerSettings(settingsStr)
+        except UnexpectedSettingName:
+            raise
         except Exception:
             raise ParseError(
                 self,
