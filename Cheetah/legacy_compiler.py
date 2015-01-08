@@ -453,6 +453,7 @@ class LegacyCompiler(SettingsManager):
         if source == '':
             warnings.warn('You supplied an empty string for the source!')
 
+        self._original_source = source
         self._parser = self.parserClass(source, compiler=self)
         self._class_compiler = None
         self._base_import = 'from Cheetah.Template import {} as {}'.format(
@@ -512,6 +513,14 @@ class LegacyCompiler(SettingsManager):
             extends_name, CLASS_NAME, BASE_CLASS_NAME,
         )
 
+        # TODO(#183): stop using the metaclass and just generate functions
+        # Partial templates expose their functions as globals, find all the
+        # defined functions and add them to known global vars.
+        if extends_name == 'Cheetah.partial_template':
+            self._global_vars.update(get_defined_method_names(
+                self._original_source,
+            ))
+
     def add_compiler_settings(self):
         settings_str = self.getStrConst()
         self.clearStrConst()
@@ -564,3 +573,21 @@ class LegacyCompiler(SettingsManager):
         ) + '\n'
 
         return moduleDef
+
+
+def get_defined_method_names(original_source):
+    class CollectsMethodNamesCompiler(object):
+        def __init__(self):
+            self.method_names = set()
+
+        # Trivially allow anything outside of startMethodDef
+        def __getattr__(self, name):
+            return lambda *args, **kwargs: None
+
+        # Collect our function names
+        def startMethodDef(self, method_name, *args):
+            self.method_names.add(method_name)
+
+    compiler = CollectsMethodNamesCompiler()
+    LegacyParser(original_source, compiler=compiler).parse()
+    return compiler.method_names
