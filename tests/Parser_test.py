@@ -318,7 +318,7 @@ def test_non_ending_compiler_settings():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        "Unexpected EOF while searching for #end compiler-settings\n"
+        'Some #directives are missing their corresponding #end ___ tag: compiler-settings\n'
         'Line 2, column 24\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -406,30 +406,6 @@ def test_unexpected_character_parse_error():
         '            ^\n'
     ):
         compile_to_class('#super(☃)')
-
-
-def test_malformed_compiler_settings():
-    with assert_raises_exactly(
-        ParseError,
-        '\n\n'
-        'An error occurred while parsing the settings:\n'
-        '---------------------------------------------\n'
-        '==\n'
-        '---------------------------------------------\n'
-        'Line 3, column 23\n'
-        '\n'
-        'Line|Cheetah Code\n'
-        '----|-------------------------------------------------------------\n'
-        '1   |#compiler-settings\n'
-        '2   |==\n'
-        '3   |#end compiler-settings\n'
-        '                           ^\n'
-    ):
-        compile_to_class(
-            '#compiler-settings\n'
-            '==\n'
-            '#end compiler-settings\n'
-        )
 
 
 def test_def_with_dollar_sign_invalid():

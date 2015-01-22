@@ -37,7 +37,7 @@ class SettingsManager(object):
             self.setSetting(key, value)
 
     def updateSettingsFromConfigStr(self, config_str):
-        values = [line.split('=') for line in config_str.strip().splitlines()]
+        values = [line.split('=', 1) for line in config_str.strip().splitlines()]
         settings = dict(
             (key.strip(), convert_value(value.strip()))
             for key, value in values

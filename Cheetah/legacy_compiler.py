@@ -161,6 +161,12 @@ class MethodCompiler(object):
     def addStrConst(self, strConst):
         self._pendingStrConstChunks.append(strConst)
 
+    def getStrConst(self):
+        return ''.join(self._pendingStrConstChunks)
+
+    def clearStrConst(self):
+        del self._pendingStrConstChunks[:]
+
     def commitStrConst(self):
         """Add the code for outputting the pending strConst without chopping off
         any whitespace from it.
@@ -168,8 +174,8 @@ class MethodCompiler(object):
         if not self._pendingStrConstChunks:
             return
 
-        strConst = ''.join(self._pendingStrConstChunks)
-        self._pendingStrConstChunks = []
+        strConst = self.getStrConst()
+        self.clearStrConst()
         if not strConst:
             return
 
@@ -710,8 +716,10 @@ class LegacyCompiler(SettingsManager):
             extends_name, CLASS_NAME, BASE_CLASS_NAME,
         )
 
-    def setCompilerSettings(self, settingsStr):
-        self.updateSettingsFromConfigStr(settingsStr)
+    def add_compiler_settings(self):
+        settings_str = self.getStrConst()
+        self.clearStrConst()
+        self.updateSettingsFromConfigStr(settings_str)
 
     def _add_import_statement(self, imp_statement, line_col):
         imported_names = get_imported_names(imp_statement)

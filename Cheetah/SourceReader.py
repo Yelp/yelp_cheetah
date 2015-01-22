@@ -151,9 +151,8 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         else:
             return match.start()
 
-    def isLineClearToPos(self, pos=None):
-        if pos is None:
-            pos = self.pos()
+    def isLineClearToPos(self):
+        pos = self.pos()
         self.checkPos(pos)
         src = self.src()
         BOL = self.findBOL()
