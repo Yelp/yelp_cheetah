@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+# pylint:disable=no-self-use,too-many-public-methods
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
@@ -7,7 +8,6 @@ import warnings
 
 import markupsafe
 import pytest
-import six
 
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ParseError
@@ -1644,6 +1644,7 @@ def test_extends_with_partial_baseclass_import():
 
 
 def test_super_directive():
+    # pylint:disable=no-name-in-module,import-error
     from testing.templates.src.super_child import YelpCheetahTemplate
     ret = YelpCheetahTemplate().respond()
     assert ret.strip() == (
@@ -1721,128 +1722,6 @@ class MiscComplexSyntax(OutputTest):
         """
         self.verify("#set c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]\n$c",
                     "0")
-
-
-def to_kwargs_string(kwargs):
-    return ', '.join(
-        '{0}={1!r}'.format(key, value) for key, value in kwargs.items()
-    )
-
-
-class ClassMacro(object):
-    def __init__(self, parser):
-        pass
-
-    def __call__(self, src, **kwargs):
-        return (
-            'Hello from ClassMacro\n'
-            'arglist: {0}\n'
-            'source: {1}\n'.format(to_kwargs_string(kwargs), src)
-        )
-
-
-def func_macro(src, **kwargs):
-    return (
-        'Hello from func_macro\n'
-        'arglist: {0}\n'
-        'source: {1}\n'.format(to_kwargs_string(kwargs), src)
-    )
-
-
-MACRO_SETTINGS = {
-    'macroDirectives': {'ClassMacro': ClassMacro, 'func_macro': func_macro},
-}
-
-
-@pytest.mark.parametrize('macro_name', ('ClassMacro', 'func_macro'))
-def test_macros(macro_name):
-    cls = compile_to_class(
-        'before\n'
-        '#{0} hello="world"\n'
-        'macro source\n'
-        '#end {0}\n'
-        'after\n'.format(macro_name),
-        settings=MACRO_SETTINGS,
-    )
-
-    if six.PY2:
-        assert cls().respond() == (
-            'before\n'
-            'Hello from {0}\n'
-            "arglist: hello=u'world'\n"
-            'source: macro source\n\n'
-            'after\n'.format(macro_name)
-        )
-    else:
-        assert cls().respond() == (
-            'before\n'
-            'Hello from {0}\n'
-            "arglist: hello='world'\n"
-            'source: macro source\n\n'
-            'after\n'.format(macro_name)
-        )
-
-
-@pytest.mark.parametrize('macro_name', ('ClassMacro', 'func_macro'))
-def test_short_form_macros(macro_name):
-    cls = compile_to_class(
-        'before\n'
-        '#{0} a="b": macro source\n'
-        'after\n'.format(macro_name),
-        settings=MACRO_SETTINGS,
-    )
-
-    if six.PY2:
-        assert cls().respond() == (
-            'before\n'
-            'Hello from {0}\n'
-            "arglist: a=u'b'\n"
-            'source: macro source\n'
-            'after\n'.format(macro_name)
-        )
-    else:
-        assert cls().respond() == (
-            'before\n'
-            'Hello from {0}\n'
-            "arglist: a='b'\n"
-            'source: macro source\n'
-            'after\n'.format(macro_name)
-        )
-
-
-def test_macros_with_directives_inside():
-    cls = compile_to_class(
-        'before\n'
-        '#func_macro\n'
-        '#if True\n'
-        'Truthy!\n'
-        '#end if\n'
-        '#end func_macro\n'
-        'after\n',
-        settings=MACRO_SETTINGS,
-    )
-    assert cls().respond() == (
-        'before\n'
-        'Hello from func_macro\n'
-        'arglist: \n'
-        'source: \n'
-        'Truthy!\n\n'
-        'after\n'
-    )
-
-
-def test_long_macros_with_colon():
-    cls = compile_to_class(
-        '#func_macro:\n'
-        'contents\n'
-        '#end func_macro\n',
-        settings=MACRO_SETTINGS,
-    )
-    assert cls().respond() == (
-        'Hello from func_macro\n'
-        'arglist: \n'
-        'source: contents\n\n'
-    )
 
 
 def test_comment_directive_ambiguity():

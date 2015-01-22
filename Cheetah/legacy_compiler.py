@@ -44,7 +44,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
-    ('macroDirectives', {}, 'For providing macros'),
     ('optimize_lookup', True, ''),
 ]
 

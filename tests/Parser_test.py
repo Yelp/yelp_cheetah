@@ -44,11 +44,11 @@ def test_merge3():
     assert arglist.merge() == [('arg', "'This is my block'")]
 
 
-def test_unknown_macro_name():
+def test_unknown_directive_name():
     with assert_raises_exactly(
         UnknownDirectiveError,
         '\n\n'
-        'Bad macro name: "foo". You may want to escape that # sign?\n'
+        'Bad directive name: "foo". You may want to escape that # sign?\n'
         'Line 1, column 2\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -521,31 +521,6 @@ def test_set_with_dollar_signs_raises():
         '                  ^\n'
     ):
         compile_to_class('#set $foo = 1\n')
-
-
-def test_macros_with_arguments():
-    def herp_macro(src, arg):
-        return src + arg  # pragma: no cover
-
-    with assert_raises_exactly(
-        ParseError,
-        '\n\n'
-        'Macro arguments must not contain a `$`\n'
-        'Line 1, column 13\n'
-        '\n'
-        'Line|Cheetah Code\n'
-        '----|-------------------------------------------------------------\n'
-        '1   |#herp_macro $foo\n'
-        '                 ^\n'
-        '2   |src\n'
-        '3   |#end herp_macro\n'
-    ):
-        compile_to_class(
-            '#herp_macro $foo\n'
-            'src\n'
-            '#end herp_macro\n',
-            settings={'macroDirectives': {'herp_macro': herp_macro}},
-        )
 
 
 @pytest.mark.parametrize('decorator', ('@classmethod', '@staticmethod'))

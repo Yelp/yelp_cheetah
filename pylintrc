@@ -10,6 +10,7 @@ const-rgx=(([A-Za-z_][A-Za-z0-9_]*)|(__.*__))$
 
 [FORMAT]
 max-line-length=131
+max-module-lines=2000
 
 [TYPECHECK]
 ignored-classes=pytest,_MovedItems

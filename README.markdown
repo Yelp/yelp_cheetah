@@ -19,6 +19,9 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## (dev)
+- removed macro support: use `#with` instead.
+
 ## 0.6.0
 - Cheetah classes now invariantly have `YelpCheetahTemplate` as the classname
 - Variable lookup is now `locals()`, `globals()`, `builtins`, `self`, `searchList`

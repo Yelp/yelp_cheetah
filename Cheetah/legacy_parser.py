@@ -392,7 +392,7 @@ class _LowLevelParser(SourceReader):
         else:
             raise UnknownDirectiveError(
                 self,
-                'Bad macro name: "{0}". '
+                'Bad directive name: "{0}". '
                 'You may want to escape that # sign?'.format(match_text),
             )
 
@@ -823,15 +823,11 @@ class LegacyParser(_LowLevelParser):
         super(LegacyParser, self).__init__(src)
         self.setSettingsManager(compiler)
         self._compiler = compiler
-        self._macros = {}
-        self._macroDetails = {}
         self._openDirectivesStack = []
 
         def normalizeParserVal(val):
             if isinstance(val, six.text_type):
                 return getattr(self, val)
-            elif isinstance(val, type):
-                return val(self)
             else:
                 assert val is None or callable(val), val
                 return val
@@ -853,11 +849,6 @@ class LegacyParser(_LowLevelParser):
             'def', 'block', 'call', 'filter', 'if', 'for', 'while', 'try',
             'with',
         ]
-
-        for macroName, callback in self.setting('macroDirectives').items():
-            assert callback
-            self._macros[macroName] = normalizeParserVal(callback)
-            self._directiveNamesAndParsers[macroName] = self.eatMacroCall
 
     @fail_with_our_parse_error
     def parse(self, breakPoint=None, assertEmptyStack=True):
@@ -1315,54 +1306,6 @@ class LegacyParser(_LowLevelParser):
             self._compiler.handleWSBeforeDirective()
         self._compiler.commitStrConst()
         self.readToEOL(gobble=True)
-
-    def eatMacroCall(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        self.getDirectiveStartToken()
-        macroName = self.getIdentifier()
-        macro = self._macros[macroName]
-
-        self.getWhiteSpace()
-        args = self.get_python_expression(
-            'Macro arguments must not contain a `$`',
-            pyTokensToBreakAt=[':'],
-        ).strip()
-
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self.getWhiteSpace(maximum=1)
-            srcBlock = self.readToEOL(gobble=False)
-            self.readToEOL(gobble=True)
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            srcBlock = self._eatToThisEndDirective(macroName)
-
-        def getArgs(*pargs, **kws):  # pylint:disable=unused-variable
-            return pargs, kws
-        positionalArgs, kwArgs = eval('getArgs({0})'.format(args))  # pylint:disable=eval-used
-
-        assert 'src' not in kwArgs
-        kwArgs['src'] = srcBlock
-        srcFromMacroOutput = macro(*positionalArgs, **kwArgs)
-
-        origParseSrc = self._src
-        origBreakPoint = self.breakPoint()
-        origPos = self.pos()
-        # add a comment to the output about the macro src that is being parsed
-        # or add a comment prefix to all the comments added by the compiler
-        self._src = srcFromMacroOutput
-        self.setPos(0)
-        self.setBreakPoint(len(srcFromMacroOutput))
-
-        self.parse(assertEmptyStack=False)
-
-        self._src = origParseSrc
-        self.setBreakPoint(origBreakPoint)
-        self.setPos(origPos)
 
     def eatCall(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
