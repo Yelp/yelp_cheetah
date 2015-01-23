@@ -147,7 +147,7 @@ class MethodCompiler(object):
         self._methodBodyChunks[-1] += appendage
 
     def addWriteChunk(self, chunk):
-        self.addChunk('write({0})'.format(chunk))
+        self.addChunk('self.transaction.write({0})'.format(chunk))
 
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
@@ -156,7 +156,7 @@ class MethodCompiler(object):
         else:
             self.addChunk('_v = %s' % chunk)
 
-        self.addChunk('if _v is not NO_CONTENT: write(self._CHEETAH__currentFilter(_v))')
+        self.addChunk('if _v is not NO_CONTENT: self.transaction.write(self._CHEETAH__currentFilter(_v))')
 
     def addStrConst(self, strConst):
         self._pendingStrConstChunks.append(strConst)
@@ -287,13 +287,12 @@ class MethodCompiler(object):
                 col=lineCol[1],
             )
         )
-        self.addChunk('_orig_trans{0} = trans'.format(call_id))
+        self.addChunk('_orig_trans{0} = self.transaction'.format(call_id))
         self.addChunk(
-            'self.transaction = trans = _call{0} = DummyTransaction()'.format(
+            'self.transaction = _call{0} = DummyTransaction()'.format(
                 call_id
             )
         )
-        self.addChunk('write = trans.write')
 
     def endCallRegion(self):
         call_details = self._callRegionsStack.pop()
@@ -305,9 +304,8 @@ class MethodCompiler(object):
         )
 
         self.addChunk(
-            'self.transaction = trans = _orig_trans{0}'.format(call_id),
+            'self.transaction = _orig_trans{0}'.format(call_id),
         )
-        self.addChunk('write = trans.write')
         self.addChunk('del _orig_trans{0}'.format(call_id))
 
         self.addChunk('_call_arg{0} = _call{0}.getvalue()'.format(call_id))
@@ -354,17 +352,15 @@ class MethodCompiler(object):
     def _addAutoSetupCode(self):
         self.addChunk(self._initialMethodComment)
 
-        self.addChunk('trans = self.transaction')
-        self.addChunk('if not trans:')
+        self.addChunk('if not self.transaction:')
         self.indent()
-        self.addChunk('self.transaction = trans = DummyTransaction()')
+        self.addChunk('self.transaction = DummyTransaction()')
         self.addChunk('_dummyTrans = True')
         self.dedent()
         self.addChunk('else:')
         self.indent()
         self.addChunk('_dummyTrans = False')
         self.dedent()
-        self.addChunk('write = trans.write')
         self.addChunk('SL = self._CHEETAH__searchList')
         self.addChunk()
         self.addChunk('## START - generated method body')
@@ -378,8 +374,9 @@ class MethodCompiler(object):
             self.addChunk()
             self.addChunk('if _dummyTrans:')
             self.indent()
+            self.addChunk('result = self.transaction.getvalue()')
             self.addChunk('self.transaction = None')
-            self.addChunk('return trans.getvalue()')
+            self.addChunk('return result')
             self.dedent()
             self.addChunk('else:')
             self.indent()

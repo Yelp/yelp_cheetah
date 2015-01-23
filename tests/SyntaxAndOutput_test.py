@@ -1927,3 +1927,31 @@ def test_with_statement_filter():
         },
     )
     assert inst.respond().strip() == "<js_filtered>'bar'</js_filtered>"
+
+
+def test_with_statement_call():
+    cls = compile_to_class('''
+    #import contextlib
+
+    #def embolden(arg)
+        <b>$arg.strip()</b>
+    #end def
+
+    #@contextlib.contextmanager
+    #def bold():
+        before.
+        #call self.embolden
+            #yield
+        #end call xxx
+        after.
+    #end def
+
+    begin.
+    #with $bold()
+        mycontent!
+    #end with
+    end.
+    ''')
+
+    result = ' '.join(cls().respond().strip().split())
+    assert result == "begin. before. <b>mycontent!</b> after. end."
