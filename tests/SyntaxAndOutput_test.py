@@ -1897,3 +1897,33 @@ def test_with_statement_short_form():
         'Ctx After\n'
         'After'
     )
+
+
+def test_with_statement_filter():
+    js_filter = lambda obj: '<js_filtered>%r</js_filtered>' % str(obj)
+
+    cls = compile_to_class('''
+    #import contextlib
+
+    #@contextlib.contextmanager
+    #def sets_filter():
+        #filter js_filter
+            #yield
+        #end filter
+    #end def
+
+
+    #with self.sets_filter()
+        #set foo = 'bar'
+        $foo
+    #end with
+    ''')
+
+    inst = cls(
+        filter_name='noop',
+        filters={
+            'js_filter': js_filter,
+            'noop': lambda x: x,
+        },
+    )
+    assert inst.respond().strip() == "<js_filtered>'bar'</js_filtered>"

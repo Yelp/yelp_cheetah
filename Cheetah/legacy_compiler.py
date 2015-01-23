@@ -156,7 +156,7 @@ class MethodCompiler(object):
         else:
             self.addChunk('_v = %s' % chunk)
 
-        self.addChunk('if _v is not NO_CONTENT: write(_filter(_v))')
+        self.addChunk('if _v is not NO_CONTENT: write(self._CHEETAH__currentFilter(_v))')
 
     def addStrConst(self, strConst):
         self._pendingStrConstChunks.append(strConst)
@@ -337,20 +337,16 @@ class MethodCompiler(object):
         filter_id = self.next_id()
         self._filterRegionsStack.append(filter_id)
 
-        self.addChunk('_orig_filter{0} = _filter'.format(filter_id))
-        if filter_name.lower() == 'none':
-            self.addChunk('_filter = self._CHEETAH__initialFilter')
-        else:
-            self.addChunk(
-                '_filter = '
-                'self._CHEETAH__currentFilter = '
-                'self._CHEETAH__filters[{0!r}]'.format(filter_name)
-            )
+        self.addChunk('_orig_filter{0} = self._CHEETAH__currentFilter'.format(filter_id))
+        self.addChunk(
+            'self._CHEETAH__currentFilter = '
+            'self._CHEETAH__filters[{0!r}]'.format(filter_name)
+        )
 
     def closeFilterBlock(self):
         filter_id = self._filterRegionsStack.pop()
         self.addChunk(
-            '_filter = self._CHEETAH__currentFilter = _orig_filter{0}'.format(
+            'self._CHEETAH__currentFilter = _orig_filter{0}'.format(
                 filter_id,
             )
         )
@@ -370,7 +366,6 @@ class MethodCompiler(object):
         self.dedent()
         self.addChunk('write = trans.write')
         self.addChunk('SL = self._CHEETAH__searchList')
-        self.addChunk('_filter = self._CHEETAH__currentFilter')
         self.addChunk()
         self.addChunk('## START - generated method body')
         self.addChunk()
