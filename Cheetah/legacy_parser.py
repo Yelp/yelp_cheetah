@@ -116,7 +116,6 @@ directiveNamesAndParsers = {
 
     # output, filtering, and caching
     'slurp': 'eatSlurp',
-    'filter': 'eatFilter',
     'py': None,
     'silent': None,
 
@@ -1041,8 +1040,6 @@ class LegacyParser(_LowLevelParser):
             self._compiler.closeBlock()
         elif directiveName == 'call':
             self._compiler.endCallRegion()
-        elif directiveName == 'filter':
-            self._compiler.closeFilterBlock()
         else:
             assert directiveName in ['while', 'for', 'if', 'try', 'with']
             self._compiler.commitStrConst()
@@ -1267,33 +1264,6 @@ class LegacyParser(_LowLevelParser):
             self.pushToOpenDirectivesStack("call")
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             self._compiler.startCallRegion(functionName, args, lineCol)
-
-    def eatFilter(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-
-        self.getDirectiveStartToken()
-        self.advance(len('filter'))
-        self.getWhiteSpace()
-        if self.matchCheetahVarStart():
-            raise ParseError(self, 'Filters should be in the filterLib')
-
-        theFilter = self.getIdentifier()
-        self.getWhiteSpace()
-
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self.getWhiteSpace(maximum=1)
-            self._compiler.setFilter(theFilter)
-            self.parse(breakPoint=self.findEOL(gobble=False))
-            self._compiler.closeFilterBlock()
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self.pushToOpenDirectivesStack('filter')
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            self._compiler.setFilter(theFilter)
 
     # end directive handlers
     def handleEndDef(self):

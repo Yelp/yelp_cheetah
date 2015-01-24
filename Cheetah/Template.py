@@ -4,6 +4,8 @@ See the docstring in the Template class and the Users' Guide for more informatio
 """
 from __future__ import unicode_literals
 
+import contextlib
+
 import six
 
 from Cheetah.filters import filters
@@ -22,17 +24,6 @@ UNSPECIFIED = object()
 
 class Template(object):
     """This class provides methods used by templates at runtime
-
-    This documentation assumes you already know Python and the basics of object
-    oriented programming.  If you don't know Python, see the sections of the
-    Cheetah Users' Guide for non-programmers.  It also assumes you have read
-    about Cheetah's syntax in the Users' Guide.
-
-    The following explains how to use Cheetah from within Python programs or via
-    the interpreter. If you statically compile your templates on the command
-    line using the 'cheetah-compile' script, this is not relevant to you.
-    Statically compiled Cheetah template modules/classes (e.g. myTemplate.py:
-    MyTemplateClasss) are just like any other Python module or class.
 
     Note about instance attribute names:
       Attributes used by Cheetah have a special prefix to avoid confusion with
@@ -95,12 +86,10 @@ class Template(object):
             )
 
         # create our own searchList
-        self._CHEETAH__searchList = [self]
-        if searchList is not None:
-            self._CHEETAH__searchList.extend(list(searchList))
+        self._CHEETAH__searchList = [self] + list(searchList or [])
 
         self._CHEETAH__filters = filters
-        self._CHEETAH__initialFilter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filter_name]
+        self._CHEETAH__currentFilter = self._CHEETAH__filters[filter_name]
 
         self.transaction = None
 
@@ -132,6 +121,15 @@ class Template(object):
 
     def respond(self):
         raise NotImplementedError
+
+    @contextlib.contextmanager
+    def set_filter(self, filter_name):
+        before = self._CHEETAH__currentFilter
+        self._CHEETAH__currentFilter = self._CHEETAH__filters[filter_name]
+        try:
+            yield
+        finally:
+            self._CHEETAH__currentFilter = before
 
 
 Template.Reserved_SearchList = set(dir(Template))

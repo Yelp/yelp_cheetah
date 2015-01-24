@@ -1666,21 +1666,6 @@ $sep$letter#slurp
                     "a, b, c")
 
 
-class FilterDirective(OutputTest):
-    def test1(self):
-        """#filter MarkupFilter"""
-        self.verify("#filter MarkupFilter\n$none#end filter",
-                    "")
-
-        self.verify("#filter MarkupFilter: $none",
-                    "")
-
-    def test2(self):
-        """#filter ReplaceNone with WS"""
-        self.verify("#filter MarkupFilter:  \n$none#end filter",
-                    "")
-
-
 class VarExists(OutputTest):
     def test2(self):
         self.verify("$varExists('anInt')",
@@ -1907,9 +1892,9 @@ def test_with_statement_filter():
 
     #@contextlib.contextmanager
     #def sets_filter():
-        #filter js_filter
+        #with self.set_filter('js_filter')
             #yield
-        #end filter
+        #end with
     #end def
 
 
@@ -1955,3 +1940,15 @@ def test_with_statement_call():
 
     result = ' '.join(cls().respond().strip().split())
     assert result == "begin. before. <b>mycontent!</b> after. end."
+
+
+def test_with_filter():
+    cls = compile_to_class(
+        '#set var = "<>"\n'
+        '$var\n'
+        '#with self.set_filter("UnicodeFilter")\n'
+        '$var\n'
+        '#end with\n'
+        '$var\n'
+    )
+    assert cls().respond() == '&lt;&gt;\n<>\n&lt;&gt;\n'
