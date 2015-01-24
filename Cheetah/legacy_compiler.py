@@ -44,7 +44,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
-    ('optimize_lookup', True, ''),
 ]
 
 DEFAULT_COMPILER_SETTINGS = dict((v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS)
@@ -576,7 +575,6 @@ class LegacyCompiler(SettingsManager):
     def genCheetahVar(self, nameChunks, lineCol, plain=False):
         first_accessed_var = nameChunks[0][0].partition('.')[0]
         optimize_enabled = (
-            self.setting('optimize_lookup') and
             not self.setting('useAutocalling') and
             not self.setting('useDottedNotation')
         )

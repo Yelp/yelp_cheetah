@@ -70,11 +70,6 @@ def test_optimization_still_prefers_locals():
     assert cls().foo(5).strip() == '5'
 
 
-def test_no_optimization_with_setting_off():
-    src = compile_source('$int(5)', settings={'optimize_lookup': False})
-    assert ' _v = VFFSL(SL, "int"' in src
-
-
 def test_no_optimization_with_autocall():
     cls = compile_to_class(
         '#compiler-settings\n'
