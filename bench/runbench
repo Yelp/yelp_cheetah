@@ -16,5 +16,5 @@ filename=bench/log/`date +%F_%T`.txt
 rm -rf venv-bench
 virtualenv venv-bench
 . venv-bench/bin/activate
-CHEETAH_C_EXT=true pip install .
+pip install .
 python ./bench/_runbench.py | tee -a "$filename"
