@@ -16,9 +16,7 @@ from tokenize import PseudoToken
 
 import six
 
-from Cheetah.SettingsManager import UnexpectedSettingName
 from Cheetah.SourceReader import SourceReader
-
 
 python_token_re = re.compile(PseudoToken)
 identchars = string.ascii_letters + '_'
@@ -156,18 +154,19 @@ directiveNamesAndParsers = {
     'finally': None,
 
     # intructions to the parser and compiler
-    'compiler-settings': 'eatCompilerSettings',
+    'compiler-settings': None,
 }
 
 endDirectiveNamesAndHandlers = {
-    'def': 'handleEndDef',      # has short-form
-    'block': None,              # has short-form
-    'call': None,               # has short-form
+    'def': 'handleEndDef',
+    'compiler-settings': None,
+    'block': None,
+    'call': None,
+    'while': None,
+    'for': None,
+    'if': None,
+    'try': None,
     'filter': None,
-    'while': None,              # has short-form
-    'for': None,                # has short-form
-    'if': None,                 # has short-form
-    'try': None,                # has short-form
     'with': None,
 }
 
@@ -286,8 +285,8 @@ class _LowLevelParser(SourceReader):
     def setSetting(self, key, val):
         self._settingsManager.setSetting(key, val)
 
-    def isLineClearToStartToken(self, pos=None):
-        return self.isLineClearToPos(pos)
+    def isLineClearToStartToken(self):
+        return self.isLineClearToPos()
 
     def matchTopLevelToken(self):
         """Returns the first match found from the following methods:
@@ -392,7 +391,7 @@ class _LowLevelParser(SourceReader):
         else:
             raise UnknownDirectiveError(
                 self,
-                'Bad macro name: "{0}". '
+                'Bad directive name: "{0}". '
                 'You may want to escape that # sign?'.format(match_text),
             )
 
@@ -823,15 +822,11 @@ class LegacyParser(_LowLevelParser):
         super(LegacyParser, self).__init__(src)
         self.setSettingsManager(compiler)
         self._compiler = compiler
-        self._macros = {}
-        self._macroDetails = {}
         self._openDirectivesStack = []
 
         def normalizeParserVal(val):
             if isinstance(val, six.text_type):
                 return getattr(self, val)
-            elif isinstance(val, type):
-                return val(self)
             else:
                 assert val is None or callable(val), val
                 return val
@@ -850,14 +845,9 @@ class LegacyParser(_LowLevelParser):
             self._endDirectiveNamesAndHandlers[name] = normalizeHandlerVal(val)
 
         self._closeableDirectives = [
-            'def', 'block', 'call', 'filter', 'if', 'for', 'while', 'try',
-            'with',
+            'compiler-settings', 'def', 'block', 'call', 'filter', 'if',
+            'for', 'while', 'try', 'with',
         ]
-
-        for macroName, callback in self.setting('macroDirectives').items():
-            assert callback
-            self._macros[macroName] = normalizeParserVal(callback)
-            self._directiveNamesAndParsers[macroName] = self.eatMacroCall
 
     @fail_with_our_parse_error
     def parse(self, breakPoint=None, assertEmptyStack=True):
@@ -910,15 +900,15 @@ class LegacyParser(_LowLevelParser):
     def eatPlaceholder(self):
         self._compiler.addPlaceholder(*self.getPlaceholder())
 
-    _simpleIndentingDirectives = [
-        'if', 'else', 'elif', 'for', 'while', 'try', 'except', 'finally',
-        'with',
-    ]
-    _py_expr_directives = ['py', 'set', 'silent']
-    _simple_expr_directives = [
+    _simpleIndentingDirectives = frozenset((
+        'compiler-settings', 'if', 'else', 'elif', 'for', 'while', 'try',
+        'except', 'finally', 'with',
+    ))
+    _py_expr_directives = frozenset(('py', 'set', 'silent'))
+    _simple_expr_directives = frozenset((
         'pass', 'continue', 'return', 'yield', 'break', 'del', 'assert',
         'raise', 'import', 'from',
-    ] + _py_expr_directives
+    )).union(_py_expr_directives)
 
     def eatDirective(self):
         directive = self.matchDirective()
@@ -929,7 +919,10 @@ class LegacyParser(_LowLevelParser):
         if directiveParser:
             directiveParser()
         else:
-            handler = getattr(self._compiler, 'add' + directive.capitalize())
+            if directive == 'compiler-settings':
+                handler = lambda *args: None
+            else:
+                handler = getattr(self._compiler, 'add' + directive.capitalize())
 
             if directive in self._simpleIndentingDirectives:
                 self.eatSimpleIndentingDirective(directive, callback=handler)
@@ -978,54 +971,6 @@ class LegacyParser(_LowLevelParser):
 
         if isLineClearToStartToken and (self.atEnd() or self.pos() > endOfFirstLinePos):
             self._compiler.handleWSBeforeDirective()
-
-    def _eatToThisEndDirective(self, directiveName):
-        finalPos = endRawPos = startPos = self.pos()
-        directiveChar = '#'
-        isLineClearToStartToken = False
-        while True:
-            if self.atEnd():
-                raise ParseError(
-                    self,
-                    'Unexpected EOF while searching for #end {0}'.format(
-                        directiveName,
-                    )
-                )
-            if self.peek() == directiveChar:
-                if self.matchDirective() == 'end':
-                    endRawPos = self.pos()
-                    self.getDirectiveStartToken()
-                    self.advance(len('end'))
-                    self.getWhiteSpace()
-                    if self.startswith(directiveName):
-                        if self.isLineClearToStartToken(endRawPos):
-                            isLineClearToStartToken = True
-                            endRawPos = self.findBOL(endRawPos)
-                        self.advance(len(directiveName))  # to end of directiveName
-                        self.getWhiteSpace()
-                        finalPos = self.pos()
-                        break
-            self.advance()
-            finalPos = endRawPos = self.pos()
-
-        textEaten = self.readTo(endRawPos, start=startPos)
-        self.setPos(finalPos)
-
-        endOfFirstLinePos = self.findEOL()
-
-        if self.matchDirectiveEndToken():
-            self.getDirectiveEndToken()
-        else:
-            assert (
-                isLineClearToStartToken and
-                not self.atEnd() and
-                self.peek() in '\r\n'
-            )
-            self.readToEOL(gobble=True)
-
-        if isLineClearToStartToken and self.pos() > endOfFirstLinePos:
-            self._compiler.handleWSBeforeDirective()
-        return textEaten
 
     def eatSimpleExprDirective(self, directive, include_name=True):
         isLineClearToStartToken = self.isLineClearToStartToken()
@@ -1090,6 +1035,8 @@ class LegacyParser(_LowLevelParser):
         if self._endDirectiveNamesAndHandlers.get(directiveName):
             handler = self._endDirectiveNamesAndHandlers[directiveName]
             handler()
+        elif directiveName == 'compiler-settings':
+            self._compiler.add_compiler_settings()
         elif directiveName == 'block':
             self._compiler.closeBlock()
         elif directiveName == 'call':
@@ -1102,33 +1049,6 @@ class LegacyParser(_LowLevelParser):
             self._compiler.dedent()
 
     # specific directive eat methods
-
-    def eatCompilerSettings(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLine = self.findEOL()
-        self.getDirectiveStartToken()
-        self.advance(len('compiler-settings'))   # to end of 'settings'
-
-        self.getExpression()            # gobble any garbage
-
-        self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
-
-        settingsStr = self._eatToThisEndDirective('compiler-settings')
-        try:
-            self._compiler.setCompilerSettings(settingsStr)
-        except UnexpectedSettingName:
-            raise
-        except Exception:
-            raise ParseError(
-                self,
-                'An error occurred while parsing the settings:\n'
-                '---------------------------------------------\n'
-                '{0}\n'
-                '---------------------------------------------'.format(
-                    settingsStr.strip()
-                )
-            )
-
     def eatAttr(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
@@ -1315,54 +1235,6 @@ class LegacyParser(_LowLevelParser):
             self._compiler.handleWSBeforeDirective()
         self._compiler.commitStrConst()
         self.readToEOL(gobble=True)
-
-    def eatMacroCall(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        self.getDirectiveStartToken()
-        macroName = self.getIdentifier()
-        macro = self._macros[macroName]
-
-        self.getWhiteSpace()
-        args = self.get_python_expression(
-            'Macro arguments must not contain a `$`',
-            pyTokensToBreakAt=[':'],
-        ).strip()
-
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self.getWhiteSpace(maximum=1)
-            srcBlock = self.readToEOL(gobble=False)
-            self.readToEOL(gobble=True)
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            srcBlock = self._eatToThisEndDirective(macroName)
-
-        def getArgs(*pargs, **kws):  # pylint:disable=unused-variable
-            return pargs, kws
-        positionalArgs, kwArgs = eval('getArgs({0})'.format(args))  # pylint:disable=eval-used
-
-        assert 'src' not in kwArgs
-        kwArgs['src'] = srcBlock
-        srcFromMacroOutput = macro(*positionalArgs, **kwArgs)
-
-        origParseSrc = self._src
-        origBreakPoint = self.breakPoint()
-        origPos = self.pos()
-        # add a comment to the output about the macro src that is being parsed
-        # or add a comment prefix to all the comments added by the compiler
-        self._src = srcFromMacroOutput
-        self.setPos(0)
-        self.setBreakPoint(len(srcFromMacroOutput))
-
-        self.parse(assertEmptyStack=False)
-
-        self._src = origParseSrc
-        self.setBreakPoint(origBreakPoint)
-        self.setPos(origPos)
 
     def eatCall(self):
         isLineClearToStartToken = self.isLineClearToStartToken()

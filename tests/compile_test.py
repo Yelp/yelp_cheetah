@@ -411,7 +411,7 @@ $arr
     #end while
 #end block
 
-#filter None
+#filter UnicodeFilter
     Default filter?
 #end filter
 

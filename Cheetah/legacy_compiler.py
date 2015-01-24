@@ -44,7 +44,6 @@ _DEFAULT_COMPILER_SETTINGS = [
     ('mainMethodName', 'respond', ''),
     ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
-    ('macroDirectives', {}, 'For providing macros'),
     ('optimize_lookup', True, ''),
 ]
 
@@ -148,7 +147,7 @@ class MethodCompiler(object):
         self._methodBodyChunks[-1] += appendage
 
     def addWriteChunk(self, chunk):
-        self.addChunk('write({0})'.format(chunk))
+        self.addChunk('self.transaction.write({0})'.format(chunk))
 
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
@@ -157,10 +156,16 @@ class MethodCompiler(object):
         else:
             self.addChunk('_v = %s' % chunk)
 
-        self.addChunk('if _v is not NO_CONTENT: write(_filter(_v))')
+        self.addChunk('if _v is not NO_CONTENT: self.transaction.write(self._CHEETAH__currentFilter(_v))')
 
     def addStrConst(self, strConst):
         self._pendingStrConstChunks.append(strConst)
+
+    def getStrConst(self):
+        return ''.join(self._pendingStrConstChunks)
+
+    def clearStrConst(self):
+        del self._pendingStrConstChunks[:]
 
     def commitStrConst(self):
         """Add the code for outputting the pending strConst without chopping off
@@ -169,8 +174,8 @@ class MethodCompiler(object):
         if not self._pendingStrConstChunks:
             return
 
-        strConst = ''.join(self._pendingStrConstChunks)
-        self._pendingStrConstChunks = []
+        strConst = self.getStrConst()
+        self.clearStrConst()
         if not strConst:
             return
 
@@ -282,13 +287,12 @@ class MethodCompiler(object):
                 col=lineCol[1],
             )
         )
-        self.addChunk('_orig_trans{0} = trans'.format(call_id))
+        self.addChunk('_orig_trans{0} = self.transaction'.format(call_id))
         self.addChunk(
-            'self.transaction = trans = _call{0} = DummyTransaction()'.format(
+            'self.transaction = _call{0} = DummyTransaction()'.format(
                 call_id
             )
         )
-        self.addChunk('write = trans.write')
 
     def endCallRegion(self):
         call_details = self._callRegionsStack.pop()
@@ -300,9 +304,8 @@ class MethodCompiler(object):
         )
 
         self.addChunk(
-            'self.transaction = trans = _orig_trans{0}'.format(call_id),
+            'self.transaction = _orig_trans{0}'.format(call_id),
         )
-        self.addChunk('write = trans.write')
         self.addChunk('del _orig_trans{0}'.format(call_id))
 
         self.addChunk('_call_arg{0} = _call{0}.getvalue()'.format(call_id))
@@ -332,20 +335,16 @@ class MethodCompiler(object):
         filter_id = self.next_id()
         self._filterRegionsStack.append(filter_id)
 
-        self.addChunk('_orig_filter{0} = _filter'.format(filter_id))
-        if filter_name.lower() == 'none':
-            self.addChunk('_filter = self._CHEETAH__initialFilter')
-        else:
-            self.addChunk(
-                '_filter = '
-                'self._CHEETAH__currentFilter = '
-                'self._CHEETAH__filters[{0!r}]'.format(filter_name)
-            )
+        self.addChunk('_orig_filter{0} = self._CHEETAH__currentFilter'.format(filter_id))
+        self.addChunk(
+            'self._CHEETAH__currentFilter = '
+            'self._CHEETAH__filters[{0!r}]'.format(filter_name)
+        )
 
     def closeFilterBlock(self):
         filter_id = self._filterRegionsStack.pop()
         self.addChunk(
-            '_filter = self._CHEETAH__currentFilter = _orig_filter{0}'.format(
+            'self._CHEETAH__currentFilter = _orig_filter{0}'.format(
                 filter_id,
             )
         )
@@ -353,19 +352,16 @@ class MethodCompiler(object):
     def _addAutoSetupCode(self):
         self.addChunk(self._initialMethodComment)
 
-        self.addChunk('trans = self.transaction')
-        self.addChunk('if not trans:')
+        self.addChunk('if not self.transaction:')
         self.indent()
-        self.addChunk('self.transaction = trans = DummyTransaction()')
+        self.addChunk('self.transaction = DummyTransaction()')
         self.addChunk('_dummyTrans = True')
         self.dedent()
         self.addChunk('else:')
         self.indent()
         self.addChunk('_dummyTrans = False')
         self.dedent()
-        self.addChunk('write = trans.write')
         self.addChunk('SL = self._CHEETAH__searchList')
-        self.addChunk('_filter = self._CHEETAH__currentFilter')
         self.addChunk()
         self.addChunk('## START - generated method body')
         self.addChunk()
@@ -378,8 +374,9 @@ class MethodCompiler(object):
             self.addChunk()
             self.addChunk('if _dummyTrans:')
             self.indent()
+            self.addChunk('result = self.transaction.getvalue()')
             self.addChunk('self.transaction = None')
-            self.addChunk('return trans.getvalue()')
+            self.addChunk('return result')
             self.dedent()
             self.addChunk('else:')
             self.indent()
@@ -711,8 +708,10 @@ class LegacyCompiler(SettingsManager):
             extends_name, CLASS_NAME, BASE_CLASS_NAME,
         )
 
-    def setCompilerSettings(self, settingsStr):
-        self.updateSettingsFromConfigStr(settingsStr)
+    def add_compiler_settings(self):
+        settings_str = self.getStrConst()
+        self.clearStrConst()
+        self.updateSettingsFromConfigStr(settings_str)
 
     def _add_import_statement(self, imp_statement, line_col):
         imported_names = get_imported_names(imp_statement)
