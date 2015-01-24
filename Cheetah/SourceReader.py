@@ -13,7 +13,7 @@ WS_CHARS = ' \t'
 class SourceReader(object):  # pylint:disable=too-many-public-methods
     def __init__(self, src):
         self._src = src
-        self._srcLines = None
+        self._srcLines = src.splitlines()
         self._breakPoint = len(self._src)
         self._pos = 0
 
@@ -39,11 +39,6 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
     def __getitem__(self, i):
         return self._src[i]
 
-    def splitlines(self):
-        if self._srcLines is None:
-            self._srcLines = self._src.splitlines()
-        return self._srcLines
-
     def lineNum(self, pos):
         for i in range(len(self._BOLs)):
             if pos >= self._BOLs[i] and pos <= self._EOLs[i]:
@@ -59,7 +54,7 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
 
     def getRowColLine(self):
         row, col = self.getRowCol()
-        return row, col, self.splitlines()[row - 1]
+        return row, col, self._srcLines[row - 1]
 
     def pos(self):
         return self._pos
@@ -123,7 +118,7 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         return self._src[start:to]
 
     def readToEOL(self, start=None, gobble=True):
-        EOLmatch = EOLZre.search(self.src(), self.pos())
+        EOLmatch = EOLZre.search(self._src, self._pos)
         if gobble:
             pos = EOLmatch.end()
         else:
@@ -136,27 +131,24 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         return self._src.find(it, pos)
 
     def startswith(self, it, pos=None):
-        return self.find(it, pos) == self.pos()
+        return self.find(it, pos) == self._pos
 
     def findBOL(self, pos=None):
         if pos is None:
             pos = self._pos
-        src = self.src()
+        src = self._src
         return max(src.rfind('\n', 0, pos) + 1, src.rfind('\r', 0, pos) + 1, 0)
 
     def findEOL(self, gobble=False):
-        match = EOLZre.search(self.src(), self._pos)
+        match = EOLZre.search(self._src, self._pos)
         if gobble:
             return match.end()
         else:
             return match.start()
 
-    def isLineClearToPos(self):
-        pos = self.pos()
-        self.checkPos(pos)
-        src = self.src()
+    def isLineClearToStartToken(self):
         BOL = self.findBOL()
-        return BOL == pos or src[BOL:pos].isspace()
+        return BOL == self._pos or self._src[BOL:self._pos].isspace()
 
     def matchWhiteSpace(self):
         return not self.atEnd() and self.peek() in WS_CHARS
@@ -164,12 +156,12 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
     def getWhiteSpace(self, maximum=None):
         if not self.matchWhiteSpace():
             return ''
-        start = self.pos()
+        start = self._pos
         breakPoint = self.breakPoint()
         if maximum is not None:
-            breakPoint = min(breakPoint, self.pos() + maximum)
-        while self.pos() < breakPoint:
+            breakPoint = min(breakPoint, self._pos + maximum)
+        while self._pos < breakPoint:
             self.advance()
             if not self.matchWhiteSpace():
                 break
-        return self.src()[start:self.pos()]
+        return self._src[start:self._pos]

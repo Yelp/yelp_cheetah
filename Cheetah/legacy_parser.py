@@ -186,7 +186,7 @@ class ParseError(ValueError):
         row, col, line = self.stream.getRowColLine()
 
         # get the surrounding lines
-        lines = stream.splitlines()
+        lines = stream._srcLines
         prevLines = []                  # (rowNum, content)
         for i in range(1, 4):
             if row - 1 - i < 0:
@@ -283,9 +283,6 @@ class _LowLevelParser(SourceReader):
 
     def setSetting(self, key, val):
         self._settingsManager.setSetting(key, val)
-
-    def isLineClearToStartToken(self):
-        return self.isLineClearToPos()
 
     def matchTopLevelToken(self):
         """Returns the first match found from the following methods:
