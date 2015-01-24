@@ -19,8 +19,9 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
-## (dev)
+## 0.7.0
 - removed macro support: use `#with` instead.
+- much-improved support for context managers.
 
 ## 0.6.0
 - Cheetah classes now invariantly have `YelpCheetahTemplate` as the classname
