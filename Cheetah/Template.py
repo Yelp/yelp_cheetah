@@ -93,10 +93,6 @@ class Template(object):
 
         self.transaction = None
 
-    def searchList(self):
-        """Return a reference to the searchlist"""
-        return self._CHEETAH__searchList
-
     def getVar(self, varName, default=UNSPECIFIED, autoCall=True, useDottedNotation=True):
         """Get a variable from the searchList.  If the variable can't be found
         in the searchList, it returns the default value if one was given, or
@@ -104,7 +100,9 @@ class Template(object):
         """
         assert '$' not in varName, varName
         try:
-            return valueFromSearchList(self.searchList(), varName, autoCall, useDottedNotation)
+            return valueFromSearchList(
+                self._CHEETAH__searchList, varName, autoCall, useDottedNotation,
+            )
         except NotFound:
             if default is not UNSPECIFIED:
                 return default
@@ -114,7 +112,9 @@ class Template(object):
     def varExists(self, varName, autoCall=False, useDottedNotation=True):
         """Test if a variable name exists in the searchList."""
         try:
-            valueFromSearchList(self.searchList(), varName, autoCall, useDottedNotation)
+            valueFromSearchList(
+                self._CHEETAH__searchList, varName, autoCall, useDottedNotation,
+            )
             return True
         except NotFound:
             return False

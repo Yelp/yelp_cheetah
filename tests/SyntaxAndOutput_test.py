@@ -80,9 +80,6 @@ Template output mismatch:
 
     _searchList = [defaultTestNameSpace]
 
-    def searchList(self):
-        return self._searchList
-
     def _getCompilerSettings(self):
         return {}
 
@@ -90,7 +87,7 @@ Template output mismatch:
         templateClass = compile_to_class(
             input_str, settings=self._getCompilerSettings(),
         )
-        searchList = self.searchList() or self._searchList
+        searchList = self._searchList
         templateObj = templateClass(searchList=searchList)
 
         output = templateObj.respond()

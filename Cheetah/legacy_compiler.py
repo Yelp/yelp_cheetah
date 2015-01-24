@@ -626,7 +626,7 @@ class LegacyCompiler(SettingsManager):
         where:
           VFN = NameMapper.valueForName
           VFFSL = NameMapper.valueFromFrameOrSearchList
-          SL = self.searchList()
+          SL = self._CHEETAH__searchList
           useAC = self.setting('useAutocalling') # True in this example
 
           A = ('a.b.c',True,'[1]')
