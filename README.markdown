@@ -22,6 +22,12 @@ Differences
 ## 0.7.0
 - removed macro support: use `#with` instead.
 - much-improved support for context managers.
+- Raise on unknown settings
+- Remove settings: `cheetahVarStartToken`, `commentStartToken`, `directiveStartToken`, `directiveEndToken`
+- Fix indexing a return value #23
+- Add `#py` directive.  This will replace `#silent` and `#set` in a future version
+- Remove `<% ... %>`
+- Optimize lookup of builtins, globals, and locals when detected.
 
 ## 0.6.0
 - Cheetah classes now invariantly have `YelpCheetahTemplate` as the classname
