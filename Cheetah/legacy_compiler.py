@@ -89,7 +89,6 @@ class MethodCompiler(object):
         self._pendingStrConstChunks = []
         self._methodBodyChunks = []
         self._callRegionsStack = []
-        self._filterRegionsStack = []
         self._hasReturnStatement = False
         self._isGenerator = False
         self._arguments = [('self', None)]
@@ -329,24 +328,6 @@ class MethodCompiler(object):
             )
         )
         self.addChunk()
-
-    def setFilter(self, filter_name):
-        filter_id = self.next_id()
-        self._filterRegionsStack.append(filter_id)
-
-        self.addChunk('_orig_filter{0} = self._CHEETAH__currentFilter'.format(filter_id))
-        self.addChunk(
-            'self._CHEETAH__currentFilter = '
-            'self._CHEETAH__filters[{0!r}]'.format(filter_name)
-        )
-
-    def closeFilterBlock(self):
-        filter_id = self._filterRegionsStack.pop()
-        self.addChunk(
-            'self._CHEETAH__currentFilter = _orig_filter{0}'.format(
-                filter_id,
-            )
-        )
 
     def _addAutoSetupCode(self):
         self.addChunk(self._initialMethodComment)
@@ -643,7 +624,7 @@ class LegacyCompiler(SettingsManager):
         where:
           VFN = NameMapper.valueForName
           VFFSL = NameMapper.valueFromFrameOrSearchList
-          SL = self.searchList()
+          SL = self._CHEETAH__searchList
           useAC = self.setting('useAutocalling') # True in this example
 
           A = ('a.b.c',True,'[1]')

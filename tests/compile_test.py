@@ -411,11 +411,6 @@ $arr
     #end while
 #end block
 
-#filter UnicodeFilter
-    Default filter?
-#end filter
-
-
 #for i in $gen()
     #if $i == 2
         #continue

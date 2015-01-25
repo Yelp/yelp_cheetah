@@ -22,8 +22,7 @@ def render_tmpl(template_source):
     template_cls = compile_to_class(template_source)
     template = template_cls(
         [scope],
-        filter_name='UniqueFilter',
-        filters={'UniqueFilter': unique_filter},
+        filter_fn=unique_filter,
     )
     return template.respond().strip()
 

@@ -116,7 +116,6 @@ directiveNamesAndParsers = {
 
     # output, filtering, and caching
     'slurp': 'eatSlurp',
-    'filter': 'eatFilter',
     'py': None,
     'silent': None,
 
@@ -187,7 +186,7 @@ class ParseError(ValueError):
         row, col, line = self.stream.getRowColLine()
 
         # get the surrounding lines
-        lines = stream.splitlines()
+        lines = stream._srcLines
         prevLines = []                  # (rowNum, content)
         for i in range(1, 4):
             if row - 1 - i < 0:
@@ -284,9 +283,6 @@ class _LowLevelParser(SourceReader):
 
     def setSetting(self, key, val):
         self._settingsManager.setSetting(key, val)
-
-    def isLineClearToStartToken(self):
-        return self.isLineClearToPos()
 
     def matchTopLevelToken(self):
         """Returns the first match found from the following methods:
@@ -1041,8 +1037,6 @@ class LegacyParser(_LowLevelParser):
             self._compiler.closeBlock()
         elif directiveName == 'call':
             self._compiler.endCallRegion()
-        elif directiveName == 'filter':
-            self._compiler.closeFilterBlock()
         else:
             assert directiveName in ['while', 'for', 'if', 'try', 'with']
             self._compiler.commitStrConst()
@@ -1267,33 +1261,6 @@ class LegacyParser(_LowLevelParser):
             self.pushToOpenDirectivesStack("call")
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             self._compiler.startCallRegion(functionName, args, lineCol)
-
-    def eatFilter(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-
-        self.getDirectiveStartToken()
-        self.advance(len('filter'))
-        self.getWhiteSpace()
-        if self.matchCheetahVarStart():
-            raise ParseError(self, 'Filters should be in the filterLib')
-
-        theFilter = self.getIdentifier()
-        self.getWhiteSpace()
-
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self.getWhiteSpace(maximum=1)
-            self._compiler.setFilter(theFilter)
-            self.parse(breakPoint=self.findEOL(gobble=False))
-            self._compiler.closeFilterBlock()
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self.pushToOpenDirectivesStack('filter')
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            self._compiler.setFilter(theFilter)
 
     # end directive handlers
     def handleEndDef(self):

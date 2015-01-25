@@ -4,9 +4,9 @@ See the docstring in the Template class and the Users' Guide for more informatio
 """
 from __future__ import unicode_literals
 
-import six
+import contextlib
 
-from Cheetah.filters import filters
+from Cheetah import filters
 from Cheetah.NameMapper import NotFound
 from Cheetah.NameMapper import valueFromSearchList
 
@@ -23,17 +23,6 @@ UNSPECIFIED = object()
 class Template(object):
     """This class provides methods used by templates at runtime
 
-    This documentation assumes you already know Python and the basics of object
-    oriented programming.  If you don't know Python, see the sections of the
-    Cheetah Users' Guide for non-programmers.  It also assumes you have read
-    about Cheetah's syntax in the Users' Guide.
-
-    The following explains how to use Cheetah from within Python programs or via
-    the interpreter. If you statically compile your templates on the command
-    line using the 'cheetah-compile' script, this is not relevant to you.
-    Statically compiled Cheetah template modules/classes (e.g. myTemplate.py:
-    MyTemplateClasss) are just like any other Python module or class.
-
     Note about instance attribute names:
       Attributes used by Cheetah have a special prefix to avoid confusion with
       the attributes of the templates themselves or those of template
@@ -46,30 +35,15 @@ class Template(object):
     def __init__(
             self,
             searchList=None,
-            filter_name=u'MarkupFilter',
-            filters=filters,
+            filter_fn=filters.markup_filter,
     ):
         """Instantiates an existing template.
 
         :param searchList: list of namespaces (objects / dicts)
-        :param filter_name: Name of the inital filter to start with.  A filter
+        :param filter_fn: Initial filter function.  A filter
             is a function which takes a single argument (the contents of a
             template variable) and may perform some output filtering.
-        :param filters: dict mapping filter names to filter functions
         """
-        if not isinstance(filter_name, six.text_type):
-            raise AssertionError(
-                'Expected `filter_name` to be `text` but got {0}'.format(
-                    type(filter_name),
-                )
-            )
-        if not isinstance(filters, dict):
-            raise AssertionError(
-                'Expected `filters` to be `dict` but got {0}'.format(
-                    type(filters),
-                )
-            )
-
         if searchList:
             for namespace in searchList:
                 if (
@@ -95,18 +69,11 @@ class Template(object):
             )
 
         # create our own searchList
-        self._CHEETAH__searchList = [self]
-        if searchList is not None:
-            self._CHEETAH__searchList.extend(list(searchList))
+        self._CHEETAH__searchList = [self] + list(searchList or [])
 
-        self._CHEETAH__filters = filters
-        self._CHEETAH__initialFilter = self._CHEETAH__currentFilter = self._CHEETAH__filters[filter_name]
+        self._CHEETAH__currentFilter = filter_fn
 
         self.transaction = None
-
-    def searchList(self):
-        """Return a reference to the searchlist"""
-        return self._CHEETAH__searchList
 
     def getVar(self, varName, default=UNSPECIFIED, autoCall=True, useDottedNotation=True):
         """Get a variable from the searchList.  If the variable can't be found
@@ -115,7 +82,9 @@ class Template(object):
         """
         assert '$' not in varName, varName
         try:
-            return valueFromSearchList(self.searchList(), varName, autoCall, useDottedNotation)
+            return valueFromSearchList(
+                self._CHEETAH__searchList, varName, autoCall, useDottedNotation,
+            )
         except NotFound:
             if default is not UNSPECIFIED:
                 return default
@@ -125,13 +94,24 @@ class Template(object):
     def varExists(self, varName, autoCall=False, useDottedNotation=True):
         """Test if a variable name exists in the searchList."""
         try:
-            valueFromSearchList(self.searchList(), varName, autoCall, useDottedNotation)
+            valueFromSearchList(
+                self._CHEETAH__searchList, varName, autoCall, useDottedNotation,
+            )
             return True
         except NotFound:
             return False
 
     def respond(self):
         raise NotImplementedError
+
+    @contextlib.contextmanager
+    def set_filter(self, filter_fn):
+        before = self._CHEETAH__currentFilter
+        self._CHEETAH__currentFilter = filter_fn
+        try:
+            yield
+        finally:
+            self._CHEETAH__currentFilter = before
 
 
 Template.Reserved_SearchList = set(dir(Template))

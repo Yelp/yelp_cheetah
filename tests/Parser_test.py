@@ -299,21 +299,6 @@ def test_reach_eof():
         compile_to_class('#super(')
 
 
-def test_filter_with_variable():
-    with assert_raises_exactly(
-        ParseError,
-        '\n\n'
-        "Filters should be in the filterLib\n"
-        'Line 1, column 9\n'
-        '\n'
-        'Line|Cheetah Code\n'
-        '----|-------------------------------------------------------------\n'
-        '1   |#filter $MyFilter\n'
-        '             ^\n'
-    ):
-        compile_to_class('#filter $MyFilter')
-
-
 def test_non_ending_compiler_settings():
     with assert_raises_exactly(
         ParseError,

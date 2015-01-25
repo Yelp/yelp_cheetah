@@ -19,9 +19,3 @@ def unicode_filter(val):
 def markup_filter(val):
     val = unicode_filter(val)
     return markupsafe.Markup.escape(val)
-
-
-filters = {
-    'MarkupFilter': markup_filter,
-    'UnicodeFilter': unicode_filter,
-}

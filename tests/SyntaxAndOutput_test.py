@@ -9,6 +9,7 @@ import warnings
 import markupsafe
 import pytest
 
+from Cheetah import filters
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ParseError
 
@@ -80,9 +81,6 @@ Template output mismatch:
 
     _searchList = [defaultTestNameSpace]
 
-    def searchList(self):
-        return self._searchList
-
     def _getCompilerSettings(self):
         return {}
 
@@ -90,7 +88,7 @@ Template output mismatch:
         templateClass = compile_to_class(
             input_str, settings=self._getCompilerSettings(),
         )
-        searchList = self.searchList() or self._searchList
+        searchList = self._searchList
         templateObj = templateClass(searchList=searchList)
 
         output = templateObj.respond()
@@ -1666,21 +1664,6 @@ $sep$letter#slurp
                     "a, b, c")
 
 
-class FilterDirective(OutputTest):
-    def test1(self):
-        """#filter MarkupFilter"""
-        self.verify("#filter MarkupFilter\n$none#end filter",
-                    "")
-
-        self.verify("#filter MarkupFilter: $none",
-                    "")
-
-    def test2(self):
-        """#filter ReplaceNone with WS"""
-        self.verify("#filter MarkupFilter:  \n$none#end filter",
-                    "")
-
-
 class VarExists(OutputTest):
     def test2(self):
         self.verify("$varExists('anInt')",
@@ -1899,17 +1882,19 @@ def test_with_statement_short_form():
     )
 
 
-def test_with_statement_filter():
-    js_filter = lambda obj: '<js_filtered>%r</js_filtered>' % str(obj)
+js_filter = lambda obj: '<js_filtered>%r</js_filtered>' % str(obj)
 
+
+def test_with_statement_filter():
     cls = compile_to_class('''
     #import contextlib
+    #from tests.SyntaxAndOutput_test import js_filter
 
     #@contextlib.contextmanager
     #def sets_filter():
-        #filter js_filter
+        #with self.set_filter(js_filter)
             #yield
-        #end filter
+        #end with
     #end def
 
 
@@ -1919,13 +1904,7 @@ def test_with_statement_filter():
     #end with
     ''')
 
-    inst = cls(
-        filter_name='noop',
-        filters={
-            'js_filter': js_filter,
-            'noop': lambda x: x,
-        },
-    )
+    inst = cls(filter_fn=filters.unicode_filter)
     assert inst.respond().strip() == "<js_filtered>'bar'</js_filtered>"
 
 
@@ -1955,3 +1934,16 @@ def test_with_statement_call():
 
     result = ' '.join(cls().respond().strip().split())
     assert result == "begin. before. <b>mycontent!</b> after. end."
+
+
+def test_with_filter():
+    cls = compile_to_class(
+        '#from Cheetah.filters import unicode_filter\n'
+        '#set var = "<>"\n'
+        '$var\n'
+        '#with self.set_filter(unicode_filter)\n'
+        '$var\n'
+        '#end with\n'
+        '$var\n'
+    )
+    assert cls().respond() == '&lt;&gt;\n<>\n&lt;&gt;\n'
