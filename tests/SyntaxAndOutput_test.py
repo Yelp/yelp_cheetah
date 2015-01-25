@@ -9,6 +9,7 @@ import warnings
 import markupsafe
 import pytest
 
+from Cheetah import filters
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ParseError
 
@@ -1881,15 +1882,17 @@ def test_with_statement_short_form():
     )
 
 
-def test_with_statement_filter():
-    js_filter = lambda obj: '<js_filtered>%r</js_filtered>' % str(obj)
+js_filter = lambda obj: '<js_filtered>%r</js_filtered>' % str(obj)
 
+
+def test_with_statement_filter():
     cls = compile_to_class('''
     #import contextlib
+    #from tests.SyntaxAndOutput_test import js_filter
 
     #@contextlib.contextmanager
     #def sets_filter():
-        #with self.set_filter('js_filter')
+        #with self.set_filter(js_filter)
             #yield
         #end with
     #end def
@@ -1901,13 +1904,7 @@ def test_with_statement_filter():
     #end with
     ''')
 
-    inst = cls(
-        filter_name='noop',
-        filters={
-            'js_filter': js_filter,
-            'noop': lambda x: x,
-        },
-    )
+    inst = cls(filter_fn=filters.unicode_filter)
     assert inst.respond().strip() == "<js_filtered>'bar'</js_filtered>"
 
 
@@ -1941,9 +1938,10 @@ def test_with_statement_call():
 
 def test_with_filter():
     cls = compile_to_class(
+        '#from Cheetah.filters import unicode_filter\n'
         '#set var = "<>"\n'
         '$var\n'
-        '#with self.set_filter("UnicodeFilter")\n'
+        '#with self.set_filter(unicode_filter)\n'
         '$var\n'
         '#end with\n'
         '$var\n'
