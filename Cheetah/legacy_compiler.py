@@ -714,6 +714,7 @@ class LegacyCompiler(SettingsManager):
 
         moduleDef = textwrap.dedent(
             """
+            from __future__ import absolute_import
             from __future__ import unicode_literals
             {imports}
             {base_import}
