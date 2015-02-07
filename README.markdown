@@ -19,6 +19,11 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.8.0
+- `#filter` directive is gone.  Use `self.set_filter(filter_fn)`
+- `Template`'s signature is now `Template(search_list, filter_fn)`
+- All templates now have `from __future__ import absolute_import`
+
 ## 0.7.0
 - removed macro support: use `#with` instead.
 - much-improved support for context managers.
