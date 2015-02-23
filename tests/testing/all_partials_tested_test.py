@@ -18,6 +18,14 @@ from Cheetah.testing.all_partials_tested import TestAllPartialsTestedBase
 from Cheetah.testing.partial_template_test_case import PartialTemplateTestCase
 
 
+def module_predicate(mod):
+    return 'all' not in mod.__name__
+
+
+def class_predicate(cls):
+    return 'All' not in cls.__name__
+
+
 def test_discover_modules():
     ret = set(discover_modules(Cheetah.testing))
     assert ret == set((
@@ -27,8 +35,9 @@ def test_discover_modules():
 
 
 def test_discover_modules_with_filter():
-    predicate = lambda module: 'all' not in module.__name__
-    ret = set(discover_modules(Cheetah.testing, module_match_func=predicate))
+    ret = set(discover_modules(
+        Cheetah.testing, module_match_func=module_predicate,
+    ))
     assert ret == set((Cheetah.testing.partial_template_test_case,))
 
 
@@ -38,14 +47,16 @@ def test_discover_classes():
 
 
 def test_discover_classes_class_predicate():
-    predicate = lambda cls: 'All' not in cls.__name__
-    ret = set(discover_classes(Cheetah.testing, cls_match_func=predicate))
+    ret = set(discover_classes(
+        Cheetah.testing, cls_match_func=class_predicate,
+    ))
     assert ret == set((PartialTemplateTestCase,))
 
 
 def test_discover_classes_module_predicate():
-    predicate = lambda module: 'all' not in module.__name__
-    ret = set(discover_classes(Cheetah.testing, module_match_func=predicate))
+    ret = set(discover_classes(
+        Cheetah.testing, module_match_func=module_predicate,
+    ))
     assert ret == set((PartialTemplateTestCase,))
 
 
@@ -108,9 +119,10 @@ def test_get_partial_tests():
 
 def test_get_partial_tests_with_filter():
     from tests.testing import partial_template_test_case_test as P
-    predicate = lambda cls: (
-        is_partial_test_cls(cls) and 'Template' not in cls.__name__
-    )
+
+    def predicate(cls):
+        return is_partial_test_cls(cls) and 'Template' not in cls.__name__
+
     ret = set(get_partial_tests((tests,), test_match_func=predicate))
     assert ret == set((
         (
@@ -122,9 +134,8 @@ def test_get_partial_tests_with_filter():
 
 
 def test_all_partials_tested_can_fail():
-    predicate = lambda cls: (
-        is_partial_test_cls(cls) and 'Template' not in cls.__name__
-    )
+    def predicate(cls):
+        return is_partial_test_cls(cls) and 'Template' not in cls.__name__
 
     class AllPartialsTestedFailing(TestAllPartialsTestedBase):
         test_packages = (tests,)

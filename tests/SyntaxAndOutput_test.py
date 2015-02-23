@@ -1007,11 +1007,11 @@ class DefDirective(OutputTest):
 
     def test19(self):
         """#def that extends over two lines with arguments"""
-        self.verify("#def testMeth(arg=1234,\n"
-                    + "  arg2=5678)\n"
-                    + "$arg $arg2\n"
-                    + "#end def\n"
-                    + "$testMeth()",
+        self.verify("#def testMeth(arg=1234,\n" +
+                    "  arg2=5678)\n" +
+                    "$arg $arg2\n" +
+                    "#end def\n" +
+                    "$testMeth()",
                     "1234 5678\n")
 
 
@@ -1023,33 +1023,40 @@ class DecoratorDirective(OutputTest):
         self.verify("#@23 blah", "#@23 blah")
         self.verify("#@@TR: comment", "#@@TR: comment")
 
-        self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
-                    + "#@dummydecorator"
-                    + "\n#def testMeth():1234\n$testMeth()",
-                    "1234")
+        self.verify(
+            "#from tests.SyntaxAndOutput_test import dummydecorator\n"
+            "#@dummydecorator"
+            "\n#def testMeth():1234\n$testMeth()",
+            "1234"
+        )
 
-        self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
-                    + "#@dummydecorator"
-                    + "\n#block testMeth:1234",
-                    "1234")
+        self.verify(
+            "#from tests.SyntaxAndOutput_test import dummydecorator\n"
+            "#@dummydecorator"
+            "\n#block testMeth:1234",
+            "1234",
+        )
 
         with pytest.raises(ParseError):
             self.verify(
                 "#from tests.SyntaxAndOutput_test import dummydecorator\n"
-                + "#@dummydecorator\n sdf"
-                + "\n#def testMeth():1234\n$testMeth()",
-                "1234")
+                "#@dummydecorator\n sdf"
+                "\n#def testMeth():1234\n$testMeth()",
+                "1234"
+            )
 
     def test2(self):
         """#def with multiple decorators"""
-        self.verify("#from tests.SyntaxAndOutput_test import dummydecorator\n"
-                    + "#@dummydecorator\n"
-                    + "#@dummydecorator\n"
-                    + "#def testMeth()\n"
-                    + "1234\n"
-                    "#end def\n"
-                    "$testMeth()",
-                    "1234\n")
+        self.verify(
+            "#from tests.SyntaxAndOutput_test import dummydecorator\n"
+            "#@dummydecorator\n"
+            "#@dummydecorator\n"
+            "#def testMeth()\n"
+            "1234\n"
+            "#end def\n"
+            "$testMeth()",
+            "1234\n"
+        )
 
 
 class BlockDirective(OutputTest):
@@ -1882,7 +1889,8 @@ def test_with_statement_short_form():
     )
 
 
-js_filter = lambda obj: '<js_filtered>%r</js_filtered>' % str(obj)
+def js_filter(obj):
+    return '<js_filtered>%r</js_filtered>' % str(obj)
 
 
 def test_with_statement_filter():

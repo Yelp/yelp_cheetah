@@ -14,7 +14,8 @@ FILTERED_METHODS = (
 )
 
 
-trivial = lambda _: True
+def trivial(_):
+    return True
 
 
 def discover_modules(package, module_match_func=trivial):

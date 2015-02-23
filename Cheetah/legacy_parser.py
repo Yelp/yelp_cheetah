@@ -87,7 +87,7 @@ EXPR_PLACEHOLDER_START_RE = re.compile(
     escCharLookBehind +
     r'(?P<startToken>' + VAR_START_ESC + ')' +
     r'(?:\{|\(|\[)[ \t]*'
-    + r'(?=[^\)\}\]])'
+    r'(?=[^\)\}\]])'
 )
 COMMENT_START_RE = re.compile(escCharLookBehind + re.escape('##'))
 DIRECTIVE_START_RE = re.compile(
@@ -916,7 +916,8 @@ class LegacyParser(_LowLevelParser):
             directiveParser()
         else:
             if directive == 'compiler-settings':
-                handler = lambda *args: None
+                def handler(*_):
+                    pass
             else:
                 handler = getattr(self._compiler, 'add' + directive.capitalize())
 
@@ -1157,8 +1158,8 @@ class LegacyParser(_LowLevelParser):
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         signature = ' '.join([line.strip() for line in signature.splitlines()])
         parserComment = ('## CHEETAH: generated from ' + signature +
-                         ' at line %s, col %s' % self.getRowCol(startPos)
-                         + '.')
+                         ' at line %s, col %s' % self.getRowCol(startPos) +
+                         '.')
 
         self._compiler.startMethodDef(methodName, argsList, parserComment)
 
@@ -1167,8 +1168,8 @@ class LegacyParser(_LowLevelParser):
     def _eatSingleLineDef(self, methodName, argsList, startPos, endPos):
         fullSignature = self[startPos:endPos]
         parserComment = ('## Generated from ' + fullSignature +
-                         ' at line %s, col %s' % self.getRowCol(startPos)
-                         + '.')
+                         ' at line %s, col %s' % self.getRowCol(startPos) +
+                         '.')
         self._compiler.startMethodDef(methodName, argsList, parserComment)
 
         self.getWhiteSpace(maximum=1)
