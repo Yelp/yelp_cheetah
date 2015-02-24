@@ -9,6 +9,12 @@ from Cheetah.NameMapper import valueFromSearchList
 # pylint:disable=star-args
 
 
+xfailif_no_sys_refcount = pytest.mark.xfail(
+    not hasattr(sys, 'getrefcount'),
+    reason='pypy does not have `sys.getrefcount`'
+)
+
+
 class NameSpaceObject(object):
     class ns1(object):
         class ns2(object):
@@ -25,6 +31,7 @@ class NameSpaceObject2(object):
     ns1.ns2.ns3 = ns1
 
 
+@xfailif_no_sys_refcount
 @pytest.mark.parametrize('namespace', (NameSpaceObject, NameSpaceObject2))
 @pytest.mark.parametrize(
     ('getter_func', 'style'),
@@ -72,6 +79,7 @@ def test_refcounting(getter_func, namespace, style):
     assert not failures, failures
 
 
+@xfailif_no_sys_refcount
 def test_get_refcount_tree_1():
     """Demonstrate what that thing does."""
     t1 = get_refcount_tree(NameSpaceObject)
@@ -84,6 +92,7 @@ def test_get_refcount_tree_1():
     assert t1['<global>.ns1.ns2.ns3'][0] == 7
 
 
+@xfailif_no_sys_refcount
 def test_get_refcount_tree_2():
     t1 = get_refcount_tree(NameSpaceObject2)
 

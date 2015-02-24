@@ -22,6 +22,11 @@ Last Revision Date: $Date: 2007/12/10 18:25:20 $
 extern "C" {
 #endif
 
+#if PY_MAJOR_VERSION >= 3
+#define IF_PY3(three, two) (three)
+#else
+#define IF_PY3(three, two) (two)
+#endif
 
 static PyObject *NotFound;   /* locally-raised exception */
 static PyObject *TooManyPeriods;   /* locally-raised exception */
@@ -34,10 +39,11 @@ static PyObject* pprintMod_pformat; /* used for exception formatting */
 
 static void setNotFoundException(char *key)
 {
-    PyObject *exceptionStr = NULL;
-    exceptionStr = PyUnicode_FromFormat("cannot find \'%s\'", key);
-    PyErr_SetObject(NotFound, exceptionStr);
-    Py_XDECREF(exceptionStr);
+    PyObject* fmt = PyUnicode_FromString("cannot find '{0}'");
+    PyObject* fmted = PyObject_CallMethod(fmt, "format", IF_PY3("y", "s"), key);
+    PyErr_SetObject(NotFound, fmted);
+    Py_XDECREF(fmted);
+    Py_XDECREF(fmt);
 }
 
 static int wrapInternalNotFoundException(char *fullName)
@@ -58,8 +64,13 @@ static int wrapInternalNotFoundException(char *fullName)
 
         if (isAlreadyWrapped != NULL) {
             if (PyLong_AsLong(isAlreadyWrapped) == -1) {
-                newExcValue = PyUnicode_FromFormat("%U while searching for \'%s\'",
-                        excValue, fullName);
+                PyObject* fmt = PyUnicode_FromString(
+                    "{0} while searching for '{1}'"
+                );
+                newExcValue = PyObject_CallMethod(
+                    fmt, "format", IF_PY3("Oy", "Os"), excValue, fullName
+                );
+                Py_XDECREF(fmt);
             }
             Py_DECREF(isAlreadyWrapped);
         }
