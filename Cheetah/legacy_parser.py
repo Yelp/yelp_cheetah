@@ -178,9 +178,6 @@ class ParseError(ValueError):
         self.msg = msg
 
     def __str__(self):
-        return self.report()
-
-    def report(self):
         stream = self.stream
         report = ''
         row, col, line = self.stream.getRowColLine()
@@ -871,19 +868,12 @@ class LegacyParser(_LowLevelParser):
     # non-directive eat methods
 
     def eatPlainText(self):
-        startPos = self.pos()
-        match = None
-        while not self.atEnd():
-            match = self.matchTopLevelToken()
-            if match:
-                break
-            else:
-                self.advance()
-        strConst = self.readTo(self.pos(), start=startPos)
-        strConst = _unescapeCheetahVars(strConst)
-        strConst = _unescapeDirectives(strConst)
-        self._compiler.addStrConst(strConst)
-        return match
+        start = self.pos()
+        while not self.atEnd() and not self.matchTopLevelToken():
+            self.advance()
+        text = self.readTo(self.pos(), start=start)
+        text = _unescapeDirectives(_unescapeCheetahVars(text))
+        self._compiler.addStrConst(text)
 
     def eatComment(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
@@ -1162,8 +1152,6 @@ class LegacyParser(_LowLevelParser):
                          '.')
 
         self._compiler.startMethodDef(methodName, argsList, parserComment)
-
-        return methodName
 
     def _eatSingleLineDef(self, methodName, argsList, startPos, endPos):
         fullSignature = self[startPos:endPos]
