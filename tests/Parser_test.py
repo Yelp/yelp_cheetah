@@ -563,3 +563,19 @@ def test_errors_on_invalid_setting():
             'not_a_real_setting = True\n'
             '#end compiler-settings\n'
         )
+
+
+def test_errors_on_blinged_kwarg():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'kwargs should not start with $\n'
+        'Line 1, column 6\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |$foo($bar=$baz)\n'
+        '          ^\n'
+    ):
+        compile_to_class(
+            '$foo($bar=$baz)'
+        )
