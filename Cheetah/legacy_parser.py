@@ -552,12 +552,11 @@ class _LowLevelParser(SourceReader):
                 if not self.atEnd() and self.peek() == '=':
                     nextToken = self.getPyToken()
                     if nextToken == '=':
-                        endPos = self.pos()
+                        # when nextToken is `=` we know this is a kwarg and
+                        # not an inline expression, so we can crash
                         self.setPos(startPos)
-                        codeFor1stToken = self.getCheetahVar(plain=True)
-                        self.setPos(endPos)
+                        raise ParseError(self, 'kwargs should not start with $')
 
-                    # finally
                     addBit(codeFor1stToken + whitespace + nextToken)
                 else:
                     addBit(codeFor1stToken + whitespace)

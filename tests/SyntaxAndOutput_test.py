@@ -456,40 +456,10 @@ class Placeholders_Calls(OutputTest):
         self.verify("$aFunc(2\n*\n2.0)",
                     "4.0")
 
-    def test17(self):
-        """func placeholder - with ($arg=float)"""
-        self.verify("$aFunc($arg=4.0)",
-                    "4.0")
-
     def test18(self):
         """func placeholder - with (arg=float)"""
         self.verify("$aFunc(arg=4.0)",
                     "4.0")
-
-    def test19(self):
-        """deeply nested argstring, no enclosure"""
-        self.verify("$aFunc($arg=$aMeth($arg=$aFunc(1)))",
-                    "1")
-
-    def test20(self):
-        """deeply nested argstring, no enclosure + with WS"""
-        self.verify("$aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) )",
-                    "1")
-
-    def test21(self):
-        """deeply nested argstring, () enclosure + with WS"""
-        self.verify("$(aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) )",
-                    "1")
-
-    def test22(self):
-        """deeply nested argstring, {} enclosure + with WS"""
-        self.verify("${aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) }",
-                    "1")
-
-    def test23(self):
-        """deeply nested argstring, [] enclosure + with WS"""
-        self.verify("$[aFunc(  $arg = $aMeth( $arg = $aFunc( 1 ) ) ) ]",
-                    "1")
 
     def test26(self):
         """a function call with the Python None kw."""
