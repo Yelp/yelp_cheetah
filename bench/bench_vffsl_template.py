@@ -11,5 +11,5 @@ class MyTemplate(Cheetah.Template.Template):
         [VFFSL(SL, 'foo') for _ in range(ITERATIONS)]
 
 
-inst = MyTemplate(searchList=[{'foo': 'wat'}])
+inst = MyTemplate({'foo': 'wat'})
 run = inst.bench

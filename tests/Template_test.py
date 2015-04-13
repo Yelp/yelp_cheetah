@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-import six
+import pytest
 
 from Cheetah.compile import compile_to_class
 from Cheetah.Template import Template
@@ -9,24 +9,18 @@ from Cheetah.Template import Template
 def test_raises_using_reserved_variable():
     cls = compile_to_class('foo')
 
-    template_var_name = 'getVar'
+    assert hasattr(Template, 'getVar')
 
-    assert hasattr(Template, template_var_name)
-
-    try:
+    with pytest.raises(AssertionError) as excinfo:
         # Should raise, getVar is a member of Template
-        cls(searchList=[{template_var_name: 'lol'}])
-    except AssertionError as e:
-        assert template_var_name in six.text_type(e)
-        return
+        cls({'getVar': 'lol'})
 
-    raise AssertionError('Should have raised `AssertionError`')
-
-
-def test_instantiate_with_tuple():
-    cls = compile_to_class('$foo $bar')
-    ret = cls(searchList=({'foo': 'foo_val', 'bar': 'bar_val'},)).respond()
-    assert ret == 'foo_val bar_val'
+    assert excinfo.value.args == (
+        "The following keys are members of the Template class and will result "
+        "in NameMapper collisions!\n"
+        "  > getVar \n"
+        "Please change the key's name.",
+    )
 
 
 def test_TryExceptImportTestFailCase():
@@ -59,3 +53,11 @@ def test_SubclassSearchListTest():
         """
     )
     assert tmpl_cls().respond().strip() == 'When we meet, I say "Hola"'
+
+
+def test_wrong_type_namespace():
+    with pytest.raises(TypeError) as excinfo:
+        compile_to_class('')(str('bar'))
+    assert excinfo.value.args == (
+        "`namespace` must be `Mapping` but got 'bar'",
+    )

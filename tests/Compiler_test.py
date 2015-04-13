@@ -53,7 +53,7 @@ def test_optimized_attributes_of_builtins():
 
 def test_optimized_attributes_of_builtins_function_args():
     cls = compile_to_class('$float.fromhex($bar)')
-    assert cls([{'bar': '0x5'}]).respond().strip() == '5.0'
+    assert cls({'bar': '0x5'}).respond().strip() == '5.0'
 
 
 def test_non_optimized_searchlist():
@@ -187,7 +187,7 @@ def test_optimization_removes_VFN():
     assert 'VFN(' not in src
     assert ' _v = VFFSL(SL, "foo").barvar[0].upper() #' in src
     cls = compile_to_class(VFN_opt_src)
-    assert cls([{'foo': fooobj}]).respond() == 'W'
+    assert cls({'foo': fooobj}).respond() == 'W'
 
 
 def test_optimization_oneline_class():
