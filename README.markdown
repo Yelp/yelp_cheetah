@@ -19,6 +19,10 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.9.0
+- Tests pass under pypy (still slow)
+- "Blinged" kwargs no longer supported: `$foo($bar='baz') => $foo(bar='baz')`
+
 ## 0.8.0
 - `#filter` directive is gone.  Use `self.set_filter(filter_fn)`
 - `Template`'s signature is now `Template(search_list, filter_fn)`
