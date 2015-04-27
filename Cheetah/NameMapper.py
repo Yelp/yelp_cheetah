@@ -120,7 +120,19 @@ Implementation details
 Cheetah uses the optimized C version (_namemapper.c) invariantly
 """
 # pylint:disable=unused-import,no-name-in-module
+import contextlib
+
 from Cheetah._namemapper import NotFound  # noqa (intentionally unused)
+from Cheetah._namemapper import set_complain_func
 from Cheetah._namemapper import valueForName  # noqa (intentionally unused)
 from Cheetah._namemapper import valueFromFrameOrSearchList  # noqa (intentionally unused)
 from Cheetah._namemapper import valueFromSearchList  # noqa (intentionally unused)
+
+
+@contextlib.contextmanager
+def autocall_autokey_complain(complain_func):
+    set_complain_func(complain_func)
+    try:
+        yield
+    finally:
+        set_complain_func(None)
