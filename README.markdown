@@ -19,6 +19,9 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.10.0
+- Added instrumentation to migrate away from autocall / autokey
+
 ## 0.9.0
 - Tests pass under pypy (still slow)
 - "Blinged" kwargs no longer supported: `$foo($bar='baz') => $foo(bar='baz')`
