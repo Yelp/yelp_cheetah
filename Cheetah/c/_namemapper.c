@@ -37,6 +37,9 @@ static PyObject* pprintMod_pformat; /* used for exception formatting */
 /* First the c versions of the functions */
 /* *************************************************************************** */
 
+static PyObject* complain_func = NULL;
+
+
 static void setNotFoundException(char *key)
 {
     PyObject* fmt = PyUnicode_FromString("cannot find '{0}'");
@@ -44,6 +47,21 @@ static void setNotFoundException(char *key)
     PyErr_SetObject(NotFound, fmted);
     Py_XDECREF(fmted);
     Py_XDECREF(fmt);
+}
+
+static int call_complain(const char* type, const char* key) {
+    /* returns 0 on exception, otherwise 1 */
+
+    /* No callback registered */
+    if (!complain_func || complain_func == Py_None) {
+        return 1;
+    }
+
+    PyObject* result = PyObject_CallFunction(
+        complain_func, IF_PY3("yy", "ss"), type, key
+    );
+    Py_XDECREF(result);
+    return !!result;
 }
 
 static int wrapInternalNotFoundException(char *fullName)
@@ -160,7 +178,7 @@ static int PyNamemapper_hasKey(PyObject *obj, char *key)
 }
 
 
-static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], int numChunks, int executeCallables, int useDottedNotation)
+static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], int numChunks, int executeCallables, int useDottedNotation, int isFirst)
 {
     int i;
     char *currentKey;
@@ -178,6 +196,15 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
         }
 
         if (useDottedNotation && PyMapping_Check(currentVal) && PyMapping_HasKeyString(currentVal, currentKey)) {
+            /* Evil autokey detected! Complain! */
+            if (!isFirst && !PyObject_HasAttrString(currentVal, currentKey)) {
+                if (!call_complain("Autokey", currentKey)) {
+                    if (i > 0) {
+                        Py_DECREF(currentVal);
+                    }
+                    return NULL;
+                }
+            }
             nextVal = PyMapping_GetItemString(currentVal, currentKey);
         }
 
@@ -213,6 +240,11 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
 
         if (executeCallables && PyCallable_Check(nextVal) &&
                 (isInstanceOrClass(nextVal) == 0) ) {
+            /* Evil autocall detected! Complain! */
+            if (!call_complain("Autocall", currentKey)) {
+                Py_DECREF(nextVal);
+                return NULL;
+            }
             if (!(currentVal = PyObject_CallObject(nextVal, NULL))) {
                 Py_DECREF(nextVal);
                 return NULL;
@@ -230,6 +262,19 @@ static PyObject *PyNamemapper_valueForName(PyObject *obj, char *nameChunks[], in
 /* *************************************************************************** */
 /* Now the wrapper functions to export into the Python module */
 /* *************************************************************************** */
+
+static PyObject* namemapper_set_complain_func(PYARGS) {
+    PyObject* callback;
+
+    if (!PyArg_ParseTuple(args, "O", &callback)) {
+        return NULL;
+    }
+    Py_XINCREF(callback);
+    Py_XDECREF(complain_func);
+    complain_func = callback;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
 
 
 static PyObject *namemapper_valueForName(PYARGS)
@@ -255,7 +300,8 @@ static PyObject *namemapper_valueForName(PYARGS)
 
     createNameCopyAndChunks();
 
-    theValue = PyNamemapper_valueForName(obj, nameChunks, numChunks, executeCallables, useDottedNotation);
+    /* passing 0 for isFirst, VFN is only called like VFN(VFFSL(...), ...) */
+    theValue = PyNamemapper_valueForName(obj, nameChunks, numChunks, executeCallables, useDottedNotation, 0);
     free(nameCopy);
     if (wrapInternalNotFoundException(name)) {
         theValue = NULL;
@@ -388,10 +434,11 @@ done:
 /* Method registration table: name-string -> function-pointer */
 
 static struct PyMethodDef namemapper_methods[] = {
+  {"set_complain_func", (PyCFunction)namemapper_set_complain_func, METH_VARARGS|METH_KEYWORDS},
   {"valueForName", (PyCFunction)namemapper_valueForName,  METH_VARARGS|METH_KEYWORDS},
   {"valueFromSearchList", (PyCFunction)namemapper_valueFromSearchList,  METH_VARARGS|METH_KEYWORDS},
   {"valueFromFrameOrSearchList", (PyCFunction)namemapper_valueFromFrameOrSearchList,  METH_VARARGS|METH_KEYWORDS},
-  {NULL,         NULL}
+  {NULL, NULL}
 };
 
 

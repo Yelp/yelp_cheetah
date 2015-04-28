@@ -93,6 +93,7 @@ class Template(object):
 
     def varExists(self, varName, autoCall=False, useDottedNotation=True):
         """Test if a variable name exists in the searchList."""
+        assert '$' not in varName, varName
         try:
             valueFromSearchList(
                 self._CHEETAH__searchList, varName, autoCall, useDottedNotation,
