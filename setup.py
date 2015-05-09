@@ -28,7 +28,7 @@ setup(
     ],
     author="Anthony Sottile, Buck Evan",
     author_email="buck@yelp.com",
-    url="http://github.com/bukzor/yelp_cheetah",
+    url="http://github.com/Yelp/yelp_cheetah",
     license='MIT License',
     packages=find_packages(exclude=('tests*', 'testing*')),
     ext_modules=[
