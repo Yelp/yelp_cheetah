@@ -5,6 +5,7 @@ import unittest
 
 import pyquery
 
+from Cheetah.DummyTransaction import DummyTransaction
 from Cheetah.Template import Template
 
 
@@ -45,9 +46,11 @@ class PartialTemplateTestCase(unittest.TestCase):
         return method(template, *partial_args, **partial_kwargs)
 
     def test_partial_template(self):
+        # Local import to avoid circular dependency
+        from Cheetah.testing.all_partials_tested import is_partial_test_cls
         # XXX: apparently pytest likes to discover and run this case when
         # imported
-        if type(self) is PartialTemplateTestCase:
+        if not is_partial_test_cls(type(self)):
             return
         if self.partial is None:
             raise AssertionError(b'Partial name not set on instance')
@@ -75,3 +78,17 @@ class PartialTemplateTestCase(unittest.TestCase):
             partial_args,
             partial_kwargs,
         )
+
+
+class ContextManagerPartialTemplateTestCase(PartialTemplateTestCase):
+    context_contents = '<div id="context-contents"></div>'
+
+    def call_partial_template(
+            self, template, method, partial_args, partial_kwargs,
+    ):
+        # Simulated rendering
+        assert template.transaction is None
+        template.transaction = DummyTransaction()
+        with method(template, *partial_args, **partial_kwargs):
+            template.transaction.write(self.context_contents)
+        return template.transaction.getvalue()
