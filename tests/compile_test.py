@@ -174,27 +174,19 @@ def test_compile_source_with_encoding_returns_text():
 def test_compile_source_follows_settings():
     tmpl = textwrap.dedent(
         '''
-        #def baz()
-            #set foo = {'a': 1234}
-            $foo.a
-        #end def
-
-        $baz()
+        #try
+            #import foo
+        #except ImportError
+            importerror
+        #end try
         '''
     )
 
-    ret = compile_to_class(
-        tmpl,
-        settings={'useDottedNotation': True},
-    )
-    assert '\n\n    1234\n\n' == ret(searchList=[]).respond()
+    ret = compile_to_class(tmpl, settings={'useLegacyImportMode': False})
+    assert '\n    importerror\n' == ret().respond()
 
-    ret = compile_to_class(
-        tmpl,
-        settings={'useDottedNotation': False},
-    )
-    with pytest.raises(AttributeError):
-        ret(searchList=[]).respond()
+    with pytest.raises(SyntaxError):
+        compile_to_class(tmpl, settings={'useLegacyImportMode': True})
 
 
 def test_compile_file_filename_requires_text():
@@ -318,7 +310,7 @@ def test_compile_is_deterministic():
     # This crazy template uses all of the currently supported directives
     MEGA_TEMPLATE = """
 #compiler-settings
-useDottedNotation = True
+useNameMapper = False
 #end compiler-settings
 #extends testing.templates.extends_test_template
 #implements respond
@@ -375,7 +367,7 @@ useDottedNotation = True
 #end def
 
 
-#call $foo_call_func
+#call self.foo_call_func
 Hello world
 #end call
 
@@ -388,8 +380,8 @@ $foo
 #assert True
 
 
-$returning_function()
-$spacer()
+$self.returning_function()
+$self.spacer()
 
 #if 15
    15!
@@ -411,14 +403,14 @@ $arr
     #end while
 #end block
 
-#for i in $gen()
+#for i in self.gen()
     #if $i == 2
         #continue
     #end if
     $i#slurp
 #end for
 
-#with $ctx()
+#with self.ctx()
     inside ctx
 #end with
     """

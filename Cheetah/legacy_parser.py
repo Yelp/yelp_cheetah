@@ -275,12 +275,6 @@ class _LowLevelParser(SourceReader):
     def setSettingsManager(self, settingsManager):
         self._settingsManager = settingsManager
 
-    def setting(self, key):
-        return self._settingsManager.setting(key)
-
-    def setSetting(self, key, val):
-        self._settingsManager.setSetting(key, val)
-
     def matchTopLevelToken(self):
         """Returns the first match found from the following methods:
             self.matchCommentStartToken
@@ -452,14 +446,10 @@ class _LowLevelParser(SourceReader):
 
     def getCheetahVarNameChunks(self):
         """nameChunks = list of Cheetah $var subcomponents represented as tuples
-          [(namemapperPart, autoCall, restOfName), ...]
+          [(namemapperPart, restOfName), ...]
         where:
           namemapperPart = the dottedName base
-          autocall = where NameMapper should use autocalling on namemapperPart
           restOfName = any arglist, index, or slice
-
-        If restOfName contains a call arglist (e.g. '(1234)') then autocall is
-        False, otherwise it defaults to True.
 
         EXAMPLE
         ------------------------------------------------------------------------
@@ -469,16 +459,16 @@ class _LowLevelParser(SourceReader):
 
         nameChunks is the list
             [
-                ('a.b.c', True, '[1]'),
-                ('d', False, '()'),
-                ('x.y.z', True, ''),
+                ('a.b.c', '[1]'),
+                ('d', '()'),
+                ('x.y.z', ''),
             ]
 
         """
+        # TODO: this can just partition the first bit and the last bit
         chunks = []
         while self.pos() < len(self):
             rest = ''
-            autoCall = True
             if not self.peek() in identchars + '.':
                 break
             elif self.peek() == '.':
@@ -497,11 +487,9 @@ class _LowLevelParser(SourceReader):
 
                 period = max(dottedName.rfind('.'), 0)
                 if period:
-                    chunks.append((dottedName[:period], autoCall, ''))
+                    chunks.append((dottedName[:period], ''))
                     dottedName = dottedName[period + 1:]
-                if rest and rest[0] == '(':
-                    autoCall = False
-            chunks.append((dottedName, autoCall, rest))
+            chunks.append((dottedName, rest))
 
         return chunks
 
@@ -752,7 +740,7 @@ class _LowLevelParser(SourceReader):
         """
         expr_pos = self.pos()
         expr = self.getExpression(**kwargs)
-        if 'VFN(' in expr or 'VFFSL(' in expr:
+        if 'VFFSL(' in expr:
             self.setPos(expr_pos)
             raise ParseError(self, failure_msg)
         return expr
@@ -1225,14 +1213,11 @@ class LegacyParser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len('call'))
 
-        useAutocallingOrig = self.setting('useAutocalling')
-        self.setSetting('useAutocalling', False)
         self.getWhiteSpace()
         if self.matchCheetahVarStart():
             functionName = self.getCheetahVar()
         else:
             functionName = self.getCheetahVar(plain=True, skipStartToken=True)
-        self.setSetting('useAutocalling', useAutocallingOrig)
 
         self.getWhiteSpace()
         args = self.getExpression(pyTokensToBreakAt=[':']).strip()

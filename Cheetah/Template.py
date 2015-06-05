@@ -75,29 +75,25 @@ class Template(object):
 
         self.transaction = None
 
-    def getVar(self, varName, default=UNSPECIFIED, autoCall=True, useDottedNotation=True):
+    def getVar(self, varName, default=UNSPECIFIED):
         """Get a variable from the searchList.  If the variable can't be found
         in the searchList, it returns the default value if one was given, or
         raises NameMapper.NotFound.
         """
         assert '$' not in varName, varName
         try:
-            return valueFromSearchList(
-                self._CHEETAH__searchList, varName, autoCall, useDottedNotation,
-            )
+            return valueFromSearchList(self._CHEETAH__searchList, varName)
         except NotFound:
             if default is not UNSPECIFIED:
                 return default
             else:
                 raise
 
-    def varExists(self, varName, autoCall=False, useDottedNotation=True):
+    def varExists(self, varName):
         """Test if a variable name exists in the searchList."""
         assert '$' not in varName, varName
         try:
-            valueFromSearchList(
-                self._CHEETAH__searchList, varName, autoCall, useDottedNotation,
-            )
+            valueFromSearchList(self._CHEETAH__searchList, varName)
             return True
         except NotFound:
             return False
