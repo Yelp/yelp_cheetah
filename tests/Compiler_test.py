@@ -70,34 +70,6 @@ def test_optimization_still_prefers_locals():
     assert cls().foo(5).strip() == '5'
 
 
-def test_no_optimization_with_autocall():
-    cls = compile_to_class(
-        '#compiler-settings\n'
-        'useAutocalling = True\n'
-        '#end compiler-settings\n'
-        '#def foo(int)\n'
-        '$int\n'
-        '#end def\n'
-    )
-    # With optimizations this outputs:
-    # &lt;function &lt;lambda&gt; at 0x7f7a640f60c8&gt;
-    assert cls().foo(lambda: 5).strip() == '5'
-
-
-def test_no_optimization_with_autokey():
-    cls = compile_to_class(
-        '#compiler-settings \n'
-        'useDottedNotation = True\n'
-        '#end compiler-settings\n'
-        '#def foo(int)\n'
-        '$int.bar\n'
-        '#end def\n'
-    )
-    # With optimizations this errors:
-    # AttributeError: 'dict' object has no attribute 'bar'
-    assert cls().foo({'bar': 5}).strip() == '5'
-
-
 def test_optimization_globals():
     src = compile_source(
         '#import os\n'
@@ -215,21 +187,6 @@ def test_optimization_removes_VFN():
     assert 'VFN(' not in src
     assert ' _v = VFFSL(SL, "foo").barvar[0].upper() #' in src
     cls = compile_to_class(VFN_opt_src)
-    assert cls([{'foo': fooobj}]).respond() == 'W'
-
-
-def test_no_optimization_still_has_VFN():
-    src = compile_source(VFN_opt_src, settings={'useDottedNotation': True})
-    assert (
-        ' _v = VFN('
-        'VFN('
-        'VFFSL(SL, "foo", False, True), "barvar", False, True'
-        ')[0], "upper", False, True'
-        ')() #'
-    ) in src
-    assert 'VFN(' in src
-
-    cls = compile_to_class(VFN_opt_src, settings={'useDottedNotation': True})
     assert cls([{'foo': fooobj}]).respond() == 'W'
 
 

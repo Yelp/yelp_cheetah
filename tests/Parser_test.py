@@ -304,15 +304,15 @@ def test_non_ending_compiler_settings():
         ParseError,
         '\n\n'
         'Some #directives are missing their corresponding #end ___ tag: compiler-settings\n'
-        'Line 2, column 24\n'
+        'Line 2, column 26\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#compiler-settings\n'
-        '2   |useDottedNotation = True\n'
-        '                            ^\n'
+        '2   |useLegacyImportMode = True\n'
+        '                              ^\n'
     ):
-        compile_to_class('#compiler-settings\nuseDottedNotation = True')
+        compile_to_class('#compiler-settings\nuseLegacyImportMode = True')
 
 
 def test_weird_close_call():

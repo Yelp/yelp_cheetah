@@ -38,11 +38,7 @@ BUILTIN_NAMES = frozenset(dir(six.moves.builtins))
 # Settings format: (key, default, docstring)
 _DEFAULT_COMPILER_SETTINGS = [
     ('useNameMapper', True, 'Enable NameMapper for dotted notation and searchList support'),
-    ('useAutocalling', False, 'Detect and call callable objects in searchList, requires useNameMapper=True'),
-    ('useDottedNotation', False, 'Allow use of dotted notation for dictionary lookups, requires useNameMapper=True'),
     ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
-    ('mainMethodName', 'respond', ''),
-    ('mainMethodNameForSubclasses', 'writeBody', ''),
     ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
 ]
 
@@ -54,13 +50,15 @@ BASE_CLASS_NAME = 'YelpCheetahBaseClass'
 
 def genPlainVar(nameChunks):
     """Generate Python code for a Cheetah $var without using NameMapper."""
-    nameChunks.reverse()
-    chunk = nameChunks.pop()
-    pythonCode = chunk[0] + chunk[2]
-    while nameChunks:
-        chunk = nameChunks.pop()
-        pythonCode = pythonCode + '.' + chunk[0] + chunk[2]
-    return pythonCode
+    return '.'.join(name + rest for name, rest in nameChunks)
+
+
+def genNameMapperVar(nameChunks):
+    name, remainder = nameChunks[0]
+    namept1, dot, rest = name.partition('.')
+    start = 'VFFSL(SL, "{0}"){1}{2}{3}'.format(namept1, dot, rest, remainder)
+    tail = genPlainVar(nameChunks[1:])
+    return start + ('.' if tail else '') + tail
 
 
 def _arg_chunk_to_text(chunk):
@@ -509,13 +507,10 @@ class LegacyCompiler(SettingsManager):
         )
         self._importStatements = [
             'from Cheetah.DummyTransaction import DummyTransaction',
-            'from Cheetah.NameMapper import valueForName as VFN',
             'from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
-        self._global_vars = set((
-            'DummyTransaction', 'NO_CONTENT', 'VFN', 'VFFSL',
-        ))
+        self._global_vars = set(('DummyTransaction', 'NO_CONTENT', 'VFFSL'))
 
         self._gettext_scannables = []
 
@@ -529,9 +524,7 @@ class LegacyCompiler(SettingsManager):
         self._settings = copy.deepcopy(DEFAULT_COMPILER_SETTINGS)
 
     def _spawnClassCompiler(self):
-        return self.classCompilerClass(
-            main_method_name=self.setting('mainMethodName'),
-        )
+        return self.classCompilerClass(main_method_name='respond')
 
     @contextlib.contextmanager
     def _set_class_compiler(self, class_compiler):
@@ -555,19 +548,12 @@ class LegacyCompiler(SettingsManager):
 
     def genCheetahVar(self, nameChunks, lineCol, plain=False):
         first_accessed_var = nameChunks[0][0].partition('.')[0]
-        optimize_enabled = (
-            not self.setting('useAutocalling') and
-            not self.setting('useDottedNotation')
-        )
         plain = (
             not self.setting('useNameMapper') or
-            plain or (
-                optimize_enabled and (
-                    first_accessed_var in self._local_vars or
-                    first_accessed_var in self._global_vars or
-                    first_accessed_var in BUILTIN_NAMES
-                )
-            )
+            plain or
+            first_accessed_var in self._local_vars or
+            first_accessed_var in self._global_vars or
+            first_accessed_var in BUILTIN_NAMES
         )
 
         # Look for gettext tokens within nameChunks (if any)
@@ -577,9 +563,7 @@ class LegacyCompiler(SettingsManager):
         if plain:
             return genPlainVar(nameChunks)
         else:
-            return self.genNameMapperVar(
-                nameChunks, optimize_enabled=optimize_enabled,
-            )
+            return genNameMapperVar(nameChunks)
 
     def addGetTextVar(self, nameChunks, lineCol):
         """Output something that gettext can recognize.
@@ -591,92 +575,8 @@ class LegacyCompiler(SettingsManager):
         scannable += ' # generated from line {0}, col {1}.'.format(*lineCol)
         self._gettext_scannables.append(scannable)
 
-    def genNameMapperVar(self, nameChunks, optimize_enabled):
-        """Generate valid Python code for a Cheetah $var, using NameMapper
-        (Unified Dotted Notation with the SearchList).
-
-        nameChunks = list of var subcomponents represented as tuples
-          [(name, useAC, remainderOfExpr)...]
-        where:
-          name = the dotted name base
-          useAC = where NameMapper should use autocalling on namemapperPart
-          remainderOfExpr = any arglist, index, or slice
-
-        If remainderOfExpr contains a call arglist (e.g. '(1234)') then useAC
-        is False, otherwise it defaults to True. It is overridden by the global
-        setting 'useAutocalling' if this setting is False.
-
-        EXAMPLE
-        ------------------------------------------------------------------------
-        if the raw Cheetah Var is
-          $a.b.c[1].d().x.y.z
-
-        nameChunks is the list
-          [ ('a.b.c',True,'[1]'), # A
-            ('d',False,'()'),     # B
-            ('x.y.z',True,''),    # C
-          ]
-
-        When this method is fed the list above it returns
-          VFN(VFN(VFFSL(SL, 'a.b.c',True)[1], 'd',False)(), 'x.y.z',True)
-        which can be represented as
-          VFN(B`, name=C[0], executeCallables=(useAC and C[1]))C[2]
-        where:
-          VFN = NameMapper.valueForName
-          VFFSL = NameMapper.valueFromFrameOrSearchList
-          SL = self._CHEETAH__searchList
-          useAC = self.setting('useAutocalling') # True in this example
-
-          A = ('a.b.c',True,'[1]')
-          B = ('d',False,'()')
-          C = ('x.y.z',True,'')
-
-          C` = VFN( VFN( VFFSL(SL, 'a.b.c',True)[1],
-                         'd',False)(),
-                    'x.y.z',True)
-             = VFN(B`, name='x.y.z', executeCallables=True)
-
-          B` = VFN(A`, name=B[0], executeCallables=(useAC and B[1]))B[2]
-          A` = VFFSL(SL, name=A[0], executeCallables=(useAC and A[1]))A[2]
-        """
-        defaultUseAC = self.setting('useAutocalling')
-        useDottedNotation = self.setting('useDottedNotation')
-
-        nameChunks.reverse()
-        name, useAC, remainder = nameChunks.pop()
-
-        if optimize_enabled:
-            namept1, dot, rest = name.partition('.')
-            pythonCode = 'VFFSL(SL, "{0}"){1}{2}{3}'.format(
-                namept1, dot, rest, remainder,
-            )
-        else:
-            pythonCode = 'VFFSL(SL, "%s", %s, %s)%s' % (
-                name,
-                defaultUseAC and useAC,
-                useDottedNotation,
-                remainder,
-            )
-
-        while nameChunks:
-            name, useAC, remainder = nameChunks.pop()
-            useAC = defaultUseAC and useAC
-
-            if optimize_enabled:
-                pythonCode = '{0}.{1}{2}'.format(pythonCode, name, remainder)
-            else:
-                pythonCode = 'VFN(%s, "%s", %s, %s)%s' % (
-                    pythonCode,
-                    name,
-                    useAC,
-                    useDottedNotation,
-                    remainder,
-                )
-
-        return pythonCode
-
     def set_extends(self, extends_name):
-        self.setMainMethodName(self.setting('mainMethodNameForSubclasses'))
+        self.setMainMethodName('writeBody')
 
         if extends_name in self._global_vars:
             raise AssertionError(

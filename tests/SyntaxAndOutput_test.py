@@ -563,32 +563,23 @@ class NameMapper(OutputTest):
                     "110%")
 
     def test22a(self):
-        """nested dictionary access - NameMapper style, with dotted notation
-        disabled"""
         with pytest.raises(AttributeError):
-            self.verify("#compiler-settings\n"
-                        "useDottedNotation = False\n"
-                        "#end compiler-settings\n"
-                        "$aDict.nestedDict.two",
-                        "nestedItem2")
+            self.verify('$aDict.nestedDict.two', '')
 
     def test22b(self):
-        """nested dictionary access - NameMapper style, with dotted notation
-        disabled"""
-        self.verify("#compiler-settings\n"
-                    "useDottedNotation = False\n"
-                    "#end compiler-settings\n"
-                    "$aDict['nestedDict']['two']",
-                    "nestedItem2")
+        self.verify("$aDict['nestedDict']['two']", "nestedItem2")
 
 
 def test_one_line_compiler_settings():
     cls = compile_to_class(
-        '#compiler-settings# useDottedNotation = True #end compiler-settings#foo\n'
-        '#set foo = {"bar": "baz"}\n'
-        '$foo.bar\n'
+        '#compiler-settings# useLegacyImportMode = False #end compiler-settings#foo\n'
+        '#try\n'
+        '#import foo\n'
+        '#except ImportError\n'
+        'importerror\n'
+        '#end try\n'
     )
-    assert cls().respond() == 'foo\nbaz\n'
+    assert cls().respond() == 'foo\nimporterror\n'
 
 
 class CallDirective(OutputTest):

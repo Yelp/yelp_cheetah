@@ -55,7 +55,7 @@ def test_refcounting(getter_func, namespace, style):
     refcounts_before = get_refcount_tree(namespace)
 
     # Run the function
-    result = getter_func(SL, 'ns1.ns2.ns3', True, False)
+    result = getter_func(SL, 'ns1.ns2.ns3')
 
     # Collect refcounts after
     refcounts_after = get_refcount_tree(namespace)
