@@ -37,7 +37,7 @@ class DummyClass(object):
 def dummyFunc(arg="Scooby"):
     return arg
 
-defaultTestNameSpace = {
+defaultTestNamespace = {
     'aStr': 'blarg',
     'anInt': 1,
     'aFloat': 1.5,
@@ -79,17 +79,9 @@ Template output mismatch:
     Actual Output =
 %(actual)s%(end)s'''
 
-    _searchList = [defaultTestNameSpace]
-
-    def _getCompilerSettings(self):
-        return {}
-
     def verify(self, input_str, expectedOutput):
-        templateClass = compile_to_class(
-            input_str, settings=self._getCompilerSettings(),
-        )
-        searchList = self._searchList
-        templateObj = templateClass(searchList=searchList)
+        templateClass = compile_to_class(input_str)
+        templateObj = templateClass(defaultTestNamespace)
 
         output = templateObj.respond()
         if output != expectedOutput:
@@ -346,7 +338,7 @@ class Placeholders_Vals(OutputTest):
 class UnicodeStrings(OutputTest):
     def test1(self):
         """unicode data in placeholder"""
-        self.verify(u"$unicodeData", defaultTestNameSpace['unicodeData'])
+        self.verify(u"$unicodeData", defaultTestNamespace['unicodeData'])
 
     def test2(self):
         """unicode data in body"""

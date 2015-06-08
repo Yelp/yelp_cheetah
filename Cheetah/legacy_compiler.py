@@ -630,7 +630,7 @@ class LegacyCompiler(SettingsManager):
             if __name__ == '__main__':
                 from os import environ
                 from sys import stdout
-                stdout.write({class_name}(searchList=[environ]).respond())
+                stdout.write({class_name}(namespace=environ).respond())
             """
         ).strip().format(
             imports='\n'.join(self._importStatements),

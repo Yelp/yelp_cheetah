@@ -32,7 +32,7 @@ def test_getattr_raises_exception():
     '''
 
     template = compile_to_class(template)
-    template = template(searchList=[{'obj': CustomGetAttrClass()}])
+    template = template({'obj': CustomGetAttrClass()})
 
     with pytest.raises(GetAttrException):
         template.raiseme()
@@ -57,7 +57,7 @@ def test_FromFooImportThing():
         template,
         settings={'useLegacyImportMode': False},
     )
-    template = template(searchList=[{}])
+    template = template()
 
     rc = template.myfunction()
     assert rc == 17, (template, 'Didn\'t get a proper return value')
@@ -77,7 +77,7 @@ def test_ImportFailModule():
         template,
         settings={'useLegacyImportMode': False},
     )
-    template = template(searchList=[{}])
+    template = template()
 
     assert template.respond()
 
@@ -119,5 +119,5 @@ def test_RequestInSearchList():
     # was None and came up earlier in VFSSL than the things in the search list.
     # Currently, request is available when being passed through the search list.
     template = compile_to_class("$request")
-    template = template(searchList=[{'request': 'foobar'}])
+    template = template({'request': 'foobar'})
     assert template.respond() == 'foobar'

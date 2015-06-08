@@ -7,5 +7,5 @@ class fooobj:
     bar = 'baz'
 
 
-tmpl = compile_to_class(DOTTED_SL_SRC)([{'foo': fooobj}])
+tmpl = compile_to_class(DOTTED_SL_SRC)({'foo': fooobj})
 run = tmpl.respond

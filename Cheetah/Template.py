@@ -4,6 +4,7 @@ See the docstring in the Template class and the Users' Guide for more informatio
 """
 from __future__ import unicode_literals
 
+import collections
 import contextlib
 
 from Cheetah import filters
@@ -34,7 +35,7 @@ class Template(object):
 
     def __init__(
             self,
-            searchList=None,
+            namespace=None,
             filter_fn=filters.markup_filter,
     ):
         """Instantiates an existing template.
@@ -44,32 +45,33 @@ class Template(object):
             is a function which takes a single argument (the contents of a
             template variable) and may perform some output filtering.
         """
-        if searchList:
-            for namespace in searchList:
-                if (
-                        isinstance(namespace, dict) and
-                        self.Reserved_SearchList & set(namespace)
-                ):
-                    raise AssertionError(
-                        'The following keys are members of the Template class '
-                        'and will result in NameMapper collisions!\n'
-                        '  > {0} \n'
-                        "Please change the key's name.".format(
-                            ', '.join(
-                                self.Reserved_SearchList &
-                                set(namespace)
-                            )
+        if namespace:
+            if (
+                    isinstance(namespace, dict) and
+                    self.Reserved_SearchList & set(namespace)
+            ):
+                raise AssertionError(
+                    'The following keys are members of the Template class '
+                    'and will result in NameMapper collisions!\n'
+                    '  > {0} \n'
+                    "Please change the key's name.".format(
+                        ', '.join(
+                            self.Reserved_SearchList &
+                            set(namespace)
                         )
                     )
+                )
 
-        if searchList is not None and not isinstance(searchList, (list, tuple)):
-            raise AssertionError(
-                'Expected searchList to be `None`, `list`, or `tuple` '
-                'but got {0}'.format(type(searchList))
+        if (
+                namespace is not None and
+                not isinstance(namespace, collections.Mapping)
+        ):
+            raise TypeError(
+                '`namespace` must be `Mapping` but got {0!r}'.format(namespace)
             )
 
         # create our own searchList
-        self._CHEETAH__searchList = [self] + list(searchList or [])
+        self._CHEETAH__searchList = [self, namespace or {}]
 
         self._CHEETAH__currentFilter = filter_fn
 

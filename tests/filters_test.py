@@ -20,10 +20,7 @@ def render_tmpl(template_source):
         return '<{0}>{1}</{2}>'.format(notlocal.count, val, notlocal.count)
 
     template_cls = compile_to_class(template_source)
-    template = template_cls(
-        [scope],
-        filter_fn=unique_filter,
-    )
+    template = template_cls(scope, filter_fn=unique_filter)
     return template.respond().strip()
 
 
