@@ -84,7 +84,6 @@ def get_partial_methods(template_packages):
 def is_partial_test_cls(cls):
     return (
         issubclass(cls, PartialTemplateTestCase) and
-        cls is not PartialTemplateTestCase and
         cls.partial is not None and
         cls.method is not None
     )

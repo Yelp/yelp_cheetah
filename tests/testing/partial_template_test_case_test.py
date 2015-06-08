@@ -1,8 +1,10 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import pyquery
 import pytest
 
+from Cheetah.testing.partial_template_test_case import ContextManagerPartialTemplateTestCase
 from Cheetah.testing.partial_template_test_case import PartialTemplateTestCase
 
 
@@ -58,3 +60,17 @@ def test_it_can_fail_assert_partial_arguments():
 
     with pytest.raises(FailureError):
         Failure(methodName='test_partial_template').test_partial_template()
+
+
+class ContextPartialTemplateTest(ContextManagerPartialTemplateTestCase):
+    partial = 'testing.templates.src.context_partial_template'
+    method = 'render'
+    context_contents = '<div id="inside">inside</div>'
+
+    def get_partial_arguments(self):
+        return ('before',), {'bar': 'after'}
+
+    def assert_partial_rendering(self, pq, partial_args, partial_kwargs):
+        ids = [pyquery.PyQuery(el).attr('id') for el in pq.children()]
+        assert ids == ['before', 'inside', 'after']
+        assert pq.text() == 'before inside after'

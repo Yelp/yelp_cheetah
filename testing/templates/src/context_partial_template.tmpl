@@ -1,0 +1,11 @@
+#extends Cheetah.partial_template
+
+#import contextlib
+
+
+#@contextlib.contextmanager
+#def render(foo, bar='baz'):
+    <div id="before">$foo</div>
+    #yield
+    <div id="after">$bar</div>
+#end def
