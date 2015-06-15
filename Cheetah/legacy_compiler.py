@@ -56,7 +56,7 @@ def genPlainVar(nameChunks):
 def genNameMapperVar(nameChunks):
     name, remainder = nameChunks[0]
     namept1, dot, rest = name.partition('.')
-    start = 'VFFSL(SL, "{0}"){1}{2}{3}'.format(namept1, dot, rest, remainder)
+    start = 'VFFSL("{0}", locals_, globals_, self, NS){1}{2}{3}'.format(namept1, dot, rest, remainder)
     tail = genPlainVar(nameChunks[1:])
     return start + ('.' if tail else '') + tail
 
@@ -339,7 +339,9 @@ class MethodCompiler(object):
         self.indent()
         self.addChunk('_dummyTrans = False')
         self.dedent()
-        self.addChunk('SL = self._CHEETAH__searchList')
+        self.addChunk('locals_ = locals()')
+        self.addChunk('globals_ = globals()')
+        self.addChunk('NS = self._CHEETAH__namespace')
         self.addChunk()
         self.addChunk('## START - generated method body')
         self.addChunk()
@@ -507,7 +509,7 @@ class LegacyCompiler(SettingsManager):
         )
         self._importStatements = [
             'from Cheetah.DummyTransaction import DummyTransaction',
-            'from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL',
+            'from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
         self._global_vars = set(('DummyTransaction', 'NO_CONTENT', 'VFFSL'))

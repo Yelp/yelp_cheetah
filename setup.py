@@ -1,4 +1,3 @@
-from setuptools import Extension
 from setuptools import find_packages
 from setuptools import setup
 
@@ -18,6 +17,7 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: Implementation :: CPython',
+        'Programming Language :: Python :: Implementation :: PyPy',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Internet :: WWW/HTTP :: Site Management',
@@ -31,10 +31,6 @@ setup(
     url="http://github.com/Yelp/yelp_cheetah",
     license='MIT License',
     packages=find_packages(exclude=('tests*', 'testing*')),
-    ext_modules=[
-        Extension("Cheetah._namemapper", ["Cheetah/c/_namemapper.c"]),
-    ],
-    platforms=['linux'],
     install_requires=[
         'argparse',
         'markupsafe',

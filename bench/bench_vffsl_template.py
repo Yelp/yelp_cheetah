@@ -1,14 +1,16 @@
 import Cheetah.Template
-from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL
+from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL
 
 from constants import ITERATIONS
 
 
 class MyTemplate(Cheetah.Template.Template):
     def bench(self):
-        SL = self._CHEETAH__searchList
-        assert VFFSL(SL, 'foo') == 'wat'
-        [VFFSL(SL, 'foo') for _ in range(ITERATIONS)]
+        locals_ = locals()
+        globals_ = globals()
+        NS = self._CHEETAH__namespace
+        assert VFFSL('foo', locals_, globals_, self, NS) == 'wat'
+        [VFFSL('foo', locals_, globals_, self, NS) for _ in range(ITERATIONS)]
 
 
 inst = MyTemplate({'foo': 'wat'})
