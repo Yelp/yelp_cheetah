@@ -1,3 +1,4 @@
+from setuptools import Extension
 from setuptools import find_packages
 from setuptools import setup
 
@@ -31,6 +32,7 @@ setup(
     url="http://github.com/Yelp/yelp_cheetah",
     license='MIT License',
     packages=find_packages(exclude=('tests*', 'testing*')),
+    ext_modules=[Extension("_cheetah", ["_cheetah.c"])],
     install_requires=[
         'argparse',
         'markupsafe',

@@ -5,66 +5,85 @@ import pytest
 
 from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
-from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL
-from Cheetah.NameMapper import value_from_search_list as VFSL
+from Cheetah.NameMapper import py_value_from_frame_or_search_list
+from Cheetah.NameMapper import py_value_from_search_list
+from Cheetah.NameMapper import value_from_frame_or_search_list
+from Cheetah.NameMapper import value_from_search_list
 
 
-def test_VFSL_failure_typeerror():
+vfsl_tests = pytest.mark.parametrize(
+    'vfsl', (py_value_from_search_list, value_from_search_list),
+)
+vffsl_tests = pytest.mark.parametrize(
+    'vffsl',
+    (py_value_from_frame_or_search_list, value_from_frame_or_search_list),
+)
+
+
+@vfsl_tests
+def test_VFSL_failure_typeerror(vfsl):
     class C(object):
         attr = object()
 
-    with pytest.raises(AttributeError):
-        VFSL('a', C, 'a')
+    with pytest.raises((AttributeError, NotFound)):
+        vfsl('a', C, 'a')
 
 
-def test_VFSL_failure():
+@vfsl_tests
+def test_VFSL_failure(vfsl):
     with pytest.raises(NotFound):
-        VFSL('a', object(), {})
+        vfsl('a', object(), {})
 
 
-def test_VFSL_dictionaries():
+@vfsl_tests
+def test_VFSL_dictionaries(vfsl):
     obj = {'a': object()}
-    assert VFSL('a', object(), obj) is obj['a']
+    assert vfsl('a', object(), obj) is obj['a']
 
 
-def test_VFSL_objects():
+@vfsl_tests
+def test_VFSL_objects(vfsl):
     class C(object):
         attr = object()
 
-    assert VFSL('attr', C, {}) is C.attr
+    assert vfsl('attr', C, {}) is C.attr
 
 
-def test_VFFSL_locals_first():
+@vffsl_tests
+def test_VFFSL_locals_first(vffsl):
     local_var = object()
     global_var = object()
     sl_var = object()
     # Intentionally mask builtin `int`
     locals().update({'int': local_var})
     with mock.patch.dict(globals(), {'int': global_var}):
-        assert VFFSL(
+        assert vffsl(
             'int', locals(), globals(), object(), {'int': sl_var},
         ) is local_var
 
 
-def test_VFFSL_globals_next():
+@vffsl_tests
+def test_VFFSL_globals_next(vffsl):
     global_var = object()
     sl_var = object()
     with mock.patch.dict(globals(), {'int': global_var}):
-        assert VFFSL(
+        assert vffsl(
             'int', locals(), globals(), object(), {'int': sl_var},
         ) is global_var
 
 
-def test_VFFSL_builtins_next():
+@vffsl_tests
+def test_VFFSL_builtins_next(vffsl):
     sl_var = object()
-    assert VFFSL(
+    assert vffsl(
         'int', locals(), globals(), object(), {'int': sl_var},
     ) is int
 
 
-def test_VFFSL_and_finally_searchlist():
+@vffsl_tests
+def test_VFFSL_and_finally_searchlist(vffsl):
     sl_var = object()
-    assert VFFSL(
+    assert vffsl(
         'bar', locals(), globals(), object(), {'bar': sl_var},
     ) is sl_var
 
