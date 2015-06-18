@@ -9,7 +9,7 @@ import contextlib
 
 from Cheetah import filters
 from Cheetah.NameMapper import NotFound
-from Cheetah.NameMapper import valueFromSearchList
+from Cheetah.NameMapper import value_from_search_list
 
 
 # pylint:disable=abstract-class-not-used
@@ -70,32 +70,30 @@ class Template(object):
                 '`namespace` must be `Mapping` but got {0!r}'.format(namespace)
             )
 
-        # create our own searchList
-        self._CHEETAH__searchList = [self, namespace or {}]
-
+        self._CHEETAH__namespace = namespace or {}
         self._CHEETAH__currentFilter = filter_fn
 
         self.transaction = None
 
-    def getVar(self, varName, default=UNSPECIFIED):
+    def getVar(self, key, default=UNSPECIFIED):
         """Get a variable from the searchList.  If the variable can't be found
         in the searchList, it returns the default value if one was given, or
         raises NameMapper.NotFound.
         """
-        assert '$' not in varName, varName
+        assert key.isalnum(), key
         try:
-            return valueFromSearchList(self._CHEETAH__searchList, varName)
+            return value_from_search_list(key, self, self._CHEETAH__namespace)
         except NotFound:
             if default is not UNSPECIFIED:
                 return default
             else:
                 raise
 
-    def varExists(self, varName):
+    def varExists(self, key):
         """Test if a variable name exists in the searchList."""
-        assert '$' not in varName, varName
+        assert key.isalnum(), key
         try:
-            valueFromSearchList(self._CHEETAH__searchList, varName)
+            value_from_search_list(key, self, self._CHEETAH__namespace)
             return True
         except NotFound:
             return False

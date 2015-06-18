@@ -88,7 +88,7 @@ def test_compile_translator_with_name_variable_arg_and_gettext_attribute_returns
     assert type(ret) is six.text_type
     expected = """\
 def __CHEETAH_gettext_scannables():
-    translator(VFFSL(SL, "interface_locale")).gettext('Hello, world!')\
+    translator(VFFSL("interface_locale", locals_, globals_, self, NS)).gettext('Hello, world!')\
 """
     assert expected in ret
 

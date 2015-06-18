@@ -1,11 +1,14 @@
-from Cheetah.NameMapper import valueFromFrameOrSearchList as VFFSL
+from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL
 
 from constants import ITERATIONS
 
 
-SL = [{'bar': 'wat'}]
+NS = {'bar': 'wat'}
 
 
 def run():
-    assert VFFSL(SL, 'bar') == 'wat'
-    [VFFSL(SL, 'bar') for _ in range(ITERATIONS)]
+    locals_ = locals()
+    globals_ = globals()
+    self = object()
+    assert VFFSL('bar', locals_, globals_, self, NS) == 'wat'
+    [VFFSL('bar', locals_, globals_, self, NS) for _ in range(ITERATIONS)]
