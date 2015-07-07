@@ -19,6 +19,21 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.12.0
+- Fix regression introduced in 0.11.0: `[$x for x in ...]`
+
+## 0.11.0
+- Remove instrumentation added in 0.10.0
+- Remove `useAutocalling` setting (always False)
+- Remove `useDottedNotation` setting (always False)
+- Remove `mainMethodName` setting (always respond)
+- Remove `mainMethodNameForSubclasses` setting (always writeBody)
+- Remove `valueForName` (now unused)
+- Implement ContextManagerPartialTemplateTestCase
+- Template now only takes a single argument `namespace` instead of searchList
+- Support pypy for real
+- Template.getVar / Template.varExists no longer support dots
+
 ## 0.10.0
 - Added instrumentation to migrate away from autocall / autokey
 
