@@ -56,7 +56,7 @@ def genPlainVar(nameChunks):
 def genNameMapperVar(nameChunks):
     name, remainder = nameChunks[0]
     namept1, dot, rest = name.partition('.')
-    start = 'VFFSL("{0}", locals_, globals_, self, NS){1}{2}{3}'.format(namept1, dot, rest, remainder)
+    start = 'VFFSL("{0}", locals(), globals(), self, NS){1}{2}{3}'.format(namept1, dot, rest, remainder)
     tail = genPlainVar(nameChunks[1:])
     return start + ('.' if tail else '') + tail
 
@@ -339,8 +339,6 @@ class MethodCompiler(object):
         self.indent()
         self.addChunk('_dummyTrans = False')
         self.dedent()
-        self.addChunk('locals_ = locals()')
-        self.addChunk('globals_ = globals()')
         self.addChunk('NS = self._CHEETAH__namespace')
         self.addChunk()
         self.addChunk('## START - generated method body')

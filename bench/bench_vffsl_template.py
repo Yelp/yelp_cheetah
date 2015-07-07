@@ -6,11 +6,9 @@ from constants import ITERATIONS
 
 class MyTemplate(Cheetah.Template.Template):
     def bench(self):
-        locals_ = locals()
-        globals_ = globals()
         NS = self._CHEETAH__namespace
-        assert VFFSL('foo', locals_, globals_, self, NS) == 'wat'
-        [VFFSL('foo', locals_, globals_, self, NS) for _ in range(ITERATIONS)]
+        assert VFFSL('foo', locals(), globals(), self, NS) == 'wat'
+        [VFFSL('foo', locals(), globals(), self, NS) for _ in range(ITERATIONS)]
 
 
 inst = MyTemplate({'foo': 'wat'})

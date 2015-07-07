@@ -185,7 +185,7 @@ class fooobj(object):
 def test_optimization_removes_VFN():
     src = compile_source(VFN_opt_src)
     assert 'VFN(' not in src
-    assert ' _v = VFFSL("foo", locals_, globals_, self, NS).barvar[0].upper() #' in src
+    assert ' _v = VFFSL("foo", locals(), globals(), self, NS).barvar[0].upper() #' in src
     cls = compile_to_class(VFN_opt_src)
     assert cls({'foo': fooobj}).respond() == 'W'
 
