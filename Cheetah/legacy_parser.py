@@ -270,11 +270,6 @@ class _LowLevelParser(SourceReader):
     state management.
     """
 
-    _settingsManager = None
-
-    def setSettingsManager(self, settingsManager):
-        self._settingsManager = settingsManager
-
     def matchTopLevelToken(self):
         """Returns the first match found from the following methods:
             self.matchCommentStartToken
@@ -798,9 +793,8 @@ class LegacyParser(_LowLevelParser):
     Cheetah.legacy_compiler.LegacyCompiler
     """
 
-    def __init__(self, src, compiler=None):
+    def __init__(self, src, compiler):
         super(LegacyParser, self).__init__(src)
-        self.setSettingsManager(compiler)
         self._compiler = compiler
         self._openDirectivesStack = []
 
