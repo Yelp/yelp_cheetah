@@ -7,8 +7,6 @@ NS = {'bar': 'wat'}
 
 
 def run():
-    locals_ = locals()
-    globals_ = globals()
     self = object()
-    assert VFFSL('bar', locals_, globals_, self, NS) == 'wat'
-    [VFFSL('bar', locals_, globals_, self, NS) for _ in range(ITERATIONS)]
+    assert VFFSL('bar', locals(), globals(), self, NS) == 'wat'
+    [VFFSL('bar', locals(), globals(), self, NS) for _ in range(ITERATIONS)]

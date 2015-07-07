@@ -1908,3 +1908,9 @@ def test_with_filter():
         '$var\n'
     )
     assert cls().respond() == '&lt;&gt;\n<>\n&lt;&gt;\n'
+
+
+def test_list_comp_with_cheetah_var():
+    # Regression test for v0.11.0
+    cls = compile_to_class('${[$x for x in (1, 2, 3)][0]}')
+    assert cls().respond() == '1'
