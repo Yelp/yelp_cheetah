@@ -30,9 +30,6 @@ class DummyClass(object):
     def methWithPercentSignDefaultArg(self, arg1="110%"):
         return str(arg1)
 
-    def callIt(self, arg=1234):
-        self.callArg = arg
-
 
 def dummyFunc(arg="Scooby"):
     return arg
@@ -462,8 +459,8 @@ class Placeholders_Calls(OutputTest):
 def test_placeholder_addition():
     # To restore coverage
     cls = compile_to_class(
-        '#set x = 1\n'
-        '#set y = 2\n'
+        '#py x = 1\n'
+        '#py y = 2\n'
         '${x + y}'
     )
     assert cls().respond() == '3'
@@ -631,7 +628,7 @@ $x$y#slurp
 #call self.meth
 3#slurp
 #end call 3
-#set two = 2
+#py two = 2
 #call self.meth2 y=int(10/two)
 4#slurp
 #end call 4
@@ -1088,109 +1085,9 @@ inner
             "foo\ntest foo\n-")
 
 
-class SilentDirective(OutputTest):
-    def test1(self):
-        """simple #silent"""
-        self.verify("#silent $aFunc()",
-                    "")
-
-    def test2(self):
-        """simple #silent"""
-        self.verify("#silent $anObj.callIt()\n$anObj.callArg",
-                    "1234")
-
-        self.verify("#silent $anObj.callIt() ##comment\n$anObj.callArg",
-                    "1234")
-
-    def test3(self):
-        """simple #silent"""
-        self.verify("#silent $anObj.callIt(99)\n$anObj.callArg",
-                    "99")
-
-    def test4(self):
-        """#silent 1234
-        """
-        self.verify("#silent 1234",
-                    "")
-
-
-class SetDirective(OutputTest):
-    def test1(self):
-        """simple #set"""
-        self.verify("#set testVar = 'blarg'\n$testVar",
-                    "blarg")
-
-        self.verify("#set testVar = 'blarg'##comment\n$testVar",
-                    "blarg")
-
-    def test2(self):
-        """simple #set with no WS between operands"""
-        self.verify("#set       testVar='blarg'",
-                    "")
-
-    def test5(self):
-        """#set with a dictionary"""
-        self.verify("""#set testDict = {'one':'one1','two':'two2','three':'three3'}
-$testDict['one']
-$testDict['two']""",
-                    "one1\ntwo2")
-
-    def test6(self):
-        """#set with string, then used in #if block"""
-
-        self.verify("""#set test='a string'\n#if $test#blarg#end if""",
-                    "blarg")
-
-    def test7(self):
-        """simple #set, gobble WS"""
-        self.verify("   #set testVar = 'blarg'   ",
-                    "")
-
-    def test8(self):
-        """simple #set, don't gobble WS"""
-        self.verify("  #set testVar = 'blarg'#---",
-                    "  ---")
-
-    def test9(self):
-        """simple #set with a list"""
-        self.verify("   #set testVar = [1, 2, 3]  \n$testVar",
-                    "[1, 2, 3]")
-
-    def test14(self):
-        """simple #set without NameMapper on"""
-        self.verify(
-            '#compiler-settings\n'
-            'useNameMapper = 0\n'
-            '#end compiler-settings\n'
-            '#set testVar = 1\n'
-            '$testVar',
-            '1'
-        )
-
-    def test15(self):
-        """simple #set without $"""
-        self.verify("""#set testVar = 1 \n$testVar""",
-                    "1")
-
-    def test18(self):
-        """#set with i,j=list style assignment"""
-        self.verify("""#set i,j = [1,2]\n$i$j""",
-                    "12")
-
-    def test19(self):
-        """#set with (i,j)=list style assignment"""
-        self.verify("""#set (i,j) = [1,2]\n$i$j""",
-                    "12")
-
-    def test20(self):
-        """#set with i, (j,k)=list style assignment"""
-        self.verify("""#set i, (j,k) = [1,(2,3)]\n$i$j$k""",
-                    "123")
-
-
 def test_del_directive():
     cls = compile_to_class(
-        "#set foo = {'a': '1', 'b': '2'}\n"
+        "#py foo = {'a': '1', 'b': '2'}\n"
         "#del foo['a']\n"
         '$len($foo.keys()) ${list(foo.keys())[0]}'
     )
@@ -1321,21 +1218,21 @@ class IfDirective(OutputTest):
 class WhileDirective(OutputTest):
     def test1(self):
         """simple #while with a counter"""
-        self.verify("#set i = 0\n#while $i < 5\n$i#slurp\n#set i += 1\n#end while",
+        self.verify("#py i = 0\n#while $i < 5\n$i#slurp\n#py i += 1\n#end while",
                     "01234")
 
 
 class ContinueDirective(OutputTest):
     def test1(self):
         """#continue with a #while"""
-        self.verify("""#set i = 0
+        self.verify("""#py i = 0
 #while $i < 5
 #if $i == 3
-  #set i += 1
+  #py i += 1
   #continue
 #end if
 $i#slurp
-#set i += 1
+#py i += 1
 #end while""",
                     "0124")
 
@@ -1353,13 +1250,13 @@ $i#slurp
 class BreakDirective(OutputTest):
     def test1(self):
         """#break with a #while"""
-        self.verify("""#set i = 0
+        self.verify("""#py i = 0
 #while $i < 5
 #if $i == 3
   #break
 #end if
 $i#slurp
-#set i += 1
+#py i += 1
 #end while""",
                     "012")
 
@@ -1454,19 +1351,19 @@ class AssertDirective(OutputTest):
     def test1(self):
         """simple #assert
         """
-        self.verify("#set x = 1234\n#assert $x == 1234",
+        self.verify("#py x = 1234\n#assert $x == 1234",
                     "")
 
     def test2(self):
         """simple #assert that fails
         """
         with pytest.raises(AssertionError):
-            self.verify('#set x = 1234\n#assert $x == 999', '')
+            self.verify('#py x = 1234\n#assert $x == 999', '')
 
     def test3(self):
         """simple #assert with WS
         """
-        self.verify("#set x = 1234\n   #assert $x == 1234   ",
+        self.verify("#py x = 1234\n   #assert $x == 1234   ",
                     "")
 
 
@@ -1615,10 +1512,10 @@ def test_super_directive():
 class ImportantExampleCases(OutputTest):
     def test1(self):
         """how to make a comma-delimited list"""
-        self.verify("""#set sep = ''
+        self.verify("""#py sep = ''
 #for letter in $letterList
 $sep$letter#slurp
-#set sep = ', '
+#py sep = ', '
 #end for
 """,
                     "a, b, c")
@@ -1658,18 +1555,18 @@ class GetVar(OutputTest):
 
 class MiscComplexSyntax(OutputTest):
     def test1(self):
-        """Complex use of {},[] and () in a #set expression
+        """Complex use of {},[] and () in a #py expression
         ----
-        #set c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]
+        #py c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]
         $c
         """
-        self.verify("#set c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]\n$c",
+        self.verify("#py c = {'A':0}[{}.get('a', {'a' : 'A'}['a'])]\n$c",
                     "0")
 
 
 def test_comment_directive_ambiguity():
     cls = compile_to_class(
-        '#set foo = 1##set bar = 2\n'
+        '#py foo = 1##py bar = 2\n'
         '$foo $bar\n'
     )
     assert cls().respond().strip() == '1 2'
@@ -1708,7 +1605,7 @@ def test_trivial_implements_template():
 
 
 def test_bytes():
-    cls = compile_to_class("#set foo = b'bar'\n$foo")
+    cls = compile_to_class("#py foo = b'bar'\n$foo")
     assert cls().respond() == 'bar'
 
 
@@ -1724,7 +1621,7 @@ def test_default_argument_multipart_expression():
 
 def test_default_argument_boolean_expression():
     cls = compile_to_class(
-        '#set herp = "derp"\n'
+        '#py herp = "derp"\n'
         '#def foo(bar)\n'
         '$bar\n'
         '#end def\n'
@@ -1745,7 +1642,7 @@ def test_default_is_dict():
 
 def test_line_continuation():
     cls = compile_to_class(
-        '#set foo = "bar baz " + \\\n'
+        '#py foo = "bar baz " + \\\n'
         '    "womp"\n'
         '$foo'
     )
@@ -1754,7 +1651,7 @@ def test_line_continuation():
 
 def test_identifier_ending_in_dot():
     cls = compile_to_class(
-        '#set foo = "bar"\n'
+        '#py foo = "bar"\n'
         '$foo.'
     )
     assert cls().respond() == 'bar.'
@@ -1860,7 +1757,7 @@ def test_with_statement_filter():
 
 
     #with self.sets_filter()
-        #set foo = 'bar'
+        #py foo = 'bar'
         $foo
     #end with
     ''')
@@ -1900,7 +1797,7 @@ def test_with_statement_call():
 def test_with_filter():
     cls = compile_to_class(
         '#from Cheetah.filters import unicode_filter\n'
-        '#set var = "<>"\n'
+        '#py var = "<>"\n'
         '$var\n'
         '#with self.set_filter(unicode_filter)\n'
         '$var\n'

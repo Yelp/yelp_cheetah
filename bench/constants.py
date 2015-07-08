@@ -7,7 +7,7 @@ LOCAL_SRC = (
     '#from constants import ITERATIONS\n'
     '#def foo(x)\n'
     '#for _ in range(ITERATIONS)\n'
-    '#silent $x\n'
+    '#py $x\n'
     '#end for\n'
     '#end def\n'
     '$self.foo(9001)\n'
@@ -15,20 +15,20 @@ LOCAL_SRC = (
 
 GLOBAL_SRC = (
     '#from constants import ITERATIONS\n'
-    '#silent [$ITERATIONS for _ in range(ITERATIONS)]\n'
+    '#py [$ITERATIONS for _ in range(ITERATIONS)]\n'
 )
 
 BUILTIN_SRC = (
     '#from constants import ITERATIONS\n'
-    '#silent [$int for _ in range(ITERATIONS)]\n'
+    '#py [$int for _ in range(ITERATIONS)]\n'
 )
 
 SL_SRC = (
     '#from constants import ITERATIONS\n'
-    '#silent [$foo for _ in range(ITERATIONS)]\n'
+    '#py [$foo for _ in range(ITERATIONS)]\n'
 )
 
 DOTTED_SL_SRC = (
     '#from constants import ITERATIONS\n'
-    '#silent [$foo.bar[0].upper() for _ in range(ITERATIONS)]\n'
+    '#py [$foo.bar[0].upper() for _ in range(ITERATIONS)]\n'
 )
