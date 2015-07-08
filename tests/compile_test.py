@@ -372,7 +372,7 @@ Hello world
 #end call
 
 
-#set foo = {"a": 1}
+#py foo = {"a": 1}
 #del foo['a']
 $foo
 
@@ -391,8 +391,7 @@ $self.spacer()
    not 15 or 16
 #end if
 
-#set arr = [1, 2, 3]
-#silent arr.append(4)
+#py arr = [1, 2, 3]
 #py arr.append(5)
 $arr
 

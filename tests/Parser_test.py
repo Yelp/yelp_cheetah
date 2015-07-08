@@ -259,14 +259,14 @@ def test_invalid_line_continuation():
         ParseError,
         '\n\n'
         'Line ending expected\n'
-        'Line 1, column 21\n'
+        'Line 1, column 20\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
-        '1   |#set foo = "bar" + \\hi, not a new line\n'
-        '                         ^\n'
+        '1   |#py foo = "bar" + \\hi, not a new line\n'
+        '                        ^\n'
     ):
-        compile_to_class('#set foo = "bar" + \\hi, not a new line')
+        compile_to_class('#py foo = "bar" + \\hi, not a new line')
 
 
 def test_close_wrong_enclosure():
@@ -474,14 +474,14 @@ def test_set_with_dollar_signs_raises():
         ParseError,
         '\n\n'
         "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
-        'Line 1, column 14\n'
+        'Line 1, column 13\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
-        '1   |#set $foo = 1\n'
-        '                  ^\n'
+        '1   |#py $foo = 1\n'
+        '                 ^\n'
     ):
-        compile_to_class('#set $foo = 1\n')
+        compile_to_class('#py $foo = 1\n')
 
 
 @pytest.mark.parametrize('decorator', ('@classmethod', '@staticmethod'))
@@ -534,15 +534,15 @@ def test_uncaught_syntax_error():
         ParseError,
         '\n\n'
         "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
-        'Line 3, column 16\n\n'
+        'Line 3, column 15\n\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |Hello\n'
         '2   |World\n'
-        '3   |#set x = $y = 1\n'
-        '                    ^\n'
+        '3   |#py x = $y = 1\n'
+        '                   ^\n'
     ):
-        compile_to_class('Hello\nWorld\n#set x = $y = 1\n')
+        compile_to_class('Hello\nWorld\n#py x = $y = 1\n')
 
 
 def test_errors_on_invalid_setting():

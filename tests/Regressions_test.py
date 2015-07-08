@@ -68,7 +68,7 @@ def test_ImportFailModule():
         #try
             #import invalidmodule
         #except
-            #set invalidmodule = dict(FOO='BAR!')
+            #py invalidmodule = dict(FOO='BAR!')
         #end try
 
         $invalidmodule['FOO']

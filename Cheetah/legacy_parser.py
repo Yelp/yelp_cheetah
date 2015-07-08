@@ -107,30 +107,13 @@ def _unescapeDirectives(s):
 
 
 directiveNamesAndParsers = {
-    # importing and inheritance
+    # Python directives
     'import': None,
     'from': None,
-    'extends': 'eatExtends',
-    'implements': 'eatImplements',
     'super': 'eatSuper',
-
-    # output, filtering, and caching
-    'slurp': 'eatSlurp',
-    'py': None,
-    'silent': None,
-
-    'call': 'eatCall',
-
-    # declaration, assignment, and deletion
-    'attr': 'eatAttr',
     'def': 'eatDef',
-    'block': 'eatBlock',
     '@': 'eatDecorator',
-
-    'set': None,
     'del': None,
-
-    # flow control
     'if': None,
     'while': None,
     'for': None,
@@ -142,18 +125,22 @@ directiveNamesAndParsers = {
     'return': None,
     'yield': None,
     'with': None,
-
-    'end': 'eatEndDirective',
-
-    # error handling
     'assert': None,
     'raise': None,
     'try': None,
     'except': None,
     'finally': None,
 
-    # intructions to the parser and compiler
+    # Cheetah extensions
     'compiler-settings': None,
+    'extends': 'eatExtends',
+    'implements': 'eatImplements',
+    'slurp': 'eatSlurp',
+    'py': None,
+    'call': 'eatCall',
+    'attr': 'eatAttr',
+    'block': 'eatBlock',
+    'end': 'eatEndDirective',
 }
 
 endDirectiveNamesAndHandlers = {
@@ -871,11 +858,10 @@ class LegacyParser(_LowLevelParser):
         'compiler-settings', 'if', 'else', 'elif', 'for', 'while', 'try',
         'except', 'finally', 'with',
     ))
-    _py_expr_directives = frozenset(('py', 'set', 'silent'))
     _simple_expr_directives = frozenset((
         'pass', 'continue', 'return', 'yield', 'break', 'del', 'assert',
-        'raise', 'import', 'from',
-    )).union(_py_expr_directives)
+        'raise', 'import', 'from', 'py'
+    ))
 
     def eatDirective(self):
         directive = self.matchDirective()
@@ -897,7 +883,7 @@ class LegacyParser(_LowLevelParser):
             else:
                 assert directive in self._simple_expr_directives
                 line_col = self.getRowCol()
-                include_name = directive not in self._py_expr_directives
+                include_name = directive != 'py'
                 expr = self.eatSimpleExprDirective(
                     directive, include_name=include_name,
                 )

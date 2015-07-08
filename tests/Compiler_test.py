@@ -4,8 +4,6 @@ from __future__ import unicode_literals
 import io
 import os.path
 
-import pytest
-
 from Cheetah.cheetah_compile import compile_template
 from Cheetah.compile import _create_module_from_source
 from Cheetah.compile import compile_source
@@ -111,11 +109,10 @@ def test_optimization_from_imports():
     assert ' _v = path.join(' in src
 
 
-@pytest.mark.parametrize('directive', ('set', 'silent', 'py'))
-def test_optimization_assign(directive):
+def test_optimization_assign():
     src = compile_source(
-        '#{0} foo = "bar"\n'
-        '$foo\n'.format(directive)
+        '#py foo = "bar"\n'
+        '$foo\n'
     )
     assert ' _v = foo #' in src
 
@@ -149,26 +146,24 @@ def test_optimization_except():
     assert ' _v = e #' in src
 
 
-@pytest.mark.parametrize('directive', ('set', 'silent', 'py'))
-def test_optimization_multiple_assign(directive):
+def test_optimization_multiple_assign():
     src = compile_source(
-        '#{0} x = y = z = 0\n'
+        '#py x = y = z = 0\n'
         '$x\n'
         '$y\n'
-        '$z\n'.format(directive)
+        '$z\n'
     )
     assert ' _v = x #' in src
     assert ' _v = y #' in src
     assert ' _v = z #' in src
 
 
-@pytest.mark.parametrize('directive', ('set', 'silent', 'py'))
-def test_optimization_tuple_assign(directive):
+def test_optimization_tuple_assign():
     src = compile_source(
-        '#{0} x, (y, z) = (1, (2, 3))\n'
+        '#py x, (y, z) = (1, (2, 3))\n'
         '$x\n'
         '$y\n'
-        '$z\n'.format(directive)
+        '$z\n'
     )
     assert ' _v = x #' in src
     assert ' _v = y #' in src
