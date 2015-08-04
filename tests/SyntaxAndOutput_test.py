@@ -1814,6 +1814,6 @@ def test_list_comp_with_cheetah_var():
 
 
 def test_allow_getvar_of_underscored_things():
-    # Regression test for v0.12.0
+    # Regression test for v0.11.0
     cls = compile_to_class('$self.getVar("foo_BAR1")')
     assert cls({'foo_BAR1': 'baz'}).respond() == 'baz'

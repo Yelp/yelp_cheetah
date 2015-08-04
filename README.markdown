@@ -19,6 +19,9 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.12.1
+- Fix regression introduced in 0.11.0: `$self.getVar('contains_underscore')`
+
 ## 0.12.0
 - Fix regression introduced in 0.11.0: `[$x for x in ...]`
 
