@@ -80,7 +80,7 @@ class Template(object):
         in the searchList, it returns the default value if one was given, or
         raises NameMapper.NotFound.
         """
-        assert key.isalnum(), key
+        assert key.replace('_', '').isalnum(), key
         try:
             return value_from_search_list(key, self, self._CHEETAH__namespace)
         except NotFound:
@@ -91,7 +91,7 @@ class Template(object):
 
     def varExists(self, key):
         """Test if a variable name exists in the searchList."""
-        assert key.isalnum(), key
+        assert key.replace('_', '').isalnum(), key
         try:
             value_from_search_list(key, self, self._CHEETAH__namespace)
             return True
