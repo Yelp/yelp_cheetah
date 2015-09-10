@@ -19,6 +19,9 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.13.0
+- Remove `#set` and `#silent` (replaced by `#py`)
+
 ## 0.12.1
 - Fix regression introduced in 0.11.0: `$self.getVar('contains_underscore')`
 

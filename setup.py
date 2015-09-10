@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name="yelp_cheetah",
-    version='0.12.1',
+    version='0.13.0',
     description='cheetah, hacked by yelpers',
     classifiers=[
         'Intended Audience :: Developers',
