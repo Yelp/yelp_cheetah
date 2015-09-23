@@ -117,11 +117,11 @@ static struct PyModuleDef module = {
     methods
 };
 
-PyMODINIT_FUNC PyInit__cheetah() {
+PyMODINIT_FUNC PyInit__cheetah(void) {
     return _setup_module(PyModule_Create(&module));
 }
 #else
-PyMODINIT_FUNC init_cheetah() {
+PyMODINIT_FUNC init_cheetah(void) {
     _setup_module(Py_InitModule3("_cheetah", methods, NULL));
 }
 #endif
