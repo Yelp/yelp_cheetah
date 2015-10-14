@@ -14,7 +14,7 @@ from Cheetah.Template import Template
 class PartialTemplateTestCase(unittest.TestCase):
     # Partial template which extends Cheetah.partial_template
     partial = None
-    # Functin in that partial template
+    # Function in that partial template
     method = None
 
     def get_partial_arguments(self):
