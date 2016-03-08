@@ -45,5 +45,8 @@ setup(
         'console_scripts': [
             'cheetah-compile = Cheetah.cheetah_compile:main',
         ],
+        'distutils.setup_keywords': [
+            'yelp_cheetah = Cheetah.setuptools_support:setup_callback',
+        ],
     },
 )
