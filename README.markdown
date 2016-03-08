@@ -19,6 +19,11 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.13.1
+- Add setuptools extension to build templates.  To use add
+  `setup_requires=['yelp-cheetah']` and `yelp_cheetah={'directories': [...]}`
+  to automatically build templates in a package on installation.
+
 ## 0.13.0
 - Remove `#set` and `#silent` (replaced by `#py`)
 
