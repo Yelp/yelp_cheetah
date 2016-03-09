@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name="yelp_cheetah",
-    version='0.13.1',
+    version='0.13.2',
     description='cheetah, hacked by yelpers',
     classifiers=[
         'Intended Audience :: Developers',
@@ -36,7 +36,7 @@ setup(
     install_requires=[
         'argparse',
         'markupsafe',
-        'six',
+        'six>=1.4.0',
     ],
     extras_require={
         'testing': ['pyquery'],
