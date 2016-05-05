@@ -32,3 +32,13 @@ DOTTED_SL_SRC = (
     '#from constants import ITERATIONS\n'
     '#py [$foo.bar[0].upper() for _ in range(ITERATIONS)]\n'
 )
+
+
+WRITE_SRC = (
+    '#from markupsafe import Markup\n'
+    '#from constants import ITERATIONS\n'
+    '#py x = {}\n'
+    '#for _ in range(ITERATIONS)\n'
+    '$x\n'
+    '#end for\n'
+)
