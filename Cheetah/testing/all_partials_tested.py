@@ -131,12 +131,12 @@ class TestAllPartialsTestedBase(unittest.TestCase):
             for method in methods:
                 if (module_name, method) not in tested_partials:
                     untested_partials.add(
-                        '{0} {1}'.format(module_name, method),
+                        '{} {}'.format(module_name, method),
                     )
 
         if untested_partials:
             raise AssertionError(
-                'Not all partials have tests: \n\n{0}'.format(
+                'Not all partials have tests: \n\n{}'.format(
                     '\t' + '\n\t'.join(sorted(untested_partials))
                 )
             )

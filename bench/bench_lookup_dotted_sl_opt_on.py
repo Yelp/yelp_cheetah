@@ -1,5 +1,4 @@
 from Cheetah.compile import compile_to_class
-
 from constants import DOTTED_SL_SRC
 
 

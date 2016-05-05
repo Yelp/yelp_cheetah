@@ -53,7 +53,7 @@ class Template(object):
                 raise AssertionError(
                     'The following keys are members of the Template class '
                     'and will result in NameMapper collisions!\n'
-                    '  > {0} \n'
+                    '  > {} \n'
                     "Please change the key's name.".format(
                         ', '.join(
                             self.Reserved_SearchList &
