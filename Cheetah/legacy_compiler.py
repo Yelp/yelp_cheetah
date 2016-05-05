@@ -284,7 +284,7 @@ class MethodCompiler(object):
         )
         self.addChunk('_orig_trans{} = self.transaction'.format(call_id))
         self.addChunk(
-            'self.transaction = _call{} = DummyTransaction()'.format(
+            'self.transaction = _call{} = io.StringIO()'.format(
                 call_id
             )
         )
@@ -331,7 +331,7 @@ class MethodCompiler(object):
 
         self.addChunk('if not self.transaction:')
         self.indent()
-        self.addChunk('self.transaction = DummyTransaction()')
+        self.addChunk('self.transaction = io.StringIO()')
         self.addChunk('_dummyTrans = True')
         self.dedent()
         self.addChunk('else:')
@@ -505,11 +505,11 @@ class LegacyCompiler(SettingsManager):
             CLASS_NAME, BASE_CLASS_NAME,
         )
         self._importStatements = [
-            'from Cheetah.DummyTransaction import DummyTransaction',
+            'import io',
             'from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
-        self._global_vars = {'DummyTransaction', 'NO_CONTENT', 'VFFSL'}
+        self._global_vars = {'io', 'NO_CONTENT', 'VFFSL'}
 
         self._gettext_scannables = []
 
