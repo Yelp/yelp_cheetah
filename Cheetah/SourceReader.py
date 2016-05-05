@@ -43,7 +43,7 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         for i in range(len(self._BOLs)):
             if pos >= self._BOLs[i] and pos <= self._EOLs[i]:
                 return i
-        raise AssertionError('unknown position: {0}'.format(pos))
+        raise AssertionError('unknown position: {}'.format(pos))
 
     def getRowCol(self, pos=None):
         if pos is None:
@@ -69,7 +69,7 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
     def checkPos(self, pos):
         if not pos <= self._breakPoint:
             raise AssertionError(
-                "pos ({0}) is invalid: beyond the stream's end ({1})".format(
+                "pos ({}) is invalid: beyond the stream's end ({})".format(
                     pos, self._breakPoint - 1
                 )
             )
@@ -82,8 +82,8 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
     def setBreakPoint(self, pos):
         if pos > len(self._src):
             raise AssertionError(
-                "New breakpoint ({0}) is invalid: beyond the end of stream's "
-                "source string ({1})".format(pos, len(self._src))
+                "New breakpoint ({}) is invalid: beyond the end of stream's "
+                "source string ({})".format(pos, len(self._src))
             )
         elif not pos >= 0:
             raise AssertionError(

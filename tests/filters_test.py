@@ -17,7 +17,7 @@ def render_tmpl(template_source):
 
     def unique_filter(val):
         notlocal.count += 1
-        return '<{0}>{1}</{2}>'.format(notlocal.count, val, notlocal.count)
+        return '<{}>{}</{}>'.format(notlocal.count, val, notlocal.count)
 
     template_cls = compile_to_class(template_source)
     template = template_cls(scope, filter_fn=unique_filter)

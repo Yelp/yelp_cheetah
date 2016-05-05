@@ -1,5 +1,4 @@
 from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL
-
 from constants import ITERATIONS
 
 

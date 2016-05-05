@@ -494,14 +494,14 @@ def test_classmethod_staticmethod_not_allowed(decorator):
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
-        '1   |#{0}\n'
+        '1   |#{}\n'
         '      ^\n'
         '2   |#def foo(bar)\n'
         '3   |    #return bar + 1\n'
         '4   |#end def\n'.format(decorator)
     ):
         compile_to_class(
-            '#{0}\n'
+            '#{}\n'
             '#def foo(bar)\n'
             '    #return bar + 1\n'
             '#end def\n'.format(decorator)

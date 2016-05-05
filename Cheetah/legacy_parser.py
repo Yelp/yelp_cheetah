@@ -214,7 +214,7 @@ def fail_with_our_parse_error(func):
                 ParseError,
                 ParseError(
                     self,
-                    '{0}: {1}\n'.format(type(e).__name__, e)
+                    '{}: {}\n'.format(type(e).__name__, e)
                 ),
                 sys.exc_info()[2]
             )
@@ -360,7 +360,7 @@ class _LowLevelParser(SourceReader):
         else:
             raise UnknownDirectiveError(
                 self,
-                'Bad directive name: "{0}". '
+                'Bad directive name: "{}". '
                 'You may want to escape that # sign?'.format(match_text),
             )
 
@@ -509,7 +509,7 @@ class _LowLevelParser(SourceReader):
                 else:
                     raise ParseError(
                         self,
-                        "Expected a '{0}' before an end '{1}'".format(
+                        "Expected a '{}' before an end '{}'".format(
                             closurePairsRev[enclosures[-1][0]], c,
                         )
                     )
@@ -854,14 +854,14 @@ class LegacyParser(_LowLevelParser):
     def eatPlaceholder(self):
         self._compiler.addPlaceholder(*self.getPlaceholder())
 
-    _simpleIndentingDirectives = frozenset((
+    _simpleIndentingDirectives = frozenset({
         'compiler-settings', 'if', 'else', 'elif', 'for', 'while', 'try',
         'except', 'finally', 'with',
-    ))
-    _simple_expr_directives = frozenset((
+    })
+    _simple_expr_directives = frozenset({
         'pass', 'continue', 'return', 'yield', 'break', 'del', 'assert',
         'raise', 'import', 'from', 'py'
-    ))
+    })
 
     def eatDirective(self):
         directive = self.matchDirective()
@@ -1231,7 +1231,7 @@ class LegacyParser(_LowLevelParser):
         if last != directive_name:
             raise ParseError(
                 self,
-                '#end {0} found, expected #end {1}'.format(directive_name, last)
+                '#end {} found, expected #end {}'.format(directive_name, last)
             )
 
     def assertEmptyOpenDirectivesStack(self):

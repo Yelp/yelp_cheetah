@@ -27,7 +27,7 @@ static PyObject* _vfsl(char* key, PyObject* selfobj, PyObject* ns) {
 
     PyErr_Clear();
 
-    fmt = PyUnicode_FromString("Cannot find '{0}'");
+    fmt = PyUnicode_FromString("Cannot find '{}'");
     fmted = PyObject_CallMethod(fmt, "format", IF_PY3("y", "s"), key);
     PyErr_SetObject(NotFound, fmted);
     Py_XDECREF(fmted);

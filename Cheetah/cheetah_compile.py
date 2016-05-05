@@ -16,7 +16,7 @@ from Cheetah.compile import compile_file
 def compile_template(filename, **kwargs):
     if not isinstance(filename, six.text_type):
         filename = filename.decode('UTF-8')
-    print('Compiling {0}'.format(filename))
+    print('Compiling {}'.format(filename))
     return compile_file(filename, **kwargs)
 
 
@@ -40,7 +40,7 @@ def _touch_init_if_not_exists(directory):
         return
     init_py_file = os.path.join(directory, '__init__.py')
     if not os.path.exists(init_py_file):
-        print('Creating {0}'.format(init_py_file))
+        print('Creating {}'.format(init_py_file))
         open(init_py_file, 'a').close()
 
 

@@ -29,44 +29,44 @@ def class_predicate(cls):
 
 def test_discover_modules():
     ret = set(discover_modules(Cheetah.testing))
-    assert ret == set((
+    assert ret == {
         Cheetah.testing.all_partials_tested,
         Cheetah.testing.partial_template_test_case,
-    ))
+    }
 
 
 def test_discover_modules_with_filter():
     ret = set(discover_modules(
         Cheetah.testing, module_match_func=module_predicate,
     ))
-    assert ret == set((Cheetah.testing.partial_template_test_case,))
+    assert ret == {Cheetah.testing.partial_template_test_case}
 
 
 def test_discover_classes():
     ret = set(discover_classes(Cheetah.testing))
-    assert ret == set((
+    assert ret == {
         PartialTemplateTestCase,
         ContextManagerPartialTemplateTestCase,
         TestAllPartialsTestedBase,
-    ))
+    }
 
 
 def test_discover_classes_class_predicate():
     ret = set(discover_classes(
         Cheetah.testing, cls_match_func=class_predicate,
     ))
-    assert ret == set((
+    assert ret == {
         PartialTemplateTestCase, ContextManagerPartialTemplateTestCase,
-    ))
+    }
 
 
 def test_discover_classes_module_predicate():
     ret = set(discover_classes(
         Cheetah.testing, module_match_func=module_predicate,
     ))
-    assert ret == set((
+    assert ret == {
         PartialTemplateTestCase, ContextManagerPartialTemplateTestCase,
-    ))
+    }
 
 
 def test_is_partial_module():
@@ -80,11 +80,11 @@ def test_get_partial_methods():
     from testing.templates import src
     ret = get_partial_methods((src,))
     assert ret == {
-        'testing.templates.src.partial_template_no_arguments': set(('render',)),
+        'testing.templates.src.partial_template_no_arguments': {'render'},
         'testing.templates.src.partial_with_same_name':
-            set(('partial_with_same_name',)),
-        'testing.templates.src.partial_template': set(('render',)),
-        'testing.templates.src.context_partial_template': set(('render',)),
+            {'partial_with_same_name'},
+        'testing.templates.src.partial_template': {'render'},
+        'testing.templates.src.context_partial_template': {'render'},
     }
 
 
@@ -108,7 +108,7 @@ def test_is_partial_test_cls():
 def test_get_partial_tests():
     from tests.testing import partial_template_test_case_test as P
     ret = set(get_partial_tests((tests,)))
-    assert ret == set((
+    assert ret == {
         (
             P.SamplePartialTemplateTest,
             'testing.templates.src.partial_template',
@@ -129,7 +129,7 @@ def test_get_partial_tests():
             'testing.templates.src.context_partial_template',
             'render',
         ),
-    ))
+    }
 
 
 def test_get_partial_tests_with_filter():
@@ -139,13 +139,13 @@ def test_get_partial_tests_with_filter():
         return is_partial_test_cls(cls) and 'Template' not in cls.__name__
 
     ret = set(get_partial_tests((tests,), test_match_func=predicate))
-    assert ret == set((
+    assert ret == {
         (
             P.SamplePartialWithSameNameTest,
             'testing.templates.src.partial_with_same_name',
             'partial_with_same_name',
         ),
-    ))
+    }
 
 
 def test_all_partials_tested_can_fail():

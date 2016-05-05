@@ -26,7 +26,7 @@ from Cheetah.SettingsManager import SettingsManager
 
 
 CallDetails = collections.namedtuple(
-    'CallDetails', ['call_id', 'function_name', 'args', 'lineCol'],
+    'CallDetails', ('call_id', 'function_name', 'args', 'lineCol'),
 )
 
 INDENT = 4 * ' '
@@ -35,14 +35,13 @@ INDENT = 4 * ' '
 BUILTIN_NAMES = frozenset(dir(six.moves.builtins))
 
 
-# Settings format: (key, default, docstring)
-_DEFAULT_COMPILER_SETTINGS = [
-    ('useNameMapper', True, 'Enable NameMapper for dotted notation and searchList support'),
-    ('useLegacyImportMode', True, 'All #import statements are relocated to the top of the generated Python module'),
-    ('gettextTokens', ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'], ''),
-]
-
-DEFAULT_COMPILER_SETTINGS = dict((v[0], v[1]) for v in _DEFAULT_COMPILER_SETTINGS)
+DEFAULT_COMPILER_SETTINGS = {
+    # Enable NameMapper for namespace support.
+    'useNameMapper': True,
+    # All #import statements are hoisted to the top of the module
+    'useLegacyImportMode': True,
+    'gettextTokens': ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'],
+}
 
 CLASS_NAME = 'YelpCheetahTemplate'
 BASE_CLASS_NAME = 'YelpCheetahBaseClass'
@@ -56,14 +55,14 @@ def genPlainVar(nameChunks):
 def genNameMapperVar(nameChunks):
     name, remainder = nameChunks[0]
     namept1, dot, rest = name.partition('.')
-    start = 'VFFSL("{0}", locals(), globals(), self, NS){1}{2}{3}'.format(namept1, dot, rest, remainder)
+    start = 'VFFSL("{}", locals(), globals(), self, NS){}{}{}'.format(namept1, dot, rest, remainder)
     tail = genPlainVar(nameChunks[1:])
     return start + ('.' if tail else '') + tail
 
 
 def _arg_chunk_to_text(chunk):
     if chunk[1] is not None:
-        return '{0}={1}'.format(*chunk)
+        return '{}={}'.format(*chunk)
     else:
         return chunk[0]
 
@@ -90,7 +89,7 @@ class MethodCompiler(object):
         self._hasReturnStatement = False
         self._isGenerator = False
         self._arguments = [('self', None)]
-        self._local_vars = set(('self',))
+        self._local_vars = {'self'}
         self._decorators = decorators or []
 
     def cleanupState(self):
@@ -143,11 +142,11 @@ class MethodCompiler(object):
         self._methodBodyChunks[-1] += appendage
 
     def addWriteChunk(self, chunk):
-        self.addChunk('self.transaction.write({0})'.format(chunk))
+        self.addChunk('self.transaction.write({})'.format(chunk))
 
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
-            self.addChunk('_v = {0} # {1!r}'.format(chunk, rawExpr))
+            self.addChunk('_v = {} # {!r}'.format(chunk, rawExpr))
             self.appendToPrevChunk(' on line %s, col %s' % lineCol)
         else:
             self.addChunk('_v = %s' % chunk)
@@ -198,7 +197,7 @@ class MethodCompiler(object):
         self.addChunk('#' + comment)
 
     def _append_line_col_comment(self, line_col):
-        self.appendToPrevChunk(' # generated from line {0}, col {1}.'.format(
+        self.appendToPrevChunk(' # generated from line {}, col {}.'.format(
             *line_col
         ))
 
@@ -267,7 +266,7 @@ class MethodCompiler(object):
 
     def next_id(self):
         self._next_variable_id += 1
-        return '_{0}'.format(self._next_variable_id)
+        return '_{}'.format(self._next_variable_id)
 
     def startCallRegion(self, function_name, args, lineCol):
         call_id = self.next_id()
@@ -283,9 +282,9 @@ class MethodCompiler(object):
                 col=lineCol[1],
             )
         )
-        self.addChunk('_orig_trans{0} = self.transaction'.format(call_id))
+        self.addChunk('_orig_trans{} = self.transaction'.format(call_id))
         self.addChunk(
-            'self.transaction = _call{0} = DummyTransaction()'.format(
+            'self.transaction = _call{} = DummyTransaction()'.format(
                 call_id
             )
         )
@@ -300,12 +299,12 @@ class MethodCompiler(object):
         )
 
         self.addChunk(
-            'self.transaction = _orig_trans{0}'.format(call_id),
+            'self.transaction = _orig_trans{}'.format(call_id),
         )
-        self.addChunk('del _orig_trans{0}'.format(call_id))
+        self.addChunk('del _orig_trans{}'.format(call_id))
 
-        self.addChunk('_call_arg{0} = _call{0}.getvalue()'.format(call_id))
-        self.addChunk('del _call{0}'.format(call_id))
+        self.addChunk('_call_arg{id} = _call{id}.getvalue()'.format(id=call_id))
+        self.addChunk('del _call{}'.format(call_id))
 
         args = (', ' + args).strip()
         self.addFilteredChunk(
@@ -315,7 +314,7 @@ class MethodCompiler(object):
                 args=args,
             )
         )
-        self.addChunk('del _call_arg{0}'.format(call_id))
+        self.addChunk('del _call_arg{}'.format(call_id))
         self.addChunk(
             '## END CALL REGION: {call_id} of {function_name} '
             'at line {line}, col {col}.'.format(
@@ -448,7 +447,7 @@ class ClassCompiler(object):
         methodName = self._getActiveMethodCompiler().methodName()
         arg_text = arg_string_list_to_text(argsList)
         self.addFilteredChunk(
-            'super({0}, self).{1}({2})'.format(
+            'super({}, self).{}({})'.format(
                 CLASS_NAME, methodName, arg_text,
             )
         )
@@ -465,11 +464,11 @@ class ClassCompiler(object):
         self._swallowMethodCompiler(methCompiler)
 
         # insert the code to call the block
-        self.addChunk('self.{0}()'.format(methodName))
+        self.addChunk('self.{}()'.format(methodName))
 
     def class_def(self):
         return '\n'.join((
-            'class {0}({1}):\n'.format(CLASS_NAME, BASE_CLASS_NAME),
+            'class {}({}):\n'.format(CLASS_NAME, BASE_CLASS_NAME),
             self.attributes(),
             self.methodDefs(),
         ))
@@ -502,7 +501,7 @@ class LegacyCompiler(SettingsManager):
 
         self._parser = self.parserClass(source, compiler=self)
         self._class_compiler = None
-        self._base_import = 'from Cheetah.Template import {0} as {1}'.format(
+        self._base_import = 'from Cheetah.Template import {} as {}'.format(
             CLASS_NAME, BASE_CLASS_NAME,
         )
         self._importStatements = [
@@ -510,7 +509,7 @@ class LegacyCompiler(SettingsManager):
             'from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
-        self._global_vars = set(('DummyTransaction', 'NO_CONTENT', 'VFFSL'))
+        self._global_vars = {'DummyTransaction', 'NO_CONTENT', 'VFFSL'}
 
         self._gettext_scannables = []
 
@@ -572,7 +571,7 @@ class LegacyCompiler(SettingsManager):
         is scanning compiled templates for strings marked for translation.
         """
         scannable = genPlainVar(nameChunks[:])
-        scannable += ' # generated from line {0}, col {1}.'.format(*lineCol)
+        scannable += ' # generated from line {}, col {}.'.format(*lineCol)
         self._gettext_scannables.append(scannable)
 
     def set_extends(self, extends_name):
@@ -583,7 +582,7 @@ class LegacyCompiler(SettingsManager):
                 'yelp_cheetah only supports extends by module name'
             )
 
-        self._base_import = 'from {0} import {1} as {2}'.format(
+        self._base_import = 'from {} import {} as {}'.format(
             extends_name, CLASS_NAME, BASE_CLASS_NAME,
         )
 

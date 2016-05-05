@@ -418,7 +418,7 @@ $arr
 
     # Make sure we got all of the directives
     for directive_name in directiveNamesAndParsers:
-        assert '#{0}'.format(directive_name) in MEGA_TEMPLATE
+        assert '#{}'.format(directive_name) in MEGA_TEMPLATE
 
     # also make sure MEGA_TEMPLATE renders
     assert compile_to_class(MEGA_TEMPLATE)().respond()
