@@ -1,11 +1,11 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import io
 import unittest
 
 import pyquery
 
-from Cheetah.DummyTransaction import DummyTransaction
 from Cheetah.Template import Template
 
 
@@ -88,7 +88,7 @@ class ContextManagerPartialTemplateTestCase(PartialTemplateTestCase):
     ):
         # Simulated rendering
         assert template.transaction is None
-        template.transaction = DummyTransaction()
+        template.transaction = io.StringIO()
         with method(template, *partial_args, **partial_kwargs):
             template.transaction.write(self.context_contents)
         return template.transaction.getvalue()
