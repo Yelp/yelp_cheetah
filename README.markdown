@@ -19,6 +19,10 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.14.0
+- Use `io.StringIO` as a replacement for `DummyTransaction`
+- Drop python2.6 support
+
 ## 0.13.2
 - Require six>=1.4.0 (for six.PY2)
 
