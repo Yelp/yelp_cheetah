@@ -19,6 +19,9 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.15.0
+- Remove `#call` directive (port to `#with` instead)
+
 ## 0.14.0
 - Use `io.StringIO` as a replacement for `DummyTransaction`
 - Drop python2.6 support
