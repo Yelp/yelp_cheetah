@@ -571,72 +571,6 @@ def test_one_line_compiler_settings():
     assert cls().respond() == 'foo\nimporterror\n'
 
 
-class CallDirective(OutputTest):
-    def test1(self):
-        r"""simple #call """
-        self.verify("#call int:\n$anInt#end call",
-                    "1")
-        # single line version
-        self.verify("#call int: $anInt",
-                    "1")
-        self.verify("#call int: 10\n$aStr",
-                    "10\nblarg")
-
-    def test2(self):
-        r"""simple #call + WS"""
-        self.verify("#call int\n$anInt  #end call",
-                    "1")
-
-    def test3(self):
-        r"""a longer #call"""
-        self.verify('''\
-#def meth(arg)
-$arg.upper()#slurp
-#end def
-#call $meth
-$(1234 + 1) foo#slurp
-#end call''',
-                    "1235 FOO")
-
-    def test6(self):
-        """#call with python kwargs and cheetah output for the 1s positional
-        arg"""
-
-        self.verify('''\
-#def meth(arg1, arg2)
-$arg1.upper() - $arg2.lower()#slurp
-#end def
-#call self.meth arg2="UPPER"
-$(1234 + 1) foo#slurp
-#end call''',
-                    "1235 FOO - upper")
-
-    def test9(self):
-        """nested #call directives"""
-        self.verify('''\
-#def meth(arg1)
-$arg1#slurp
-#end def
-#def meth2(x,y)
-$x$y#slurp
-#end def
-##
-#call self.meth
-1#slurp
-#call self.meth
-2#slurp
-#call self.meth
-3#slurp
-#end call 3
-#py two = 2
-#call self.meth2 y=int(10/two)
-4#slurp
-#end call 4
-#end call 2
-#end call 1''',
-                    "12345")
-
-
 class SlurpDirective(OutputTest):
     def test1(self):
         r"""#slurp with 1 \n """
@@ -1572,33 +1506,6 @@ def test_comment_directive_ambiguity():
     assert cls().respond().strip() == '1 2'
 
 
-def test_nested_defs_with_calls():
-    """Fails with unbound local `trans` referenced before assignment."""
-    cls = compile_to_class(
-        '#def callfn1(arg)\n'
-        'Arg fn1: $arg\n'
-        '#end def\n'
-        '\n'
-        '#def callfn2(arg)\n'
-        'Arg fn2: $arg\n'
-        '#end def\n'
-        '\n'
-        '#def foo()\n'
-        '    #call $callfn1\n'
-        '        #def bar()\n'
-        '            #call $callfn2\n'
-        '                val\n'
-        '            #end call\n'
-        '        #end def\n'
-        '        $bar()\n'
-        '    #end call\n'
-        '#end def\n'
-        '$foo()\n'
-    )
-    ret = ' '.join(cls().respond().strip().split())
-    assert ret == 'Arg fn1: Arg fn2: val'
-
-
 def test_trivial_implements_template():
     cls = compile_to_class('#implements respond')
     assert cls().respond() == ''
@@ -1764,34 +1671,6 @@ def test_with_statement_filter():
 
     inst = cls(filter_fn=filters.unicode_filter)
     assert inst.respond().strip() == "<js_filtered>'bar'</js_filtered>"
-
-
-def test_with_statement_call():
-    cls = compile_to_class('''
-    #import contextlib
-
-    #def embolden(arg)
-        <b>$arg.strip()</b>
-    #end def
-
-    #@contextlib.contextmanager
-    #def bold():
-        before.
-        #call self.embolden
-            #yield
-        #end call xxx
-        after.
-    #end def
-
-    begin.
-    #with $bold()
-        mycontent!
-    #end with
-    end.
-    ''')
-
-    result = ' '.join(cls().respond().strip().split())
-    assert result == "begin. before. <b>mycontent!</b> after. end."
 
 
 def test_with_filter():

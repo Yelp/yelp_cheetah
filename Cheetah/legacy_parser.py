@@ -137,24 +137,22 @@ directiveNamesAndParsers = {
     'implements': 'eatImplements',
     'slurp': 'eatSlurp',
     'py': None,
-    'call': 'eatCall',
     'attr': 'eatAttr',
     'block': 'eatBlock',
     'end': 'eatEndDirective',
 }
 
-endDirectiveNamesAndHandlers = {
-    'def': 'handleEndDef',
-    'compiler-settings': None,
-    'block': None,
-    'call': None,
-    'while': None,
-    'for': None,
-    'if': None,
-    'try': None,
-    'filter': None,
-    'with': None,
-}
+CLOSABLE_DIRECTIVES = frozenset({
+    'block', 'compiler-settings', 'def', 'for', 'if', 'try', 'while', 'with',
+})
+INDENTING_DIRECTIVES = frozenset({
+    'compiler-settings', 'else', 'elif', 'except', 'finally', 'for', 'if',
+    'try', 'while', 'with',
+})
+EXPRESSION_DIRECTIVES = frozenset({
+    'assert', 'break', 'continue', 'del', 'from', 'import', 'pass', 'py',
+    'raise', 'return', 'yield',
+})
 
 
 class ParseError(ValueError):
@@ -415,16 +413,11 @@ class _LowLevelParser(SourceReader):
         match = self.matchCheetahVarStartToken()
         return self.readTo(match.end())
 
-    def getCheetahVar(self, plain=False, skipStartToken=False):
+    def getCheetahVar(self):
         """This is called when parsing inside expressions."""
-        if not skipStartToken:
-            self.getCheetahVarStartToken()
-        return self.getCheetahVarBody(plain=plain)
-
-    def getCheetahVarBody(self, plain=False):
-        # @@TR: this should be in the compiler
+        self.getCheetahVarStartToken()
         lineCol = self.getRowCol()
-        return self._compiler.genCheetahVar(self.getCheetahVarNameChunks(), lineCol, plain=plain)
+        return self._compiler.genCheetahVar(self.getCheetahVarNameChunks(), lineCol)
 
     def getCheetahVarNameChunks(self):
         """nameChunks = list of Cheetah $var subcomponents represented as tuples
@@ -737,7 +730,7 @@ class _LowLevelParser(SourceReader):
             'Use them in top-level $placeholders only.'
         )
 
-    def getPlaceholder(self, plain=False):
+    def getPlaceholder(self):
         startPos = self.pos()
         lineCol = self.getRowCol()
         self.getCheetahVarStartToken()
@@ -752,7 +745,7 @@ class _LowLevelParser(SourceReader):
 
         if self.matchIdentifier():
             nameChunks = self.getCheetahVarNameChunks()
-            expr = self._compiler.genCheetahVar(nameChunks[:], lineCol, plain=plain)
+            expr = self._compiler.genCheetahVar(nameChunks[:], lineCol)
             restOfExpr = None
             if enclosures:
                 whitespace = self.getWhiteSpace()
@@ -785,30 +778,10 @@ class LegacyParser(_LowLevelParser):
         self._compiler = compiler
         self._openDirectivesStack = []
 
-        def normalizeParserVal(val):
-            if isinstance(val, six.text_type):
-                return getattr(self, val)
-            else:
-                assert val is None or callable(val), val
-                return val
-
-        normalizeHandlerVal = normalizeParserVal
-
-        _directiveNamesAndParsers = directiveNamesAndParsers.copy()
-        _endDirectiveNamesAndHandlers = endDirectiveNamesAndHandlers.copy()
-
-        self._directiveNamesAndParsers = {}
-        for name, val in _directiveNamesAndParsers.items():
-            self._directiveNamesAndParsers[name] = normalizeParserVal(val)
-
-        self._endDirectiveNamesAndHandlers = {}
-        for name, val in _endDirectiveNamesAndHandlers.items():
-            self._endDirectiveNamesAndHandlers[name] = normalizeHandlerVal(val)
-
-        self._closeableDirectives = [
-            'compiler-settings', 'def', 'block', 'call', 'filter', 'if',
-            'for', 'while', 'try', 'with',
-        ]
+        self._directiveNamesAndParsers = {
+            name: getattr(self, val) if val is not None else None
+            for name, val in directiveNamesAndParsers.items()
+        }
 
     @fail_with_our_parse_error
     def parse(self, breakPoint=None, assertEmptyStack=True):
@@ -854,15 +827,6 @@ class LegacyParser(_LowLevelParser):
     def eatPlaceholder(self):
         self._compiler.addPlaceholder(*self.getPlaceholder())
 
-    _simpleIndentingDirectives = frozenset({
-        'compiler-settings', 'if', 'else', 'elif', 'for', 'while', 'try',
-        'except', 'finally', 'with',
-    })
-    _simple_expr_directives = frozenset({
-        'pass', 'continue', 'return', 'yield', 'break', 'del', 'assert',
-        'raise', 'import', 'from', 'py'
-    })
-
     def eatDirective(self):
         directive = self.matchDirective()
 
@@ -878,10 +842,10 @@ class LegacyParser(_LowLevelParser):
             else:
                 handler = getattr(self._compiler, 'add' + directive.capitalize())
 
-            if directive in self._simpleIndentingDirectives:
+            if directive in INDENTING_DIRECTIVES:
                 self.eatSimpleIndentingDirective(directive, callback=handler)
             else:
-                assert directive in self._simple_expr_directives
+                assert directive in EXPRESSION_DIRECTIVES
                 line_col = self.getRowCol()
                 include_name = directive != 'py'
                 expr = self.eatSimpleExprDirective(
@@ -960,7 +924,7 @@ class LegacyParser(_LowLevelParser):
                 self.advance()
             self.getWhiteSpace()
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            if directiveName in self._closeableDirectives:
+            if directiveName in CLOSABLE_DIRECTIVES:
                 self.pushToOpenDirectivesStack(directiveName)
             callback(expr, lineCol)
 
@@ -971,7 +935,7 @@ class LegacyParser(_LowLevelParser):
         self.getWhiteSpace()
         pos = self.pos()
         directiveName = False
-        for key in self._endDirectiveNamesAndHandlers.keys():
+        for key in CLOSABLE_DIRECTIVES:
             if self.find(key, pos) == pos:
                 directiveName = key
                 break
@@ -981,22 +945,17 @@ class LegacyParser(_LowLevelParser):
         endOfFirstLinePos = self.findEOL()
         self.getExpression()  # eat in any extra comment-like crap
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-        assert directiveName in self._closeableDirectives
+        assert directiveName in CLOSABLE_DIRECTIVES
         self.popFromOpenDirectivesStack(directiveName)
 
-        # subclasses can override the default behaviours here by providing an
-        # end-directive handler in self._endDirectiveNamesAndHandlers[directiveName]
-        if self._endDirectiveNamesAndHandlers.get(directiveName):
-            handler = self._endDirectiveNamesAndHandlers[directiveName]
-            handler()
+        if directiveName == 'def':
+            self._compiler.closeDef()
         elif directiveName == 'compiler-settings':
             self._compiler.add_compiler_settings()
         elif directiveName == 'block':
             self._compiler.closeBlock()
-        elif directiveName == 'call':
-            self._compiler.endCallRegion()
         else:
-            assert directiveName in ['while', 'for', 'if', 'try', 'with']
+            assert directiveName in {'while', 'for', 'if', 'try', 'with'}
             self._compiler.commitStrConst()
             self._compiler.dedent()
 
@@ -1186,41 +1145,8 @@ class LegacyParser(_LowLevelParser):
         self._compiler.commitStrConst()
         self.readToEOL(gobble=True)
 
-    def eatCall(self):
-        isLineClearToStartToken = self.isLineClearToStartToken()
-        endOfFirstLinePos = self.findEOL()
-        lineCol = self.getRowCol()
-        self.getDirectiveStartToken()
-        self.advance(len('call'))
-
-        self.getWhiteSpace()
-        if self.matchCheetahVarStart():
-            functionName = self.getCheetahVar()
-        else:
-            functionName = self.getCheetahVar(plain=True, skipStartToken=True)
-
-        self.getWhiteSpace()
-        args = self.getExpression(pyTokensToBreakAt=[':']).strip()
-        if self.matchColonForSingleLineShortFormDirective():
-            self.advance()  # skip over :
-            self._compiler.startCallRegion(functionName, args, lineCol)
-            self.getWhiteSpace(maximum=1)
-            self.parse(breakPoint=self.findEOL(gobble=False))
-            self._compiler.endCallRegion()
-        else:
-            if self.peek() == ':':
-                self.advance()
-            self.getWhiteSpace()
-            self.pushToOpenDirectivesStack("call")
-            self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
-            self._compiler.startCallRegion(functionName, args, lineCol)
-
-    # end directive handlers
-    def handleEndDef(self):
-        self._compiler.closeDef()
-
     def pushToOpenDirectivesStack(self, directiveName):
-        assert directiveName in self._closeableDirectives
+        assert directiveName in CLOSABLE_DIRECTIVES
         self._openDirectivesStack.append(directiveName)
 
     def popFromOpenDirectivesStack(self, directive_name):
