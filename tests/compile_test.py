@@ -324,11 +324,6 @@ useNameMapper = False
 
 
 #@dummydecorator
-#def foo_call_func(arg)
-    $arg
-#end def
-
-
 #def returning_function()
     #return 5
 #end def
@@ -365,11 +360,6 @@ useNameMapper = False
     #yield
     after
 #end def
-
-
-#call self.foo_call_func
-Hello world
-#end call
 
 
 #py foo = {"a": 1}

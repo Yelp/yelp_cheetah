@@ -9,7 +9,6 @@
 '''
 from __future__ import unicode_literals
 
-import collections
 import contextlib
 import copy
 import re
@@ -24,10 +23,6 @@ from Cheetah.legacy_parser import escapedNewlineRE
 from Cheetah.legacy_parser import LegacyParser
 from Cheetah.SettingsManager import SettingsManager
 
-
-CallDetails = collections.namedtuple(
-    'CallDetails', ('call_id', 'function_name', 'args', 'lineCol'),
-)
 
 INDENT = 4 * ' '
 
@@ -79,13 +74,11 @@ class MethodCompiler(object):
             initialMethodComment,
             decorators=None,
     ):
-        self._next_variable_id = 0
         self._methodName = methodName
         self._initialMethodComment = initialMethodComment
         self._indentLev = 2
         self._pendingStrConstChunks = []
         self._methodBodyChunks = []
-        self._callRegionsStack = []
         self._hasReturnStatement = False
         self._isGenerator = False
         self._arguments = [('self', None)]
@@ -263,68 +256,6 @@ class MethodCompiler(object):
         self.addReIndentingDirective(expr, line_col, dedent=dedent)
 
     addElif = addElse
-
-    def next_id(self):
-        self._next_variable_id += 1
-        return '_{}'.format(self._next_variable_id)
-
-    def startCallRegion(self, function_name, args, lineCol):
-        call_id = self.next_id()
-        call_details = CallDetails(call_id, function_name, args, lineCol)
-        self._callRegionsStack.append(call_details)
-
-        self.addChunk(
-            '## START CALL REGION: {call_id} of {function_name} '
-            'at line {line}, col {col}.'.format(
-                call_id=call_id,
-                function_name=function_name,
-                line=lineCol[0],
-                col=lineCol[1],
-            )
-        )
-        self.addChunk('_orig_trans{} = self.transaction'.format(call_id))
-        self.addChunk(
-            'self.transaction = _call{} = io.StringIO()'.format(
-                call_id
-            )
-        )
-
-    def endCallRegion(self):
-        call_details = self._callRegionsStack.pop()
-        call_id, function_name, args, (line, col) = (
-            call_details.call_id,
-            call_details.function_name,
-            call_details.args,
-            call_details.lineCol,
-        )
-
-        self.addChunk(
-            'self.transaction = _orig_trans{}'.format(call_id),
-        )
-        self.addChunk('del _orig_trans{}'.format(call_id))
-
-        self.addChunk('_call_arg{id} = _call{id}.getvalue()'.format(id=call_id))
-        self.addChunk('del _call{}'.format(call_id))
-
-        args = (', ' + args).strip()
-        self.addFilteredChunk(
-            '{function_name}(_call_arg{call_id}{args})'.format(
-                function_name=function_name,
-                call_id=call_id,
-                args=args,
-            )
-        )
-        self.addChunk('del _call_arg{}'.format(call_id))
-        self.addChunk(
-            '## END CALL REGION: {call_id} of {function_name} '
-            'at line {line}, col {col}.'.format(
-                call_id=call_id,
-                function_name=function_name,
-                line=line,
-                col=col,
-            )
-        )
-        self.addChunk()
 
     def _addAutoSetupCode(self):
         self.addChunk(self._initialMethodComment)
@@ -545,11 +476,10 @@ class LegacyCompiler(SettingsManager):
 
     # methods for adding stuff to the module and class definitions
 
-    def genCheetahVar(self, nameChunks, lineCol, plain=False):
+    def genCheetahVar(self, nameChunks, lineCol):
         first_accessed_var = nameChunks[0][0].partition('.')[0]
         plain = (
             not self.setting('useNameMapper') or
-            plain or
             first_accessed_var in self._local_vars or
             first_accessed_var in self._global_vars or
             first_accessed_var in BUILTIN_NAMES
