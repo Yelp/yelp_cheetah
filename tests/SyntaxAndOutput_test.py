@@ -12,6 +12,7 @@ import pytest
 from Cheetah import filters
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import ParseError
+from Cheetah.NameMapper import NotFound
 
 
 def dummydecorator(func):
@@ -1696,3 +1697,25 @@ def test_allow_getvar_of_underscored_things():
     # Regression test for v0.11.0
     cls = compile_to_class('$self.getVar("foo_BAR1")')
     assert cls({'foo_BAR1': 'baz'}).respond() == 'baz'
+
+
+def test_allows_autoself():
+    cls = compile_to_class(
+        '#def foo():\n'
+        'ohai\n'
+        '#end def\n'
+        '$foo()\n',
+    )
+    assert cls().respond() == 'ohai\n\n'
+
+
+def test_does_not_allow_autoself():
+    cls = compile_to_class(
+        '#def foo():\n'
+        'ohai\n'
+        '#end def\n'
+        '$foo()\n',
+        settings={'enable_auto_self': False},
+    )
+    with pytest.raises(NotFound):
+        cls().respond()
