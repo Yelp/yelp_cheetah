@@ -36,6 +36,8 @@ DEFAULT_COMPILER_SETTINGS = {
     # All #import statements are hoisted to the top of the module
     'useLegacyImportMode': True,
     'gettextTokens': ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'],
+    # Can $foo mean both self.foo and NS['foo']?
+    'enable_auto_self': True,
 }
 
 CLASS_NAME = 'YelpCheetahTemplate'
@@ -47,10 +49,13 @@ def genPlainVar(nameChunks):
     return '.'.join(name + rest for name, rest in nameChunks)
 
 
-def genNameMapperVar(nameChunks):
+def genNameMapperVar(nameChunks, auto_self):
     name, remainder = nameChunks[0]
     namept1, dot, rest = name.partition('.')
-    start = 'VFFSL("{}", locals(), globals(), self, NS){}{}{}'.format(namept1, dot, rest, remainder)
+    if auto_self:
+        start = 'VFFSL("{}", locals(), globals(), self, NS){}{}{}'.format(namept1, dot, rest, remainder)
+    else:
+        start = 'VFFNS("{}", locals(), globals(), NS){}{}{}'.format(namept1, dot, rest, remainder)
     tail = genPlainVar(nameChunks[1:])
     return start + ('.' if tail else '') + tail
 
@@ -437,10 +442,11 @@ class LegacyCompiler(SettingsManager):
         )
         self._importStatements = [
             'import io',
+            'from Cheetah.NameMapper import value_from_frame_or_namespace as VFFNS',
             'from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
-        self._global_vars = {'io', 'NO_CONTENT', 'VFFSL'}
+        self._global_vars = {'io', 'NO_CONTENT', 'VFFNS', 'VFFSL'}
 
         self._gettext_scannables = []
 
@@ -492,7 +498,9 @@ class LegacyCompiler(SettingsManager):
         if plain:
             return genPlainVar(nameChunks)
         else:
-            return genNameMapperVar(nameChunks)
+            return genNameMapperVar(
+                nameChunks, auto_self=self.setting('enable_auto_self'),
+            )
 
     def addGetTextVar(self, nameChunks, lineCol):
         """Output something that gettext can recognize.

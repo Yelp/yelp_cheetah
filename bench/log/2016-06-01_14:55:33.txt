@@ -1,0 +1,31 @@
+================================================================================
+SHA = 8029956fa22330c173246082860ea99d4a0c6820
+BEST_OF = 5
+ITERATIONS = 10
+TIME_PER_TEST = 200
+bogomips	: 5400.00
+bogomips	: 5400.00
+bogomips	: 5400.00
+bogomips	: 5400.00
+bogomips	: 5400.00
+bogomips	: 5400.00
+--------------------------------------------------------------------------------
+lookup_builtin_no_auto_self             135387 iterations
+lookup_builtin_opt_on                   138447 iterations
+lookup_dotted_sl_no_auto_self           17749 iterations
+lookup_dotted_sl_opt_on                 15045 iterations
+lookup_global_no_auto_self              139531 iterations
+lookup_global_opt_on                    135761 iterations
+lookup_local_no_auto_self               121347 iterations
+lookup_local_opt_on                     125481 iterations
+lookup_sl_no_auto_self                  21191 iterations
+lookup_sl_opt_on                        16228 iterations
+vffns_frame                             40882 iterations
+vffns_sl                                22944 iterations
+vffns_template                          22382 iterations
+vffsl_frame                             38382 iterations
+vffsl_sl                                18030 iterations
+vffsl_template                          17824 iterations
+write_markup                            13481 iterations
+write_text                              8009 iterations
+--------------------------------------------------------------------------------
