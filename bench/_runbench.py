@@ -23,7 +23,7 @@ def list_benchmarks():
 
 
 def run_bench(name):
-    sys.stdout.write('{:32}'.format(name))
+    sys.stdout.write('{:40}'.format(name))
     sys.stdout.flush()
 
     bench = __import__('bench_' + name).run

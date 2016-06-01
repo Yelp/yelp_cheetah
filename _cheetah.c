@@ -10,16 +10,8 @@ static PyObject* NotFound;
 static PyObject* _builtins_module;
 
 
-static PyObject* _vfsl(char* key, PyObject* selfobj, PyObject* ns) {
-    PyObject* ret;
-    PyObject* fmt;
-    PyObject* fmted;
-
-    if ((ret = PyObject_GetAttrString(selfobj, key))) {
-        return ret;
-    }
-
-    PyErr_Clear();
+static inline PyObject* _ns_lookup(char* key, PyObject* ns) {
+    PyObject* ret = NULL;
 
     if ((ret = PyMapping_GetItemString(ns, key))) {
         return ret;
@@ -27,37 +19,34 @@ static PyObject* _vfsl(char* key, PyObject* selfobj, PyObject* ns) {
 
     PyErr_Clear();
 
-    fmt = PyUnicode_FromString("Cannot find '{}'");
-    fmted = PyObject_CallMethod(fmt, "format", IF_PY3("y", "s"), key);
-    PyErr_SetObject(NotFound, fmted);
-    Py_XDECREF(fmted);
-    Py_XDECREF(fmt);
+    {
+        PyObject* fmt = PyUnicode_FromString("Cannot find '{}'");
+        PyObject* fmted = PyObject_CallMethod(
+            fmt, "format", IF_PY3("y", "s"), key
+        );
+        PyErr_SetObject(NotFound, fmted);
+        Py_XDECREF(fmted);
+        Py_XDECREF(fmt);
+    }
     return NULL;
 }
 
-static PyObject* value_from_search_list(PyObject* _, PyObject* args) {
-    char* key;
-    PyObject* selfobj;
-    PyObject* ns;
 
-    if (!PyArg_ParseTuple(args, "sOO", &key, &selfobj, &ns)) {
-        return NULL;
+static inline PyObject* _self_lookup(char* key, PyObject* selfobj) {
+    PyObject* ret = NULL;
+
+    if ((ret = PyObject_GetAttrString(selfobj, key))) {
+        return ret;
     }
 
-    return _vfsl(key, selfobj, ns);
+    PyErr_Clear();
+
+    return ret;
 }
 
-static PyObject* value_from_frame_or_search_list(PyObject* _, PyObject* args) {
-    char* key;
-    PyObject* locals;
-    PyObject* globals;
-    PyObject* selfobj;
-    PyObject* ns;
-    PyObject* ret;
 
-    if (!PyArg_ParseTuple(args, "sOOOO", &key, &locals, &globals, &selfobj, &ns)) {
-        return NULL;
-    }
+static inline PyObject* _frame_lookup(char* key, PyObject* locals, PyObject* globals) {
+    PyObject* ret = NULL;
 
     if ((ret = PyMapping_GetItemString(locals, key))) {
         return ret;
@@ -77,7 +66,77 @@ static PyObject* value_from_frame_or_search_list(PyObject* _, PyObject* args) {
 
     PyErr_Clear();
 
-    return _vfsl(key, selfobj, ns);
+    return ret;
+}
+
+
+static PyObject* value_from_namespace(PyObject* _, PyObject* args) {
+    char* key;
+    PyObject* ns;
+
+    if (!PyArg_ParseTuple(args, "sO", &key, &ns)) {
+        return NULL;
+    }
+
+    return _ns_lookup(key, ns);
+}
+
+
+static PyObject* value_from_frame_or_namespace(PyObject* _, PyObject* args) {
+    char* key;
+    PyObject* locals;
+    PyObject* globals;
+    PyObject* ns;
+    PyObject* ret;
+
+    if (!PyArg_ParseTuple(args, "sOOO", &key, &locals, &globals, &ns)) {
+        return NULL;
+    }
+
+    if ((ret = _frame_lookup(key, locals, globals))) {
+        return ret;
+    } else {
+        return _ns_lookup(key, ns);
+    }
+}
+
+static PyObject* value_from_search_list(PyObject* _, PyObject* args) {
+    char* key;
+    PyObject* selfobj;
+    PyObject* ns;
+    PyObject* ret;
+
+    if (!PyArg_ParseTuple(args, "sOO", &key, &selfobj, &ns)) {
+        return NULL;
+    }
+
+    if ((ret = _self_lookup(key, selfobj))) {
+        return ret;
+    } else {
+        return _ns_lookup(key, ns);
+    }
+}
+
+
+static PyObject* value_from_frame_or_search_list(PyObject* _, PyObject* args) {
+    char* key;
+    PyObject* locals;
+    PyObject* globals;
+    PyObject* selfobj;
+    PyObject* ns;
+    PyObject* ret;
+
+    if (!PyArg_ParseTuple(args, "sOOOO", &key, &locals, &globals, &selfobj, &ns)) {
+        return NULL;
+    }
+
+    if ((ret = _frame_lookup(key, locals, globals))) {
+        return ret;
+    } else if ((ret = _self_lookup(key, selfobj))) {
+        return ret;
+    } else {
+        return _ns_lookup(key, ns);
+    }
 }
 
 static PyObject* _setup_module(PyObject* module) {
@@ -95,6 +154,16 @@ static PyObject* _setup_module(PyObject* module) {
 }
 
 static struct PyMethodDef methods[] = {
+    {
+        "value_from_namespace",
+        (PyCFunction)value_from_namespace,
+        METH_VARARGS
+    },
+    {
+        "value_from_frame_or_namespace",
+        (PyCFunction)value_from_frame_or_namespace,
+        METH_VARARGS
+    },
     {
         "value_from_search_list",
         (PyCFunction)value_from_search_list,
