@@ -19,6 +19,10 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.15.1
+- Introduce unused functions for lookup.  These will be used for backwards /
+  forwards compatibility in the next release.
+
 ## 0.15.0
 - Remove `#call` directive (port to `#with` instead)
 
