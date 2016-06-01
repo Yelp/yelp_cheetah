@@ -5,12 +5,23 @@ import pytest
 
 from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
+from Cheetah.NameMapper import py_value_from_frame_or_namespace
 from Cheetah.NameMapper import py_value_from_frame_or_search_list
+from Cheetah.NameMapper import py_value_from_namespace
 from Cheetah.NameMapper import py_value_from_search_list
+from Cheetah.NameMapper import value_from_frame_or_namespace
 from Cheetah.NameMapper import value_from_frame_or_search_list
+from Cheetah.NameMapper import value_from_namespace
 from Cheetah.NameMapper import value_from_search_list
 
 
+vfns_tests = pytest.mark.parametrize(
+    'vfns', (py_value_from_namespace, value_from_namespace),
+)
+vffns_tests = pytest.mark.parametrize(
+    'vffns',
+    (py_value_from_frame_or_namespace, value_from_frame_or_namespace),
+)
 vfsl_tests = pytest.mark.parametrize(
     'vfsl', (py_value_from_search_list, value_from_search_list),
 )
@@ -49,43 +60,90 @@ def test_VFSL_objects(vfsl):
     assert vfsl('attr', C, {}) is C.attr
 
 
+@vfns_tests
+def test_VFNS_failure_typeerror(vfns):
+    with pytest.raises((AttributeError, NotFound)):
+        vfns('a', 'a')
+
+
+@vfns_tests
+def test_VFNS_failure(vfns):
+    with pytest.raises(NotFound):
+        vfns('a', {})
+
+
+@vfns_tests
+def test_VFNS_dict(vfns):
+    ns = {'a': object()}
+    assert vfns('a', ns) is ns['a']
+
+
 @vffsl_tests
 def test_VFFSL_locals_first(vffsl):
-    local_var = object()
-    global_var = object()
-    sl_var = object()
+    loc = object()
+    glob = object()
+    ns_var = object()
     # Intentionally mask builtin `int`
-    locals().update({'int': local_var})
-    with mock.patch.dict(globals(), {'int': global_var}):
+    locals().update({'int': loc})
+    with mock.patch.dict(globals(), {'int': glob}):
         assert vffsl(
-            'int', locals(), globals(), object(), {'int': sl_var},
-        ) is local_var
+            'int', locals(), globals(), object(), {'int': ns_var},
+        ) is loc
 
 
 @vffsl_tests
 def test_VFFSL_globals_next(vffsl):
-    global_var = object()
-    sl_var = object()
-    with mock.patch.dict(globals(), {'int': global_var}):
+    glob = object()
+    ns_var = object()
+    with mock.patch.dict(globals(), {'int': glob}):
         assert vffsl(
-            'int', locals(), globals(), object(), {'int': sl_var},
-        ) is global_var
+            'int', locals(), globals(), object(), {'int': ns_var},
+        ) is glob
 
 
 @vffsl_tests
 def test_VFFSL_builtins_next(vffsl):
-    sl_var = object()
-    assert vffsl(
-        'int', locals(), globals(), object(), {'int': sl_var},
-    ) is int
+    ns_var = object()
+    assert vffsl('int', locals(), globals(), object(), {'int': ns_var}) is int
 
 
 @vffsl_tests
 def test_VFFSL_and_finally_searchlist(vffsl):
-    sl_var = object()
+    ns_var = object()
     assert vffsl(
-        'bar', locals(), globals(), object(), {'bar': sl_var},
-    ) is sl_var
+        'bar', locals(), globals(), object(), {'bar': ns_var},
+    ) is ns_var
+
+
+@vffns_tests
+def test_VFFNS_locals_first(vffns):
+    loc = object()
+    glob = object()
+    ns_var = object()
+    # Intentionally mask builtin `int`
+    locals().update({'int': loc})
+    with mock.patch.dict(globals(), {'int': glob}):
+        assert vffns('int', locals(), globals(), {'int': ns_var}) is loc
+
+
+@vffns_tests
+def test_VFFNS_globals_next(vffns):
+    glob = object()
+    ns_var = object()
+    with mock.patch.dict(globals(), {'int': glob}):
+        assert vffns('int', locals(), globals(), {'int': ns_var}) is glob
+
+
+@vffns_tests
+def test_VFFNS_builtins_next(vffns):
+    ns_var = object()
+    assert vffns('int', locals(), globals(), {'int': ns_var}) is int
+
+
+@vffns_tests
+def test_VFFNS_and_finally_searchlist(vffns):
+    ns_var = object()
+    assert vffns('bar', locals(), globals(), {'bar': ns_var}) is ns_var
 
 
 def test_map_builtins_int():
