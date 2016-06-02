@@ -579,3 +579,21 @@ def test_errors_on_blinged_kwarg():
         compile_to_class(
             '$foo($bar=$baz)'
         )
+
+
+def test_errors_garbage_after_end_directive():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Invalid garbage after #end directive\n'
+        'Line 2, column 15\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#block foo\n'
+        '2   |#end block foo\n'
+        '                   ^\n'
+    ):
+        compile_to_class(
+            '#block foo\n'
+            '#end block foo\n'
+        )
