@@ -33,7 +33,6 @@ closurePairsRev = {'(': ')', '[': ']', '{': '}'}
 
 escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
-directiveRE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@[a-zA-Z_][a-zA-Z0-9_]*)')
 EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
 escapedNewlineRE = re.compile(r'(?<!\\)((\\\\)*)\\(n|012)')
@@ -61,8 +60,9 @@ EXPR_PLACEHOLDER_START_RE = re.compile(
     r'(?=[^\)\}\]])'
 )
 COMMENT_START_RE = re.compile(escCharLookBehind + re.escape('##'))
+DIRECTIVE_RE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@[a-zA-Z_][a-zA-Z0-9_]*)')
 DIRECTIVE_START_RE = re.compile(
-    escCharLookBehind + re.escape('#') + r'(?=[A-Za-z_@])',
+    escCharLookBehind + re.escape('#') + r'(?=([A-Za-z_]|@[A-Za-z_]))',
 )
 DIRECTIVE_END_RE = re.compile(escCharLookBehind + re.escape('#'))
 
@@ -285,13 +285,7 @@ class _LowLevelParser(SourceReader):
         return directiveName
 
     def matchDirectiveName(self):
-        directive_match = directiveRE.match(self.src(), self.pos())
-        # There is a case where something looks like a decorator but actually
-        # isn't a decorator.  The parsing for this is particularly wonky
-        if directive_match is None:
-            return None
-
-        match_text = directive_match.group(0)
+        match_text = DIRECTIVE_RE.match(self.src(), self.pos()).group(0)
 
         # #@ is the "directive" for decorators
         if match_text.startswith('@'):
