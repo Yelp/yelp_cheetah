@@ -38,8 +38,8 @@ class SettingsManager(object):
 
     def updateSettingsFromConfigStr(self, config_str):
         values = [line.split('=', 1) for line in config_str.strip().splitlines()]
-        settings = dict(
-            (key.strip(), convert_value(value.strip()))
+        settings = {
+            key.strip(): convert_value(value.strip())
             for key, value in values
-        )
+        }
         self.updateSettings(settings)
