@@ -171,11 +171,8 @@ def fail_with_our_parse_error(func):
         except Exception as e:
             six.reraise(
                 ParseError,
-                ParseError(
-                    self,
-                    '{}: {}\n'.format(type(e).__name__, e)
-                ),
-                sys.exc_info()[2]
+                ParseError(self, '{}: {}\n'.format(type(e).__name__, e)),
+                sys.exc_info()[2],
             )
     return inner
 
@@ -206,8 +203,8 @@ class ArgList(object):
         self.defaults[count] += token
 
     def merge(self):
-        defaults = (isinstance(d, six.text_type) and d.strip() or None for d in self.defaults)
-        return list(six.moves.zip_longest((a.strip() for a in self.arguments), defaults))
+        defaults = [d.strip() if d is not None else None for d in self.defaults]
+        return list(zip((a.strip() for a in self.arguments), defaults))
 
 
 class _LowLevelParser(SourceReader):
