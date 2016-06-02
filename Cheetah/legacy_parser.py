@@ -49,7 +49,7 @@ VAR_START_RE = re.compile(
 VAR_START_TOKEN_RE = re.compile(
     escCharLookBehind +
     VAR_START_ESC +
-    r'(?=[A-Za-z_\*!\{\(\[])'
+    r'(?=[A-Za-z_\{\(\[])'
 )
 VAR_IN_EXPRESSION_START_TOKEN_RE = re.compile(
     VAR_START_ESC + r'(?=[A-Za-z_])'
