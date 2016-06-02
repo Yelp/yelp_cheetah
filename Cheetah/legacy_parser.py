@@ -877,11 +877,9 @@ class LegacyParser(_LowLevelParser):
                 break
         if not directiveName:
             raise ParseError(self, msg='Invalid end directive')
-        self.advance(len(directiveName))
 
         endOfFirstLinePos = self.findEOL()
-        if self.getExpression().strip():
-            raise ParseError(self, 'Invalid garbage after #end directive')
+        self.getExpression()  # eat in any extra comment-like crap
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         assert directiveName in CLOSABLE_DIRECTIVES
         self.popFromOpenDirectivesStack(directiveName)
