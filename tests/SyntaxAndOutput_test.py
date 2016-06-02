@@ -970,10 +970,10 @@ this is a test block
 outer
 #block innerNest
 inner
-#end block
-#end block
+#end block innerNest
+#end block outerNest
 ---
-#end block
+#end block testBlock
 """,
                     "this is a test block\nouter\ninner\n---\n")
 
