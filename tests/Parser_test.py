@@ -158,7 +158,7 @@ def test_parse_error_long_file():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        "EOF was reached before a matching ')' was found for the '('\n"
+        "EOF while searching for ')' (to match '(')\n"
         'Line 5, column 5\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -179,7 +179,7 @@ def test_unclosed_enclosure():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        "EOF was reached before a matching '}' was found for the '{'\n"
+        "EOF while searching for '}' (to match '{')\n"
         'Line 1, column 2\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -194,7 +194,7 @@ def test_parse_error_on_attr_with_var():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        'Invalid #attr directive. It should contain simple Python literals.\n'
+        'Invalid Syntax\n'
         'Line 1, column 13\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -224,13 +224,13 @@ def test_invalid_line_continuation():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        'Line ending expected\n'
-        'Line 1, column 20\n'
+        'Invalid Syntax\n'
+        'Line 1, column 19\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#py foo = "bar" + \\hi, not a new line\n'
-        '                        ^\n'
+        '                       ^\n'
     ):
         compile_source('#py foo = "bar" + \\hi, not a new line')
 
@@ -239,7 +239,7 @@ def test_close_wrong_enclosure():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        "A ']' was found at line 1, col 4 before a matching '}' was found for the '{'\n"
+        "Mismatched token. Found ']' while searching for '}'\n"
         'Line 1, column 2\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -285,13 +285,13 @@ def test_weird_close_call():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        "Expected a ')' before an end '}'\n"
-        'Line 1, column 6\n'
+        "Mismatched token. Found '}' while searching for ')'\n"
+        'Line 1, column 5\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |$foo(}\n'
-        '          ^\n'
+        '         ^\n'
     ):
         compile_source('$foo(}')
 
@@ -313,20 +313,33 @@ def test_invalid_syntax_in_super():
 
 
 def test_invalid_syntax_in_call():
-    # I'm not sure this error is actually correct
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        "Long-form placeholders - ${}, $(), $[], etc. are not valid inside "
-        "expressions. Use them in top-level $placeholders only.\n"
-        'Line 1, column 11\n'
+        'Invalid identifier\n'
+        'Line 1, column 12\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |$herp(foo=${bar})\n'
-        '               ^\n'
+        '                ^\n'
     ):
         compile_source('$herp(foo=${bar})')
+
+
+def test_placeholders_cannot_start_with_whitespace():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Expected identifier\n'
+        'Line 1, column 3\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |${ foo }\n'
+        '       ^\n'
+    ):
+        compile_source('${ foo }')
 
 
 def test_unexpected_character_parse_error():
@@ -463,14 +476,14 @@ def test_lvalue_for():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        'lvalue of for must not contain a `$`\n'
-        'Line 1, column 6\n'
+        "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
+        'Line 2, column 1\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#for $foo in bar\n'
-        '          ^\n'
         '2   |$foo\n'
+        '     ^\n'
         '3   |#end for\n'
     ):
         compile_source(
@@ -520,12 +533,12 @@ def test_errors_on_blinged_kwarg():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        'kwargs should not start with $\n'
-        'Line 1, column 6\n\n'
+        "SyntaxError: keyword can't be an expression (<unknown>, line 1)\n\n"
+        'Line 1, column 15\n\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |$foo($bar=$baz)\n'
-        '          ^\n'
+        '                   ^\n'
     ):
         compile_source(
             '$foo($bar=$baz)'
@@ -537,12 +550,12 @@ def test_weird_def_parsing():
         ParseError,
         '\n\n'
         "EOF while searching for ')' (to match '(')\n"
-        'Line 2, column 9\n\n'
+        'Line 1, column 9\n\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#def foo(x,#\n'
-        '2   |#end def\n'
         '             ^\n'
+        '2   |#end def\n'
     ):
         compile_source(
             '#def foo(x,#\n'
