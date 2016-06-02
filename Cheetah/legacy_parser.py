@@ -1013,8 +1013,7 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(
                 self, '#block must not have an argspec, did you mean #def?',
             )
-
-        if directiveName == 'def' and self.peek() != '(':
+        elif directiveName == 'def' and self.peek() != '(':
             raise ParseError(self, '#def must contain an argspec (at least ())')
 
         if directiveName == 'def':
