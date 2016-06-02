@@ -222,7 +222,6 @@ class _LowLevelParser(SourceReader):
 
         Returns None if no match.
         """
-        match = None
         if self.peek() in '#$':
             for matcher in (
                     self.matchCommentStartToken,
@@ -232,8 +231,8 @@ class _LowLevelParser(SourceReader):
             ):
                 match = matcher()
                 if match:
-                    break
-        return match
+                    return match
+        return None
 
     def getPyToken(self):
         match = python_token_re.match(self.src(), self.pos())
@@ -847,7 +846,7 @@ class LegacyParser(_LowLevelParser):
         expr = self.getExpression(pyTokensToBreakAt=[':'])
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
-            if directiveName in 'else elif except finally'.split():
+            if directiveName in {'else', 'elif', 'except', 'finally'}:
                 callback(expr, lineCol, dedent=False)
             else:
                 callback(expr, lineCol)
