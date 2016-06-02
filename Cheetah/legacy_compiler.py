@@ -475,7 +475,7 @@ class LegacyCompiler(SettingsManager):
         if not varNames:
             return
         if not self.setting('useLegacyImportMode'):
-            if raw_statement and getattr(self, '_methodBodyChunks'):
+            if raw_statement and self._methodBodyChunks:
                 self.addChunk(raw_statement)
         else:
             self._global_vars.update(varNames)

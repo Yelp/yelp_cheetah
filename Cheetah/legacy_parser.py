@@ -12,57 +12,27 @@ import functools
 import re
 import string
 import sys
-from tokenize import PseudoToken
+import tokenize
 
 import six
 
 from Cheetah.SourceReader import SourceReader
 
-python_token_re = re.compile(PseudoToken)
+python_token_re = re.compile(tokenize.PseudoToken)
 identchars = string.ascii_letters + '_'
 namechars = identchars + string.digits
 
-single3 = "'''"
-double3 = '"""'
-
-tripleQuotedStringStarts = (
-    "'''", '"""',
-    "r'''", 'r"""', "R'''", 'R"""',
-    "u'''", 'u"""', "U'''", 'U"""',
-    "ur'''", 'ur"""', "Ur'''", 'Ur"""',
-    "uR'''", 'uR"""', "UR'''", 'UR"""',
-)
-
-tripleQuotedStringPairs = {
-    "'''": single3, '"""': double3,
-    "r'''": single3, 'r"""': double3,
-    "u'''": single3, 'u"""': double3,
-    "ur'''": single3, 'ur"""': double3,
-    "R'''": single3, 'R"""': double3,
-    "U'''": single3, 'U"""': double3,
-    "uR'''": single3, 'uR"""': double3,
-    "Ur'''": single3, 'Ur"""': double3,
-    "UR'''": single3, 'UR"""': double3,
+triple_quoted_pairs = {k: k[-3:] for k in tokenize.triple_quoted}
+triple_quoted_res = {
+    k: re.compile('(?:{}).*?(?:{})'.format(k, v), re.DOTALL)
+    for k, v in triple_quoted_pairs.items()
 }
 
 closurePairs = {')': '(', ']': '[', '}': '{'}
 closurePairsRev = {'(': ')', '[': ']', '{': '}'}
 
-
-tripleQuotedStringREs = {}
-
-
-def makeTripleQuoteRe(start, end):
-    start = re.escape(start)
-    end = re.escape(end)
-    return re.compile(r'(?:' + start + r').*?' + r'(?:' + end + r')', re.DOTALL)
-
-for start_part, end_part in tripleQuotedStringPairs.items():
-    tripleQuotedStringREs[start_part] = makeTripleQuoteRe(start_part, end_part)
-
 escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
-directiveRE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@[a-zA-Z_][a-zA-Z0-9_]*)')
 EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
 escapedNewlineRE = re.compile(r'(?<!\\)((\\\\)*)\\(n|012)')
@@ -72,13 +42,13 @@ VAR_START_ESC = re.escape(VAR_START)
 VAR_START_RE = re.compile(
     escCharLookBehind +
     r'(?P<startToken>' + VAR_START_ESC + ')' +
-    r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t]*))' +  # allow WS after
+    r'(?P<enclosure>|(?:\{|\(|\[))' +
     r'(?=[A-Za-z_])',
 )
 VAR_START_TOKEN_RE = re.compile(
     escCharLookBehind +
     VAR_START_ESC +
-    r'(?=[A-Za-z_\*!\{\(\[])'
+    r'(?=[A-Za-z_\{\(\[])'
 )
 VAR_IN_EXPRESSION_START_TOKEN_RE = re.compile(
     VAR_START_ESC + r'(?=[A-Za-z_])'
@@ -90,20 +60,11 @@ EXPR_PLACEHOLDER_START_RE = re.compile(
     r'(?=[^\)\}\]])'
 )
 COMMENT_START_RE = re.compile(escCharLookBehind + re.escape('##'))
+DIRECTIVE_RE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@[a-zA-Z_][a-zA-Z0-9_]*)')
 DIRECTIVE_START_RE = re.compile(
-    escCharLookBehind + re.escape('#') + r'(?=[A-Za-z_@])',
+    escCharLookBehind + re.escape('#') + r'(?=([A-Za-z_]|@[A-Za-z_]))',
 )
 DIRECTIVE_END_RE = re.compile(escCharLookBehind + re.escape('#'))
-
-
-def _unescapeCheetahVars(s):
-    r"""Unescape any escaped Cheetah \$vars in the string."""
-    return s.replace('\\$', '$')
-
-
-def _unescapeDirectives(s):
-    """Unescape any escaped Cheetah directives in the string."""
-    return s.replace('\\#', '#')
 
 
 directiveNamesAndParsers = {
@@ -210,11 +171,8 @@ def fail_with_our_parse_error(func):
         except Exception as e:
             six.reraise(
                 ParseError,
-                ParseError(
-                    self,
-                    '{}: {}\n'.format(type(e).__name__, e)
-                ),
-                sys.exc_info()[2]
+                ParseError(self, '{}: {}\n'.format(type(e).__name__, e)),
+                sys.exc_info()[2],
             )
     return inner
 
@@ -245,8 +203,8 @@ class ArgList(object):
         self.defaults[count] += token
 
     def merge(self):
-        defaults = (isinstance(d, six.text_type) and d.strip() or None for d in self.defaults)
-        return list(six.moves.zip_longest((a.strip() for a in self.arguments), defaults))
+        defaults = [d.strip() if d is not None else None for d in self.defaults]
+        return list(zip((a.strip() for a in self.arguments), defaults))
 
 
 class _LowLevelParser(SourceReader):
@@ -264,7 +222,6 @@ class _LowLevelParser(SourceReader):
 
         Returns None if no match.
         """
-        match = None
         if self.peek() in '#$':
             for matcher in (
                     self.matchCommentStartToken,
@@ -274,24 +231,19 @@ class _LowLevelParser(SourceReader):
             ):
                 match = matcher()
                 if match:
-                    break
-        return match
-
-    def matchPyToken(self):
-        match = python_token_re.match(self.src(), self.pos())
-
-        if match and match.group() in tripleQuotedStringStarts:
-            TQSmatch = tripleQuotedStringREs[match.group()].match(self.src(), self.pos())
-            if TQSmatch:
-                return TQSmatch
-        return match
+                    return match
+        return None
 
     def getPyToken(self):
-        match = self.matchPyToken()
-        if match is None:
+        match = python_token_re.match(self.src(), self.pos())
+
+        if match and match.group() in triple_quoted_pairs:
+            match = triple_quoted_res[match.group()].match(self.src(), self.pos())
+            if not match:
+                raise ParseError(self, msg='Malformed triple-quoted string')
+        elif not match:
             raise ParseError(self)
-        elif match.group() in tripleQuotedStringStarts:
-            raise ParseError(self, msg='Malformed triple-quoted string')
+
         return self.readTo(match.end())
 
     def matchCommentStartToken(self):
@@ -302,25 +254,15 @@ class _LowLevelParser(SourceReader):
         return self.readTo(match.end())
 
     def getDottedName(self):
-        srcLen = len(self)
-        nameChunks = []
-
         assert self.peek() in identchars
-
-        while self.pos() < srcLen:
-            c = self.peek()
-            if c in namechars:
-                nameChunk = self.getIdentifier()
-                nameChunks.append(nameChunk)
-            elif c == '.':
-                if self.pos() + 1 < srcLen and self.peek(1) in identchars:
-                    nameChunks.append(self.getc())
-                else:
-                    break
-            else:
-                break
-
-        return ''.join(nameChunks)
+        name = self.getIdentifier()
+        while (
+                self.pos() + 1 < len(self) and
+                self.peek() == '.' and
+                self.peek(1) in identchars
+        ):
+            name += self.getc() + self.getIdentifier()
+        return name
 
     def matchIdentifier(self):
         return identRE.match(self.src(), self.pos())
@@ -342,13 +284,7 @@ class _LowLevelParser(SourceReader):
         return directiveName
 
     def matchDirectiveName(self):
-        directive_match = directiveRE.match(self.src(), self.pos())
-        # There is a case where something looks like a decorator but actually
-        # isn't a decorator.  The parsing for this is particularly wonky
-        if directive_match is None:
-            return None
-
-        match_text = directive_match.group(0)
+        match_text = DIRECTIVE_RE.match(self.src(), self.pos()).group(0)
 
         # #@ is the "directive" for decorators
         if match_text.startswith('@'):
@@ -813,7 +749,7 @@ class LegacyParser(_LowLevelParser):
         while not self.atEnd() and not self.matchTopLevelToken():
             self.advance()
         text = self.readTo(self.pos(), start=start)
-        text = _unescapeDirectives(_unescapeCheetahVars(text))
+        text = text.replace('\\$', '$').replace('\\#', '#')
         self._compiler.addStrConst(text)
 
     def eatComment(self):
@@ -910,7 +846,7 @@ class LegacyParser(_LowLevelParser):
         expr = self.getExpression(pyTokensToBreakAt=[':'])
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
-            if directiveName in 'else elif except finally'.split():
+            if directiveName in {'else', 'elif', 'except', 'finally'}:
                 callback(expr, lineCol, dedent=False)
             else:
                 callback(expr, lineCol)
@@ -1023,8 +959,7 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(
                 self, '#block must not have an argspec, did you mean #def?',
             )
-
-        if directiveName == 'def' and self.peek() != '(':
+        elif directiveName == 'def' and self.peek() != '(':
             raise ParseError(self, '#def must contain an argspec (at least ())')
 
         if directiveName == 'def':
