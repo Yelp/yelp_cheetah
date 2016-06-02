@@ -579,3 +579,21 @@ def test_errors_on_blinged_kwarg():
         compile_to_class(
             '$foo($bar=$baz)'
         )
+
+
+def test_weird_parsing():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Unexpected character.\n'
+        'Line 1, column 12\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#def foo(x,#\n'
+        '                ^\n'
+        '2   |#end def\n'
+    ):
+        compile_to_class(
+            '#def foo(x,#\n'
+            '#end def\n'
+        )

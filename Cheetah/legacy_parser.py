@@ -497,7 +497,7 @@ class _LowLevelParser(SourceReader):
                     " was found for the '('")
 
             c = self.peek()
-            if c == ")" or self.matchDirectiveEndToken():
+            if c == ')':
                 break
             elif c in " \t\r\n":
                 if onDefVal:
