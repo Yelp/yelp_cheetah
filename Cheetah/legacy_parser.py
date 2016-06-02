@@ -255,25 +255,15 @@ class _LowLevelParser(SourceReader):
         return self.readTo(match.end())
 
     def getDottedName(self):
-        srcLen = len(self)
-        nameChunks = []
-
         assert self.peek() in identchars
-
-        while self.pos() < srcLen:
-            c = self.peek()
-            if c in namechars:
-                nameChunk = self.getIdentifier()
-                nameChunks.append(nameChunk)
-            elif c == '.':
-                if self.pos() + 1 < srcLen and self.peek(1) in identchars:
-                    nameChunks.append(self.getc())
-                else:
-                    break
-            else:
-                break
-
-        return ''.join(nameChunks)
+        name = self.getIdentifier()
+        while (
+                self.pos() + 1 < len(self) and
+                self.peek() == '.' and
+                self.peek(1) in identchars
+        ):
+            name += self.getc() + self.getIdentifier()
+        return name
 
     def matchIdentifier(self):
         return identRE.match(self.src(), self.pos())
