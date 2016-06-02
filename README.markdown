@@ -19,6 +19,12 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.15.2
+- Add an `enable_auto_self` setting (defaulted to `True`) which (when enabled)
+  means `$foo` can mean either `self.foo` or `NS['foo']` (the behaviour prior
+  to this version).  In future versions, this will default to `False` and will
+  eventually be eliminated.
+
 ## 0.15.1
 - Introduce unused functions for lookup.  These will be used for backwards /
   forwards compatibility in the next release.
