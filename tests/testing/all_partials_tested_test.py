@@ -80,6 +80,7 @@ def test_get_partial_methods():
     from testing.templates import src
     ret = get_partial_methods((src,))
     assert ret == {
+        'testing.templates.src.optimize_name': {'foo', 'bar'},
         'testing.templates.src.partial_template_no_arguments': {'render'},
         'testing.templates.src.partial_with_same_name':
             {'partial_with_same_name'},
@@ -128,6 +129,16 @@ def test_get_partial_tests():
             P.ContextPartialTemplateTest,
             'testing.templates.src.context_partial_template',
             'render',
+        ),
+        (
+            P.OptimizeNamePartialTemplateFooTest,
+            'testing.templates.src.optimize_name',
+            'foo',
+        ),
+        (
+            P.OptimizeNamePartialTemplateBarTest,
+            'testing.templates.src.optimize_name',
+            'bar',
         ),
     }
 
