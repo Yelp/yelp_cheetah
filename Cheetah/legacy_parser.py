@@ -43,7 +43,7 @@ VAR_START_ESC = re.escape(VAR_START)
 VAR_START_RE = re.compile(
     escCharLookBehind +
     r'(?P<startToken>' + VAR_START_ESC + ')' +
-    r'(?P<enclosure>|(?:(?:\{|\(|\[)[ \t]*))' +  # allow WS after
+    r'(?P<enclosure>|(?:\{|\(|\[))' +
     r'(?=[A-Za-z_])',
 )
 VAR_START_TOKEN_RE = re.compile(
