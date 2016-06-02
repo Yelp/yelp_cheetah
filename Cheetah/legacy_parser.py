@@ -772,14 +772,8 @@ class LegacyParser(_LowLevelParser):
         if directiveParser:
             directiveParser()
         else:
-            if directive == 'compiler-settings':
-                def handler(*_):
-                    pass
-            else:
-                handler = getattr(self._compiler, 'add' + directive.capitalize())
-
             if directive in INDENTING_DIRECTIVES:
-                self.eatSimpleIndentingDirective(directive, callback=handler)
+                self.eatSimpleIndentingDirective(directive)
             else:
                 assert directive in EXPRESSION_DIRECTIVES
                 line_col = self.getRowCol()
@@ -787,7 +781,7 @@ class LegacyParser(_LowLevelParser):
                 expr = self.eatSimpleExprDirective(
                     directive, include_name=include_name,
                 )
-                handler(expr, line_col=line_col)
+                self._add_directive(directive, expr, line_col)
 
     def _eatRestOfDirectiveTag(self, isLineClearToStartToken, endOfFirstLinePos):
         foundComment = False
@@ -836,7 +830,12 @@ class LegacyParser(_LowLevelParser):
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         return expr
 
-    def eatSimpleIndentingDirective(self, directiveName, callback):
+    def _add_directive(self, directive_name, expr, line_col):
+        if directive_name != 'compiler-settings':
+            add = getattr(self._compiler, 'add' + directive_name.capitalize())
+            add(expr, line_col)
+
+    def eatSimpleIndentingDirective(self, directiveName):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
         lineCol = self.getRowCol()
@@ -846,10 +845,8 @@ class LegacyParser(_LowLevelParser):
         expr = self.getExpression(pyTokensToBreakAt=[':'])
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
-            if directiveName in {'else', 'elif', 'except', 'finally'}:
-                callback(expr, lineCol, dedent=False)
-            else:
-                callback(expr, lineCol)
+            self._compiler.commitStrConst()
+            self._add_directive(directiveName, expr, lineCol)
 
             self.getWhiteSpace(maximum=1)
             self.parse(breakPoint=self.findEOL(gobble=True))
@@ -862,7 +859,10 @@ class LegacyParser(_LowLevelParser):
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
             if directiveName in CLOSABLE_DIRECTIVES:
                 self.pushToOpenDirectivesStack(directiveName)
-            callback(expr, lineCol)
+            if directiveName in {'else', 'elif', 'except', 'finally'}:
+                self._compiler.commitStrConst()
+                self._compiler.dedent()
+            self._add_directive(directiveName, expr, lineCol)
 
     def eatEndDirective(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
