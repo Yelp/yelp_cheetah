@@ -96,16 +96,6 @@ DIRECTIVE_START_RE = re.compile(
 DIRECTIVE_END_RE = re.compile(escCharLookBehind + re.escape('#'))
 
 
-def _unescapeCheetahVars(s):
-    r"""Unescape any escaped Cheetah \$vars in the string."""
-    return s.replace('\\$', '$')
-
-
-def _unescapeDirectives(s):
-    """Unescape any escaped Cheetah directives in the string."""
-    return s.replace('\\#', '#')
-
-
 directiveNamesAndParsers = {
     # Python directives
     'import': None,
@@ -813,7 +803,7 @@ class LegacyParser(_LowLevelParser):
         while not self.atEnd() and not self.matchTopLevelToken():
             self.advance()
         text = self.readTo(self.pos(), start=start)
-        text = _unescapeDirectives(_unescapeCheetahVars(text))
+        text = text.replace('\\$', '$').replace('\\#', '#')
         self._compiler.addStrConst(text)
 
     def eatComment(self):
