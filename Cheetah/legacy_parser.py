@@ -12,53 +12,24 @@ import functools
 import re
 import string
 import sys
-from tokenize import PseudoToken
+import tokenize
 
 import six
 
 from Cheetah.SourceReader import SourceReader
 
-python_token_re = re.compile(PseudoToken)
+python_token_re = re.compile(tokenize.PseudoToken)
 identchars = string.ascii_letters + '_'
 namechars = identchars + string.digits
 
-single3 = "'''"
-double3 = '"""'
-
-tripleQuotedStringStarts = (
-    "'''", '"""',
-    "r'''", 'r"""', "R'''", 'R"""',
-    "u'''", 'u"""', "U'''", 'U"""',
-    "ur'''", 'ur"""', "Ur'''", 'Ur"""',
-    "uR'''", 'uR"""', "UR'''", 'UR"""',
-)
-
-tripleQuotedStringPairs = {
-    "'''": single3, '"""': double3,
-    "r'''": single3, 'r"""': double3,
-    "u'''": single3, 'u"""': double3,
-    "ur'''": single3, 'ur"""': double3,
-    "R'''": single3, 'R"""': double3,
-    "U'''": single3, 'U"""': double3,
-    "uR'''": single3, 'uR"""': double3,
-    "Ur'''": single3, 'Ur"""': double3,
-    "UR'''": single3, 'UR"""': double3,
+triple_quoted_pairs = {k: k[-3:] for k in tokenize.triple_quoted}
+triple_quoted_res = {
+    k: re.compile('(?:{}).*?(?:{})'.format(k, v), re.DOTALL)
+    for k, v in triple_quoted_pairs.items()
 }
 
 closurePairs = {')': '(', ']': '[', '}': '{'}
 closurePairsRev = {'(': ')', '[': ']', '{': '}'}
-
-
-tripleQuotedStringREs = {}
-
-
-def makeTripleQuoteRe(start, end):
-    start = re.escape(start)
-    end = re.escape(end)
-    return re.compile(r'(?:' + start + r').*?' + r'(?:' + end + r')', re.DOTALL)
-
-for start_part, end_part in tripleQuotedStringPairs.items():
-    tripleQuotedStringREs[start_part] = makeTripleQuoteRe(start_part, end_part)
 
 escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
@@ -270,8 +241,8 @@ class _LowLevelParser(SourceReader):
     def matchPyToken(self):
         match = python_token_re.match(self.src(), self.pos())
 
-        if match and match.group() in tripleQuotedStringStarts:
-            TQSmatch = tripleQuotedStringREs[match.group()].match(self.src(), self.pos())
+        if match and match.group() in triple_quoted_pairs:
+            TQSmatch = triple_quoted_res[match.group()].match(self.src(), self.pos())
             if TQSmatch:
                 return TQSmatch
         return match
@@ -280,7 +251,7 @@ class _LowLevelParser(SourceReader):
         match = self.matchPyToken()
         if match is None:
             raise ParseError(self)
-        elif match.group() in tripleQuotedStringStarts:
+        elif match.group() in triple_quoted_pairs:
             raise ParseError(self, msg='Malformed triple-quoted string')
         return self.readTo(match.end())
 
