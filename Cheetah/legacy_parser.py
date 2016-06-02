@@ -235,21 +235,16 @@ class _LowLevelParser(SourceReader):
                     break
         return match
 
-    def matchPyToken(self):
+    def getPyToken(self):
         match = python_token_re.match(self.src(), self.pos())
 
         if match and match.group() in triple_quoted_pairs:
-            TQSmatch = triple_quoted_res[match.group()].match(self.src(), self.pos())
-            if TQSmatch:
-                return TQSmatch
-        return match
-
-    def getPyToken(self):
-        match = self.matchPyToken()
-        if match is None:
+            match = triple_quoted_res[match.group()].match(self.src(), self.pos())
+            if not match:
+                raise ParseError(self, msg='Malformed triple-quoted string')
+        elif not match:
             raise ParseError(self)
-        elif match.group() in triple_quoted_pairs:
-            raise ParseError(self, msg='Malformed triple-quoted string')
+
         return self.readTo(match.end())
 
     def matchCommentStartToken(self):
