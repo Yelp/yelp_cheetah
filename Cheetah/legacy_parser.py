@@ -181,32 +181,6 @@ class UnknownDirectiveError(ParseError):
     pass
 
 
-class ArgList(object):
-    """Used by _LowLevelParser.getArgList()"""
-
-    def __init__(self):
-        self.arguments = []
-        self.defaults = []
-        self.count = 0
-
-    def add_argument(self, name):
-        self.arguments.append(name)
-        self.defaults.append(None)
-
-    def next(self):
-        self.count += 1
-
-    def add_default(self, token):
-        count = self.count
-        if self.defaults[count] is None:
-            self.defaults[count] = ''
-        self.defaults[count] += token
-
-    def merge(self):
-        defaults = [d.strip() if d is not None else None for d in self.defaults]
-        return list(zip((a.strip() for a in self.arguments), defaults))
-
-
 class _LowLevelParser(SourceReader):
     """This class implements the methods to match or extract ('get*') the basic
     elements of Cheetah's grammar.  It does NOT handle any code generation or
@@ -469,67 +443,50 @@ class _LowLevelParser(SourceReader):
 
         return ''.join(argStringBits)
 
-    def getDefArgList(self):
-        """Get an argument list. Can be used for method/function definition
-        argument lists or for # directive argument lists. Returns a list of
-        tuples in the form (argName, defVal=None) with one tuple for each arg
-        name.
+    def get_def_argspec(self):
+        """Returns python source for function arguments.
 
-        These defVals are always strings, so (argName, defVal=None) is safe even
-        with a case like (arg1, arg2=None, arg3=1234*2), which would be returned as
-        [
-            ('arg1', None),
-            ('arg2', 'None'),
-            ('arg3', '1234*2'),
-        ]
+        For example:
 
-        This method understands *arg, and **kw
+            def foo(bar, baz, x={'womp'}):
+                   ^ (parser is about to parse this)
+
+        Will return "(bar, baz, x={'womp'})" and the parser state afterwards:
+
+            def foo(bar, baz, x={'womp'}):
+                                         ^ (parser is about to parse this)
         """
-        assert self.peek() == '('
-        self.advance()
-        argList = ArgList()
-        onDefVal = False
+        token = self.getPyToken()
+        assert token == '('
+        token_stack = [token]
+        contents = token
 
-        while True:
+        while token_stack:
             if self.atEnd():
                 raise ParseError(
-                    self, msg="EOF was reached before a matching ')'" +
-                    " was found for the '('")
+                    self,
+                    "EOF while searching for '{}' (to match '{}')".format(
+                        closurePairsRev[token_stack[-1]],
+                        token_stack[-1],
+                    )
+                )
 
-            c = self.peek()
-            if c == ')':
-                break
-            elif c in " \t\r\n":
-                if onDefVal:
-                    argList.add_default(c)
-                self.advance()
-            elif c == '=':
-                onDefVal = True
-                self.advance()
-            elif c == ",":
-                argList.next()
-                onDefVal = False
-                self.advance()
-            elif self.startswith(VAR_START):
-                raise ParseError(self, '$ is not allowed here.')
-            elif self.matchIdentifier() and not onDefVal:
-                argList.add_argument(self.getIdentifier())
-            elif onDefVal and c in ('{', '(', '['):
-                argList.add_default(self.getExpression(enclosed=True))
-            elif onDefVal:
-                argList.add_default(self.getPyToken())
-            elif c == '*' and not onDefVal:
-                varName = self.getc()
-                if self.peek() == '*':
-                    varName += self.getc()
-                if not self.matchIdentifier():
-                    raise ParseError(self, 'Expected an identifier.')
-                varName += self.getIdentifier()
-                argList.add_argument(varName)
-            else:
-                raise ParseError(self, 'Unexpected character.')
+            token = self.getPyToken()
+            if token in '({[':
+                token_stack.append(token)
+            elif token in ')}]':
+                if closurePairsRev[token_stack[-1]] != token:
+                    raise AssertionError(
+                        'Mismatched token. '
+                        'Found {} while searching for {}'.format(
+                            token, closurePairsRev[token_stack[-1]],
+                        )
+                    )
+                token_stack.pop()
 
-        return argList.merge()
+            contents += token
+        assert contents.startswith('(') and contents.endswith(')'), contents
+        return contents[1:-1]
 
     def getExpressionParts(
             self,
@@ -963,24 +920,15 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(self, '#def must contain an argspec (at least ())')
 
         if directiveName == 'def':
-            arglist_position = self.pos()
-            argsList = self.getDefArgList()
-            self.advance()  # Past closing ')'
-            if argsList and argsList[0][0] == 'self':
-                # So the exception points at the right place
-                self.setPos(arglist_position + 1)
-                raise ParseError(
-                    self,
-                    'Do not specify `self` in an arglist, it is assumed',
-                )
+            argspec = self.get_def_argspec()
         else:
-            argsList = []
+            argspec = ''
 
         if self.matchColonForSingleLineShortFormDirective():
             self.getc()
             self._eatSingleLineDef(
                 methodName=methodName,
-                argsList=argsList,
+                argspec=argspec,
                 startPos=startPos,
                 endPos=endOfFirstLinePos,
             )
@@ -997,29 +945,32 @@ class LegacyParser(_LowLevelParser):
             self.pushToOpenDirectivesStack(directiveName)
             self._eatMultiLineDef(
                 methodName=methodName,
-                argsList=argsList,
+                argspec=argspec,
                 startPos=startPos,
                 isLineClearToStartToken=isLineClearToStartToken,
             )
 
-    def _eatMultiLineDef(self, methodName, argsList, startPos, isLineClearToStartToken=False):
+    def _eatMultiLineDef(self, methodName, argspec, startPos, isLineClearToStartToken=False):
         self.getExpression()  # slurp up any garbage left at the end
         signature = self[startPos:self.pos()]
         endOfFirstLinePos = self.findEOL()
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         signature = ' '.join([line.strip() for line in signature.splitlines()])
-        parserComment = ('## CHEETAH: generated from ' + signature +
-                         ' at line %s, col %s' % self.getRowCol(startPos) +
-                         '.')
+        parserComment = (
+            '## CHEETAH: generated from {} at line {}, col {}.'.format(
+                signature, *self.getRowCol(startPos)
+            )
+        )
+        self._compiler.startMethodDef(methodName, argspec, parserComment)
 
-        self._compiler.startMethodDef(methodName, argsList, parserComment)
-
-    def _eatSingleLineDef(self, methodName, argsList, startPos, endPos):
+    def _eatSingleLineDef(self, methodName, argspec, startPos, endPos):
         fullSignature = self[startPos:endPos]
-        parserComment = ('## Generated from ' + fullSignature +
-                         ' at line %s, col %s' % self.getRowCol(startPos) +
-                         '.')
-        self._compiler.startMethodDef(methodName, argsList, parserComment)
+        parserComment = (
+            '## Generated from {} at line {}, col {}.'.format(
+                fullSignature, *self.getRowCol(startPos)
+            )
+        )
+        self._compiler.startMethodDef(methodName, argspec, parserComment)
 
         self.getWhiteSpace(maximum=1)
         self.parse(breakPoint=endPos)
@@ -1063,16 +1014,13 @@ class LegacyParser(_LowLevelParser):
         self.advance(len('super'))
         self.getWhiteSpace()
         if not self.atEnd() and self.peek() == '(':
-            argsList = self.getDefArgList()
-            self.advance()              # past the closing ')'
-            if argsList and argsList[0][0] == 'self':
-                del argsList[0]
+            argspec = self.get_def_argspec()
         else:
-            argsList = []
+            argspec = ''
 
         self.getExpression()  # throw away and unwanted crap that got added in
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
-        self._compiler.addSuper(argsList)
+        self._compiler.addSuper(argspec)
 
     def eatSlurp(self):
         if self.isLineClearToStartToken():

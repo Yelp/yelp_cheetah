@@ -125,13 +125,8 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
             pos = EOLmatch.start()
         return self.readTo(to=pos, start=start)
 
-    def find(self, it, pos=None):
-        if pos is None:
-            pos = self._pos
+    def find(self, it, pos):
         return self._src.find(it, pos)
-
-    def startswith(self, it, pos=None):
-        return self.find(it, pos) == self._pos
 
     def findBOL(self, pos=None):
         if pos is None:

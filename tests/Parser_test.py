@@ -4,44 +4,10 @@ from __future__ import unicode_literals
 
 import pytest
 
-from Cheetah.compile import compile_to_class
-from Cheetah.legacy_parser import ArgList
+from Cheetah.compile import compile_source
 from Cheetah.legacy_parser import ParseError
 from Cheetah.legacy_parser import UnknownDirectiveError
 from testing.util import assert_raises_exactly
-
-
-def test_ArgList_merge1():
-    """Testing the ArgList case results from
-    Template.Preprocessors.test_complexUsage
-    """
-    arglist = ArgList()
-    arglist.add_argument('arg')
-    assert arglist.merge() == [('arg', None)]
-
-
-def test_ArgList_merge2():
-    """Testing the ArgList case results from
-    SyntaxAndOutput.BlockDirective.test4
-    """
-    arglist = ArgList()
-    arglist.add_argument('a')
-    arglist.add_default('999')
-    arglist.next()
-    arglist.add_argument('b')
-    arglist.add_default('444')
-
-    assert arglist.merge() == [('a', '999'), ('b', '444')]
-
-
-def test_merge3():
-    """Testing the ArgList case results
-    from SyntaxAndOutput.BlockDirective.test13
-    """
-    arglist = ArgList()
-    arglist.add_argument('arg')
-    arglist.add_default("'This is my block'")
-    assert arglist.merge() == [('arg', "'This is my block'")]
 
 
 def test_unknown_directive_name():
@@ -56,7 +22,7 @@ def test_unknown_directive_name():
         '1   |#foo\n'
         '      ^\n',
     ):
-        compile_to_class('#foo\n')
+        compile_source('#foo\n')
 
 
 def test_malformed_triple_quotes():
@@ -71,7 +37,7 @@ def test_malformed_triple_quotes():
         '1   |${"""}\n'
         '       ^\n',
     ):
-        compile_to_class('${"""}')
+        compile_source('${"""}')
 
 
 def test_unclosed_directives():
@@ -86,7 +52,7 @@ def test_unclosed_directives():
         '1   |#if True\n'
         '             ^\n'
     ):
-        compile_to_class('#if True\n')
+        compile_source('#if True\n')
 
 
 def test_invalid_identifier():
@@ -101,7 +67,7 @@ def test_invalid_identifier():
         '1   |#def\n'
         '         ^\n'
     ):
-        compile_to_class('#def\n')
+        compile_source('#def\n')
 
 
 def test_end_but_nothing_to_end():
@@ -116,7 +82,7 @@ def test_end_but_nothing_to_end():
         '1   |#end if\n'
         '            ^\n'
     ):
-        compile_to_class('#end if\n')
+        compile_source('#end if\n')
 
 
 def test_invalid_end_directive():
@@ -131,7 +97,7 @@ def test_invalid_end_directive():
         '1   |#end\n'
         '         ^\n'
     ):
-        compile_to_class('#end\n')
+        compile_source('#end\n')
 
 
 def test_invalid_nesting_directives():
@@ -150,7 +116,7 @@ def test_invalid_nesting_directives():
         '4   |#end for\n'
         '     ^\n'
     ):
-        compile_to_class(
+        compile_source(
             '#if True\n'
             '#for i in range(5)\n'
             '#end if\n'
@@ -170,7 +136,7 @@ def test_parse_error_for_implements_argspec():
         '1   |#implements foo(bar)\n'
         '                    ^\n'
     ):
-        compile_to_class('#implements foo(bar)')
+        compile_source('#implements foo(bar)')
 
 
 def test_parse_error_for_multiple_inheritance():
@@ -185,7 +151,7 @@ def test_parse_error_for_multiple_inheritance():
         '1   |#extends Cheetah.Template, object\n'
         '                                     ^\n'
     ):
-        compile_to_class('#extends Cheetah.Template, object')
+        compile_source('#extends Cheetah.Template, object')
 
 
 def test_parse_error_long_file():
@@ -206,7 +172,7 @@ def test_parse_error_long_file():
         '7   |7\n'
         '8   |8\n'
     ):
-        compile_to_class('1\n2\n3\n4\n$foo(\n6\n7\n8\n')
+        compile_source('1\n2\n3\n4\n$foo(\n6\n7\n8\n')
 
 
 def test_unclosed_enclosure():
@@ -221,7 +187,7 @@ def test_unclosed_enclosure():
         '1   |${hai +\n'
         '      ^\n'
     ):
-        compile_to_class('${hai +')
+        compile_source('${hai +')
 
 
 def test_parse_error_on_attr_with_var():
@@ -236,7 +202,7 @@ def test_parse_error_on_attr_with_var():
         '1   |#attr foo = $bar\n'
         '                 ^\n'
     ):
-        compile_to_class('#attr foo = $bar\n')
+        compile_source('#attr foo = $bar\n')
 
 
 def test_parse_error_on_attr_with_dollar_sign():
@@ -251,7 +217,7 @@ def test_parse_error_on_attr_with_dollar_sign():
         '1   |#attr $foo = "hai"\n'
         '           ^\n'
     ):
-        compile_to_class('#attr $foo = "hai"\n')
+        compile_source('#attr $foo = "hai"\n')
 
 
 def test_invalid_line_continuation():
@@ -266,7 +232,7 @@ def test_invalid_line_continuation():
         '1   |#py foo = "bar" + \\hi, not a new line\n'
         '                        ^\n'
     ):
-        compile_to_class('#py foo = "bar" + \\hi, not a new line')
+        compile_source('#py foo = "bar" + \\hi, not a new line')
 
 
 def test_close_wrong_enclosure():
@@ -281,14 +247,14 @@ def test_close_wrong_enclosure():
         '1   |${a]\n'
         '      ^\n'
     ):
-        compile_to_class('${a]')
+        compile_source('${a]')
 
 
 def test_reach_eof():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        "EOF was reached before a matching ')' was found for the '('\n"
+        "EOF while searching for ')' (to match '(')\n"
         'Line 1, column 7\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -296,7 +262,7 @@ def test_reach_eof():
         '1   |#super(\n'
         '           ^\n'
     ):
-        compile_to_class('#super(')
+        compile_source('#super(')
 
 
 def test_non_ending_compiler_settings():
@@ -312,7 +278,7 @@ def test_non_ending_compiler_settings():
         '2   |useLegacyImportMode = True\n'
         '                              ^\n'
     ):
-        compile_to_class('#compiler-settings\nuseLegacyImportMode = True')
+        compile_source('#compiler-settings\nuseLegacyImportMode = True')
 
 
 def test_weird_close_call():
@@ -327,7 +293,7 @@ def test_weird_close_call():
         '1   |$foo(}\n'
         '          ^\n'
     ):
-        compile_to_class('$foo(}')
+        compile_source('$foo(}')
 
 
 def test_invalid_syntax_in_super():
@@ -335,7 +301,7 @@ def test_invalid_syntax_in_super():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        '$ is not allowed here.\n'
+        'Invalid Syntax\n'
         'Line 1, column 12\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -343,7 +309,7 @@ def test_invalid_syntax_in_super():
         '1   |#super(foo=${bar})\n'
         '                ^\n'
     ):
-        compile_to_class('#super(foo=${bar})')
+        compile_source('#super(foo=${bar})')
 
 
 def test_invalid_syntax_in_call():
@@ -360,29 +326,14 @@ def test_invalid_syntax_in_call():
         '1   |$herp(foo=${bar})\n'
         '               ^\n'
     ):
-        compile_to_class('$herp(foo=${bar})')
-
-
-def test_expected_identifier_after_star():
-    with assert_raises_exactly(
-        ParseError,
-        '\n\n'
-        'Expected an identifier.\n'
-        'Line 1, column 9\n'
-        '\n'
-        'Line|Cheetah Code\n'
-        '----|-------------------------------------------------------------\n'
-        '1   |#super(*)\n'
-        '             ^\n'
-    ):
-        compile_to_class('#super(*)')
+        compile_source('$herp(foo=${bar})')
 
 
 def test_unexpected_character_parse_error():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        'Unexpected character.\n'
+        'Invalid Syntax\n'
         'Line 1, column 8\n'
         '\n'
         'Line|Cheetah Code\n'
@@ -390,7 +341,7 @@ def test_unexpected_character_parse_error():
         '1   |#super(☃)\n'
         '            ^\n'
     ):
-        compile_to_class('#super(☃)')
+        compile_source('#super(☃)')
 
 
 def test_def_with_dollar_sign_invalid():
@@ -406,7 +357,7 @@ def test_def_with_dollar_sign_invalid():
         '          ^\n'
         '2   |#end def\n'
     ):
-        compile_to_class(
+        compile_source(
             '#def $foo()\n'
             '#end def\n'
         )
@@ -425,7 +376,7 @@ def test_def_without_arglist_invalid():
         '             ^\n'
         '2   |#end def\n'
     ):
-        compile_to_class(
+        compile_source(
             '#def foo\n'
             '#end def\n'
         )
@@ -444,7 +395,7 @@ def test_block_with_an_argspec_invalid():
         '               ^\n'
         '2   |#end block\n'
     ):
-        compile_to_class(
+        compile_source(
             '#block foo(bar)\n'
             '#end block\n'
         )
@@ -454,16 +405,16 @@ def test_self_in_arglist_invalid():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        'Do not specify `self` in an arglist, it is assumed\n'
-        'Line 1, column 10\n'
+        'SyntaxError: Duplicate arguments: self\n\n'
+        'Line 2, column 1\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#def foo(self, bar)\n'
-        '              ^\n'
         '2   |#end def\n'
+        '     ^\n'
     ):
-        compile_to_class(
+        compile_source(
             '#def foo(self, bar)\n'
             '#end def\n'
         )
@@ -481,7 +432,7 @@ def test_set_with_dollar_signs_raises():
         '1   |#py $foo = 1\n'
         '                 ^\n'
     ):
-        compile_to_class('#py $foo = 1\n')
+        compile_source('#py $foo = 1\n')
 
 
 @pytest.mark.parametrize('decorator', ('@classmethod', '@staticmethod'))
@@ -500,7 +451,7 @@ def test_classmethod_staticmethod_not_allowed(decorator):
         '3   |    #return bar + 1\n'
         '4   |#end def\n'.format(decorator)
     ):
-        compile_to_class(
+        compile_source(
             '#{}\n'
             '#def foo(bar)\n'
             '    #return bar + 1\n'
@@ -522,7 +473,7 @@ def test_lvalue_for():
         '2   |$foo\n'
         '3   |#end for\n'
     ):
-        compile_to_class(
+        compile_source(
             '#for $foo in bar\n'
             '$foo\n'
             '#end for\n',
@@ -542,7 +493,7 @@ def test_uncaught_syntax_error():
         '3   |#py x = $y = 1\n'
         '                   ^\n'
     ):
-        compile_to_class('Hello\nWorld\n#py x = $y = 1\n')
+        compile_source('Hello\nWorld\n#py x = $y = 1\n')
 
 
 def test_errors_on_invalid_setting():
@@ -558,7 +509,7 @@ def test_errors_on_invalid_setting():
         '3   |#end compiler-settings\n'
         '                           ^\n'
     ):
-        compile_to_class(
+        compile_source(
             '#compiler-settings\n'
             'not_a_real_setting = True\n'
             '#end compiler-settings\n'
@@ -576,24 +527,42 @@ def test_errors_on_blinged_kwarg():
         '1   |$foo($bar=$baz)\n'
         '          ^\n'
     ):
-        compile_to_class(
+        compile_source(
             '$foo($bar=$baz)'
         )
 
 
-def test_weird_parsing():
+def test_weird_def_parsing():
     with assert_raises_exactly(
         ParseError,
         '\n\n'
-        'Unexpected character.\n'
-        'Line 1, column 12\n\n'
+        "EOF while searching for ')' (to match '(')\n"
+        'Line 2, column 9\n\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#def foo(x,#\n'
-        '                ^\n'
+        '2   |#end def\n'
+        '             ^\n'
+    ):
+        compile_source(
+            '#def foo(x,#\n'
+            '#end def\n'
+        )
+
+
+def test_no_cheetah_vars_in_def():
+    with assert_raises_exactly(
+        ParseError,
+        '\n\n'
+        'Invalid Syntax\n'
+        'Line 1, column 13\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#def foo(x=($y)):\n'
+        '                 ^\n'
         '2   |#end def\n'
     ):
-        compile_to_class(
-            '#def foo(x,#\n'
+        compile_source(
+            '#def foo(x=($y)):\n'
             '#end def\n'
         )
