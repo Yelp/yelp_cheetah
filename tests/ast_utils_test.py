@@ -2,7 +2,9 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import pytest
+import six
 
+from Cheetah.ast_utils import get_argument_names
 from Cheetah.ast_utils import get_imported_names
 from Cheetah.ast_utils import get_lvalues
 
@@ -69,3 +71,29 @@ def test_get_lvalues_exception_handler_no_as():
         '    pass\n'
     ))
     assert ret == set()
+
+
+@pytest.mark.parametrize(
+    ('input_s', 'expected'),
+    (
+        ('', set()),
+        ('self', {'self'}),
+        ('self, foo', {'self', 'foo'}),
+        ('self, foo, bar="baz"', {'self', 'foo', 'bar'}),
+        ('self, foo, *args', {'self', 'foo', 'args'}),
+        ('self, foo, **kwargs', {'self', 'foo', 'kwargs'}),
+    ),
+)
+def test_get_argument_names(input_s, expected):
+    assert get_argument_names(input_s) == expected
+
+
+@pytest.mark.xfail(six.PY2, reason='tests python3 only behaviour')
+def test_kwargonly_arguments():
+    assert get_argument_names('x, *, y="womp"') == {'x', 'y'}
+
+
+def test_raise_on_duplicate_arguments():
+    with pytest.raises(SyntaxError) as excinfo:
+        get_argument_names('self, self')
+    assert excinfo.value.args == ('Duplicate arguments: self',)

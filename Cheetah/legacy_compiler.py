@@ -17,6 +17,7 @@ import warnings
 
 import six
 
+from Cheetah.ast_utils import get_argument_names
 from Cheetah.ast_utils import get_imported_names
 from Cheetah.ast_utils import get_lvalues
 from Cheetah.legacy_parser import escapedNewlineRE
@@ -60,15 +61,9 @@ def genNameMapperVar(nameChunks, auto_self):
     return start + ('.' if tail else '') + tail
 
 
-def _arg_chunk_to_text(chunk):
-    if chunk[1] is not None:
-        return '{}={}'.format(*chunk)
-    else:
-        return chunk[0]
-
-
-def arg_string_list_to_text(arg_string_list):
-    return ', '.join(_arg_chunk_to_text(chunk) for chunk in arg_string_list)
+def _prepare_argspec(argspec):
+    argspec = 'self, ' + argspec if argspec else 'self'
+    return argspec, get_argument_names(argspec)
 
 
 class MethodCompiler(object):
@@ -76,6 +71,7 @@ class MethodCompiler(object):
             self,
             methodName,
             class_compiler,
+            argspec,
             initialMethodComment,
             decorators=None,
     ):
@@ -86,8 +82,7 @@ class MethodCompiler(object):
         self._methodBodyChunks = []
         self._hasReturnStatement = False
         self._isGenerator = False
-        self._arguments = [('self', None)]
-        self._local_vars = {'self'}
+        self._argspec, self._local_vars = _prepare_argspec(argspec)
         self._decorators = decorators or []
 
     def cleanupState(self):
@@ -293,17 +288,12 @@ class MethodCompiler(object):
             self.addChunk('return NO_CONTENT')
             self.dedent()
 
-    def addMethArg(self, name, val):
-        self._arguments.append((name, val))
-        self._local_vars.add(name.lstrip('*'))
-
     def methodSignature(self):
-        arg_text = arg_string_list_to_text(self._arguments)
         return ''.join((
             ''.join(
                 INDENT + decorator + '\n' for decorator in self._decorators
             ),
-            INDENT + 'def ' + self.methodName() + '(' + arg_text + '):'
+            INDENT + 'def ' + self.methodName() + '(' + self._argspec + '):'
         ))
 
 
@@ -319,7 +309,8 @@ class ClassCompiler(object):
 
         self._main_method = self._spawnMethodCompiler(
             main_method_name,
-            '## CHEETAH: main method generated for this template'
+            '',
+            '## CHEETAH: main method generated for this template',
         )
 
     def __getattr__(self, name):
@@ -336,10 +327,11 @@ class ClassCompiler(object):
     def setMainMethodName(self, methodName):
         self._main_method.setMethodName(methodName)
 
-    def _spawnMethodCompiler(self, methodName, initialMethodComment):
+    def _spawnMethodCompiler(self, methodName, argspec, initialMethodComment):
         methodCompiler = self.methodCompilerClass(
             methodName,
             class_compiler=self,
+            argspec=argspec,
             initialMethodComment=initialMethodComment,
             decorators=self._decoratorsForNextMethod,
         )
@@ -358,12 +350,7 @@ class ClassCompiler(object):
         self._finishedMethodsList.append(methodCompiler)
         return methodCompiler
 
-    def startMethodDef(self, methodName, argsList, parserComment):
-        methodCompiler = self._spawnMethodCompiler(
-            methodName, parserComment,
-        )
-        for argName, defVal in argsList:
-            methodCompiler.addMethArg(argName, defVal)
+    startMethodDef = _spawnMethodCompiler
 
     def addDecorator(self, decorator_expr):
         """Set the decorator to be used with the next method in the source.
@@ -376,13 +363,10 @@ class ClassCompiler(object):
     def addAttribute(self, attr_expr):
         self._attrs.append(attr_expr)
 
-    def addSuper(self, argsList):
+    def addSuper(self, argspec):
         methodName = self._getActiveMethodCompiler().methodName()
-        arg_text = arg_string_list_to_text(argsList)
         self.addFilteredChunk(
-            'super({}, self).{}({})'.format(
-                CLASS_NAME, methodName, arg_text,
-            )
+            'super({}, self).{}({})'.format(CLASS_NAME, methodName, argspec),
         )
 
     def closeDef(self):
