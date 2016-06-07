@@ -37,6 +37,7 @@ IDENT = '[a-zA-Z_][a-zA-Z0-9_]*'
 
 VAR_START = '$'
 EXPRESSION_START_RE = re.compile(escape_lookbehind + r'\$[A-Za-z_{]')
+OLD_EXPRESSION_START_RE = re.compile(escape_lookbehind + r'\$[([]')
 
 ATTRIBUTE_RE = re.compile(r'\.{}'.format(IDENT))
 
@@ -181,6 +182,7 @@ class _LowLevelParser(SourceReader):
         """
         for matcher in (
                 self.matchCommentStartToken,
+                self.match_old_expression_start,
                 self.match_expression_start,
                 self.matchDirective,
         ):
@@ -368,6 +370,10 @@ class _LowLevelParser(SourceReader):
             assert expr[0] == '{' and expr[-1] == '}', expr
             return expr[1:-1]
 
+    def match_old_expression_start(self):
+        # No longer valid, just here for a parse error
+        return OLD_EXPRESSION_START_RE.match(self.src(), self.pos())
+
     def match_expression_start(self):
         return EXPRESSION_START_RE.match(self.src(), self.pos())
 
@@ -416,6 +422,11 @@ class LegacyParser(_LowLevelParser):
         while not self.atEnd():
             if self.matchCommentStartToken():
                 self.eatComment()
+            elif self.match_old_expression_start():
+                raise ParseError(
+                    self,
+                    'Invalid placeholder.  Valid placeholders are $x or ${x}.'
+                )
             elif self.match_expression_start():
                 self.eatPlaceholder()
             elif self.matchDirective():
