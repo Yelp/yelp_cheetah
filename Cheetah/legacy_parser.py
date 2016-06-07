@@ -38,7 +38,7 @@ IDENT = '[a-zA-Z_][a-zA-Z0-9_]*'
 VAR_START = '$'
 EXPRESSION_START_RE = re.compile(escape_lookbehind + r'\$[A-Za-z_{]')
 
-ATTRIBUTE_RE = re.compile('\.{}'.format(IDENT))
+ATTRIBUTE_RE = re.compile(r'\.{}'.format(IDENT))
 
 COMMENT_START_RE = re.compile(escape_lookbehind + re.escape('##'))
 DIRECTIVE_RE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@{})'.format(IDENT))
