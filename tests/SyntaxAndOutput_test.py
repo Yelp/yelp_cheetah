@@ -11,7 +11,6 @@ import pytest
 
 from Cheetah import filters
 from Cheetah.compile import compile_to_class
-from Cheetah.legacy_parser import ParseError
 from Cheetah.NameMapper import NotFound
 
 
@@ -878,14 +877,6 @@ class DecoratorDirective(OutputTest):
             "1234",
         )
 
-        with pytest.raises(ParseError):
-            self.verify(
-                "#from tests.SyntaxAndOutput_test import dummydecorator\n"
-                "#@dummydecorator\n sdf"
-                "\n#def testMeth():1234\n$testMeth()",
-                "1234"
-            )
-
     def test2(self):
         """#def with multiple decorators"""
         self.verify(
@@ -1052,26 +1043,6 @@ class IfDirective(OutputTest):
         """#if 'not' test, with #slurp"""
         self.verify("#if not $emptyString\n$aStr#slurp\n#end if\n",
                     "blarg")
-
-    def test10(self):
-        """#if block using $*emptyString
-
-        This should barf
-        """
-        with pytest.raises(ParseError):
-            self.verify("#if $*emptyString\n$aStr\n#end if\n",
-                        "")
-
-    def test11(self):
-        """#if block using invalid top-level ${placeholder} syntax - should barf"""
-
-        for badSyntax in (
-                "#if $*5*emptyString\n$aStr\n#end if\n",
-                "#if ${emptyString}\n$aStr\n#end if\n",
-                "#if $!emptyString\n$aStr\n#end if\n",
-        ):
-            with pytest.raises(ParseError):
-                self.verify(badSyntax, "")
 
     def test12(self):
         """#if ... #else if ... #else ... block using a $emptyString
