@@ -562,3 +562,21 @@ def test_no_cheetah_vars_in_def():
         '#def foo(x=($y)):\n'
         '#end def\n',
     )
+
+
+def test_junk_after_decorator():
+    assert_parse_error(
+        '\n\n'
+        'Expected #def, #block or another @decorator\n'
+        'Line 2, column 1\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#@dec\n'
+        '2   |junk\n'
+        '     ^\n'
+        '3   |#def foo(): hi\n',
+
+        '#@dec\n'
+        'junk\n'
+        '#def foo(): hi\n'
+    )
