@@ -15,6 +15,7 @@ from Cheetah.compile import compile_file
 from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
 from Cheetah.legacy_parser import directiveNamesAndParsers
+from Cheetah.legacy_parser import LegacyParser
 from Cheetah.Template import Template
 
 
@@ -176,9 +177,8 @@ def test_compile_to_class_traceback():
 ZeroDivisionError: (integer )?division( or modulo)? by zero''', traceback)
 
 
-def test_compile_is_deterministic():
-    # This crazy template uses all of the currently supported directives
-    MEGA_TEMPLATE = """
+# This crazy template uses all of the currently supported directives
+MEGA_TEMPLATE = """
 #compiler-settings
 useNameMapper = False
 #end compiler-settings
@@ -273,6 +273,9 @@ $arr
     inside ctx
 #end with
     """
+
+
+def test_compile_is_deterministic():
     compiled_templates = [compile_source(MEGA_TEMPLATE) for _ in range(5)]
     assert len(set(compiled_templates)) == 1
 
@@ -282,3 +285,11 @@ $arr
 
     # also make sure MEGA_TEMPLATE renders
     assert compile_to_class(MEGA_TEMPLATE)().respond()
+
+
+def test_parser_with_trivial_compiler():
+    def compiler(*args, **kwargs):
+        pass
+
+    parser = LegacyParser(MEGA_TEMPLATE, compiler)
+    parser.parse()

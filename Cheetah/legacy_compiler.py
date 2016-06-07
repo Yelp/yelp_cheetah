@@ -472,6 +472,10 @@ class LegacyCompiler(SettingsManager):
         """
         return getattr(self._class_compiler, name)
 
+    def __call__(self, event, *args, **kwargs):
+        # ick
+        return getattr(self, event)(*args, **kwargs)
+
     def _initializeSettings(self):
         self._settings = copy.deepcopy(DEFAULT_COMPILER_SETTINGS)
 

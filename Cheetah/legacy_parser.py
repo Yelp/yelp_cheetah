@@ -435,15 +435,15 @@ class LegacyParser(_LowLevelParser):
             self.advance()
         text = self.readTo(self.pos(), start=start)
         text = text.replace('\\$', '$').replace('\\#', '#')
-        self._compiler.addStrConst(text)
+        self._compiler('addStrConst', text)
 
     def eatComment(self):
         isLineClearToStartToken = self.isLineClearToStartToken()
         if isLineClearToStartToken:
-            self._compiler.handleWSBeforeDirective()
+            self._compiler('handleWSBeforeDirective')
         self.getCommentStartToken()
         comm = self.readToEOL(gobble=isLineClearToStartToken)
-        self._compiler.addComment(comm)
+        self._compiler('addComment', comm)
 
     def eatPlaceholder(self):
         start = self.pos()
@@ -452,7 +452,7 @@ class LegacyParser(_LowLevelParser):
         expr = self.get_placeholder_expression()
         end = self.pos()
         original_src = self.src()[start:end]
-        self._compiler.addPlaceholder(expr, original_src, line_col)
+        self._compiler('addPlaceholder', expr, original_src, line_col)
 
     def eatDirective(self):
         directive = self.matchDirective()
@@ -509,7 +509,7 @@ class LegacyParser(_LowLevelParser):
             self.readToEOL(gobble=True)
 
         if isLineClearToStartToken and (self.atEnd() or self.pos() > endOfFirstLinePos):
-            self._compiler.handleWSBeforeDirective()
+            self._compiler('handleWSBeforeDirective')
 
     def eatSimpleExprDirective(self, directive, include_name=True):
         isLineClearToStartToken = self.isLineClearToStartToken()
@@ -523,8 +523,8 @@ class LegacyParser(_LowLevelParser):
 
     def _add_directive(self, directive_name, expr, line_col):
         if directive_name != 'compiler-settings':
-            add = getattr(self._compiler, 'add' + directive_name.capitalize())
-            add(expr, line_col)
+            event = 'add' + directive_name.capitalize()
+            self._compiler(event, expr, line_col)
 
     def eatSimpleIndentingDirective(self, directiveName):
         isLineClearToStartToken = self.isLineClearToStartToken()
@@ -536,13 +536,13 @@ class LegacyParser(_LowLevelParser):
         expr = self.get_unbraced_expression(stop_chars=':')
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
-            self._compiler.commitStrConst()
+            self._compiler('commitStrConst')
             self._add_directive(directiveName, expr, lineCol)
 
             self.getWhiteSpace(maximum=1)
             self.parse(breakPoint=self.findEOL(gobble=True))
-            self._compiler.commitStrConst()
-            self._compiler.dedent()
+            self._compiler('commitStrConst')
+            self._compiler('dedent')
         else:
             if self.peek() == ':':
                 self.advance()
@@ -551,8 +551,8 @@ class LegacyParser(_LowLevelParser):
             if directiveName in CLOSABLE_DIRECTIVES:
                 self.pushToOpenDirectivesStack(directiveName)
             if directiveName in {'else', 'elif', 'except', 'finally'}:
-                self._compiler.commitStrConst()
-                self._compiler.dedent()
+                self._compiler('commitStrConst')
+                self._compiler('dedent')
             self._add_directive(directiveName, expr, lineCol)
 
     def eatEndDirective(self):
@@ -576,15 +576,15 @@ class LegacyParser(_LowLevelParser):
         self.popFromOpenDirectivesStack(directiveName)
 
         if directiveName == 'def':
-            self._compiler.closeDef()
+            self._compiler('closeDef')
         elif directiveName == 'compiler-settings':
-            self._compiler.add_compiler_settings()
+            self._compiler('add_compiler_settings')
         elif directiveName == 'block':
-            self._compiler.closeBlock()
+            self._compiler('closeBlock')
         else:
             assert directiveName in {'while', 'for', 'if', 'try', 'with'}
-            self._compiler.commitStrConst()
-            self._compiler.dedent()
+            self._compiler('commitStrConst')
+            self._compiler('dedent')
 
     # specific directive eat methods
     def eatAttr(self):
@@ -601,7 +601,7 @@ class LegacyParser(_LowLevelParser):
         self.getc()
         self.getWhiteSpace()
         expr = ''.join(self.get_unbraced_expression(allow_cheetah_vars=False))
-        self._compiler.addAttribute(attribName + ' = ' + expr)
+        self._compiler('addAttribute', attribName + ' = ' + expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 
     def eatDecorator(self):
@@ -615,7 +615,7 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(
                 self, '@classmethod / @staticmethod are not supported',
             )
-        self._compiler.addDecorator(decorator_expr)
+        self._compiler('addDecorator', decorator_expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         self.getWhiteSpace()
 
@@ -666,9 +666,9 @@ class LegacyParser(_LowLevelParser):
             )
             if directiveName == 'def':
                 # @@TR: must come before _eatRestOfDirectiveTag ... for some reason
-                self._compiler.closeDef()
+                self._compiler('closeDef')
             else:
-                self._compiler.closeBlock()
+                self._compiler('closeBlock')
 
             self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         else:
@@ -693,7 +693,7 @@ class LegacyParser(_LowLevelParser):
                 signature, *self.getRowCol(startPos)
             )
         )
-        self._compiler.startMethodDef(methodName, argspec, parserComment)
+        self._compiler('startMethodDef', methodName, argspec, parserComment)
 
     def _eatSingleLineDef(self, methodName, argspec, startPos, endPos):
         fullSignature = self[startPos:endPos]
@@ -702,7 +702,7 @@ class LegacyParser(_LowLevelParser):
                 fullSignature, *self.getRowCol(startPos)
             )
         )
-        self._compiler.startMethodDef(methodName, argspec, parserComment)
+        self._compiler('startMethodDef', methodName, argspec, parserComment)
 
         self.getWhiteSpace(maximum=1)
         self.parse(breakPoint=endPos)
@@ -720,7 +720,7 @@ class LegacyParser(_LowLevelParser):
                 self, 'yelp_cheetah does not support multiple inheritance'
             )
 
-        self._compiler.set_extends(extends_value)
+        self._compiler('set_extends', extends_value)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
     def eatImplements(self):
@@ -734,7 +734,7 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(
                 self, 'yelp_cheetah does not support argspecs for #implements',
             )
-        self._compiler.setMainMethodName(methodName)
+        self._compiler('setMainMethodName', methodName)
 
         self.get_unbraced_expression()  # throw away and unwanted crap that got added in
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
@@ -752,12 +752,12 @@ class LegacyParser(_LowLevelParser):
 
         self.get_unbraced_expression()  # throw away and unwanted crap that got added in
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
-        self._compiler.addSuper(argspec)
+        self._compiler('addSuper', argspec)
 
     def eatSlurp(self):
         if self.isLineClearToStartToken():
-            self._compiler.handleWSBeforeDirective()
-        self._compiler.commitStrConst()
+            self._compiler('handleWSBeforeDirective')
+        self._compiler('commitStrConst')
         self.readToEOL(gobble=True)
 
     def pushToOpenDirectivesStack(self, directiveName):
