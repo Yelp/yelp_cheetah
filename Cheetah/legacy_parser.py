@@ -8,6 +8,7 @@ Classes:
 """
 from __future__ import unicode_literals
 
+import collections
 import functools
 import re
 import string
@@ -20,7 +21,6 @@ from Cheetah.SourceReader import SourceReader
 
 python_token_re = re.compile(tokenize.PseudoToken)
 identchars = string.ascii_letters + '_'
-namechars = identchars + string.digits
 
 triple_quoted_pairs = {k: k[-3:] for k in tokenize.triple_quoted}
 triple_quoted_res = {
@@ -28,43 +28,24 @@ triple_quoted_res = {
     for k, v in triple_quoted_pairs.items()
 }
 
-closurePairs = {')': '(', ']': '[', '}': '{'}
-closurePairsRev = {'(': ')', '[': ']', '{': '}'}
+brace_pairs = {'(': ')', '[': ']', '{': '}'}
 
-escCharLookBehind = r'(?:(?<=\A)|(?<!\\))'
+escape_lookbehind = r'(?:(?<=\A)|(?<!\\))'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
-EOLre = re.compile(r'(?:\r\n|\r|\n)')
 
-escapedNewlineRE = re.compile(r'(?<!\\)((\\\\)*)\\(n|012)')
+IDENT = '[a-zA-Z_][a-zA-Z0-9_]*'
 
 VAR_START = '$'
-VAR_START_ESC = re.escape(VAR_START)
-VAR_START_RE = re.compile(
-    escCharLookBehind +
-    r'(?P<startToken>' + VAR_START_ESC + ')' +
-    r'(?P<enclosure>|(?:\{|\(|\[))' +
-    r'(?=[A-Za-z_])',
-)
-VAR_START_TOKEN_RE = re.compile(
-    escCharLookBehind +
-    VAR_START_ESC +
-    r'(?=[A-Za-z_\{\(\[])'
-)
-VAR_IN_EXPRESSION_START_TOKEN_RE = re.compile(
-    VAR_START_ESC + r'(?=[A-Za-z_])'
-)
-EXPR_PLACEHOLDER_START_RE = re.compile(
-    escCharLookBehind +
-    r'(?P<startToken>' + VAR_START_ESC + ')' +
-    r'(?:\{|\(|\[)[ \t]*'
-    r'(?=[^\)\}\]])'
-)
-COMMENT_START_RE = re.compile(escCharLookBehind + re.escape('##'))
-DIRECTIVE_RE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@[a-zA-Z_][a-zA-Z0-9_]*)')
+EXPRESSION_START_RE = re.compile(escape_lookbehind + r'\$[A-Za-z_{]')
+
+ATTRIBUTE_RE = re.compile('\.{}'.format(IDENT))
+
+COMMENT_START_RE = re.compile(escape_lookbehind + re.escape('##'))
+DIRECTIVE_RE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@{})'.format(IDENT))
 DIRECTIVE_START_RE = re.compile(
-    escCharLookBehind + re.escape('#') + r'(?=([A-Za-z_]|@[A-Za-z_]))',
+    escape_lookbehind + re.escape('#') + r'(?=([A-Za-z_]|@[A-Za-z_]))',
 )
-DIRECTIVE_END_RE = re.compile(escCharLookBehind + re.escape('#'))
+DIRECTIVE_END_RE = re.compile(escape_lookbehind + re.escape('#'))
 
 
 directiveNamesAndParsers = {
@@ -114,6 +95,9 @@ EXPRESSION_DIRECTIVES = frozenset({
     'assert', 'break', 'continue', 'del', 'from', 'import', 'pass', 'py',
     'raise', 'return', 'yield',
 })
+
+
+CheetahVar = collections.namedtuple('CheetahVar', ('name',))
 
 
 class ParseError(ValueError):
@@ -190,22 +174,19 @@ class _LowLevelParser(SourceReader):
     def matchTopLevelToken(self):
         """Returns the first match found from the following methods:
             self.matchCommentStartToken
-            self.matchVariablePlaceholderStart
             self.matchExpressionPlaceholderStart
             self.matchDirective
 
         Returns None if no match.
         """
-        if self.peek() in '#$':
-            for matcher in (
-                    self.matchCommentStartToken,
-                    self.matchVariablePlaceholderStart,
-                    self.matchExpressionPlaceholderStart,
-                    self.matchDirective,
-            ):
-                match = matcher()
-                if match:
-                    return match
+        for matcher in (
+                self.matchCommentStartToken,
+                self.match_expression_start,
+                self.matchDirective,
+        ):
+            match = matcher()
+            if match:
+                return match
         return None
 
     def getPyToken(self):
@@ -226,17 +207,6 @@ class _LowLevelParser(SourceReader):
     def getCommentStartToken(self):
         match = self.matchCommentStartToken()
         return self.readTo(match.end())
-
-    def getDottedName(self):
-        assert self.peek() in identchars
-        name = self.getIdentifier()
-        while (
-                self.pos() + 1 < len(self) and
-                self.peek() == '.' and
-                self.peek(1) in identchars
-        ):
-            name += self.getc() + self.getIdentifier()
-        return name
 
     def matchIdentifier(self):
         return identRE.match(self.src(), self.pos())
@@ -298,150 +268,108 @@ class _LowLevelParser(SourceReader):
                 return True
         return False
 
-    def matchCheetahVarStart(self):
-        """includes the enclosure"""
-        return VAR_START_RE.match(self.src(), self.pos())
+    def _read_cheetah_variable(self):
+        parts = [CheetahVar(self.getIdentifier())]
 
-    def matchCheetahVarStartToken(self):
-        """includes the enclosure"""
-        return VAR_START_TOKEN_RE.match(self.src(), self.pos())
-
-    def matchCheetahVarInExpressionStartToken(self):
-        """no enclosures"""
-        return VAR_IN_EXPRESSION_START_TOKEN_RE.match(self.src(), self.pos())
-
-    def matchVariablePlaceholderStart(self):
-        """includes the enclosure"""
-        return VAR_START_RE.match(self.src(), self.pos())
-
-    def matchExpressionPlaceholderStart(self):
-        """includes the enclosure"""
-        return EXPR_PLACEHOLDER_START_RE.match(self.src(), self.pos())
-
-    def getCheetahVarStartToken(self):
-        """just the start token, not the enclosure"""
-        match = self.matchCheetahVarStartToken()
-        return self.readTo(match.end())
-
-    def getCheetahVar(self):
-        """This is called when parsing inside expressions."""
-        self.getCheetahVarStartToken()
-        lineCol = self.getRowCol()
-        return self._compiler.genCheetahVar(self.getCheetahVarNameChunks(), lineCol)
-
-    def getCheetahVarNameChunks(self):
-        """nameChunks = list of Cheetah $var subcomponents represented as tuples
-          [(namemapperPart, restOfName), ...]
-        where:
-          namemapperPart = the dottedName base
-          restOfName = any arglist, index, or slice
-
-        EXAMPLE
-        ------------------------------------------------------------------------
-
-        if the raw CheetahVar is
-          $a.b.c[1].d().x.y.z
-
-        nameChunks is the list
-            [
-                ('a.b.c', '[1]'),
-                ('d', '()'),
-                ('x.y.z', ''),
-            ]
-
-        """
-        # TODO: this can just partition the first bit and the last bit
-        chunks = []
-        while self.pos() < len(self):
-            rest = ''
-            if not self.peek() in identchars + '.':
-                break
-            elif self.peek() == '.':
-                if self.pos() + 1 < len(self) and self.peek(1) in identchars:
-                    self.advance()  # discard the period as it isn't needed with NameMapper
-                else:
-                    break
-
-            dottedName = self.getDottedName()
-            if not self.atEnd() and self.peek() in '([':
-                while not self.atEnd() and self.peek() in '([':
-                    if self.peek() == '(':
-                        rest += self.getCallArgString()
-                    else:
-                        rest += self.getExpression(enclosed=True)
-
-                period = max(dottedName.rfind('.'), 0)
-                if period:
-                    chunks.append((dottedName[:period], ''))
-                    dottedName = dottedName[period + 1:]
-            chunks.append((dottedName, rest))
-
-        return chunks
-
-    def getCallArgString(self):
-        """Get a method/function call argument string.
-
-        This method understands *arg, and **kw
-        """
-        assert self.peek() == '('
-        startPos = self.pos()
-        self.getc()
-        enclosures = [('(', startPos)]
-
-        argStringBits = ['(']
-        addBit = argStringBits.append
-
-        while True:
-            if self.atEnd():
-                open = enclosures[-1][0]
-                close = closurePairsRev[open]
-                self.setPos(enclosures[-1][1])
-                raise ParseError(
-                    self, msg="EOF was reached before a matching '" + close +
-                    "' was found for the '" + open + "'")
-
-            c = self.peek()
-            if c in ')}]':  # get the ending enclosure and break
-                assert enclosures
-                c = self.getc()
-                open = closurePairs[c]
-                if enclosures[-1][0] == open:
-                    enclosures.pop()
-                    addBit(')')
-                    break
-                else:
-                    raise ParseError(
-                        self,
-                        "Expected a '{}' before an end '{}'".format(
-                            closurePairsRev[enclosures[-1][0]], c,
-                        )
-                    )
-            elif c in ' \t\r\n':
-                addBit(self.getc())
-            elif self.matchCheetahVarInExpressionStartToken():
-                startPos = self.pos()
-                codeFor1stToken = self.getCheetahVar()
-                whitespace = self.getWhiteSpace()
-                if not self.atEnd() and self.peek() == '=':
-                    nextToken = self.getPyToken()
-                    if nextToken == '=':
-                        # when nextToken is `=` we know this is a kwarg and
-                        # not an inline expression, so we can crash
-                        self.setPos(startPos)
-                        raise ParseError(self, 'kwargs should not start with $')
-
-                    addBit(codeFor1stToken + whitespace + nextToken)
-                else:
-                    addBit(codeFor1stToken + whitespace)
-            elif self.matchCheetahVarStart():
-                # it has syntax that is only valid at the top level
-                self._raiseErrorAboutInvalidCheetahVarSyntaxInExpr()
-            elif self.peek() in ('{', '(', '['):
-                addBit(self.getExpression(enclosed=True))
+        # A cheetah variable could continue with an attribute, function call,
+        # or getitem.
+        while not self.atEnd():
+            attr_match = ATTRIBUTE_RE.match(self.src(), self.pos())
+            if attr_match:
+                parts.append(self.readTo(attr_match.end()))
+            elif self.peek() in '([':
+                parts.extend(self._read_braced_expression())
             else:
-                addBit(self.getPyToken())
+                break
+        return tuple(parts)
 
-        return ''.join(argStringBits)
+    def _read_braced_expression(self, allow_cheetah_vars=True, force_variable=False):
+        """Returns a tuple of read parts.  The tuple is mixed strings and
+        CheetahVars
+
+        :param bool allow_cheetah_vars: Whether cheetah variables are legal in
+            this expression.
+        :param bool force_variable: For expressions like ${var}, should var
+            be parsed as a cheetah variable?
+        """
+        start_pos = self.pos()
+        token = self.getPyToken()
+        assert token in '({[', token
+        token_stack = [token]
+        parts = [token]
+
+        while token_stack:
+            if self.atEnd():
+                self.setPos(start_pos)
+                raise ParseError(
+                    self,
+                    "EOF while searching for '{}' (to match '{}')".format(
+                        brace_pairs[token_stack[-1]],
+                        token_stack[-1],
+                    )
+                )
+
+            if force_variable and self.peek() in identchars:
+                parts.extend(self._read_cheetah_variable())
+            elif allow_cheetah_vars and self.peek() == VAR_START:
+                self.advance()
+                parts.extend(self._read_cheetah_variable())
+            elif force_variable and self.peek() in ' \t':
+                raise ParseError(self, 'Expected identifier')
+            elif self.peek() in ' \t':
+                parts.append(self.getc())
+            else:
+                token = self.getPyToken()
+                if token in '({[':
+                    token_stack.append(token)
+                elif token in ')}]':
+                    if brace_pairs[token_stack[-1]] != token:
+                        self.setPos(start_pos)
+                        raise ParseError(
+                            self,
+                            'Mismatched token. '
+                            "Found '{}' while searching for '{}'".format(
+                                token, brace_pairs[token_stack[-1]],
+                            )
+                        )
+                    token_stack.pop()
+                parts.append(token)
+
+            # force_variable is only true for the first identifier
+            force_variable = False
+        return tuple(parts)
+
+    def get_unbraced_expression(self, allow_cheetah_vars=True, stop_chars=''):
+        parts = []
+        stop_chars += '\n#'
+
+        while not self.atEnd():
+            if self.peek() in '{([':
+                parts.extend(self._read_braced_expression(
+                    allow_cheetah_vars=allow_cheetah_vars,
+                ))
+            elif allow_cheetah_vars and self.peek() == VAR_START:
+                self.advance()
+                parts.extend(self._read_cheetah_variable())
+            elif self.peek() in ' \t':
+                parts.append(self.getc())
+            elif self.peek() in stop_chars:
+                break
+            else:
+                parts.append(self.getPyToken())
+
+        return tuple(parts)
+
+    def get_placeholder_expression(self):
+        if self.peek() != '{':
+            return self._read_cheetah_variable()
+        else:
+            expr = self._read_braced_expression(force_variable=True)
+            assert expr[0] == '{' and expr[-1] == '}', expr
+            return expr[1:-1]
+
+    def match_expression_start(self):
+        return EXPRESSION_START_RE.match(self.src(), self.pos())
 
     def get_def_argspec(self):
         """Returns python source for function arguments.
@@ -456,208 +384,10 @@ class _LowLevelParser(SourceReader):
             def foo(bar, baz, x={'womp'}):
                                          ^ (parser is about to parse this)
         """
-        token = self.getPyToken()
-        assert token == '('
-        token_stack = [token]
-        contents = token
-
-        while token_stack:
-            if self.atEnd():
-                raise ParseError(
-                    self,
-                    "EOF while searching for '{}' (to match '{}')".format(
-                        closurePairsRev[token_stack[-1]],
-                        token_stack[-1],
-                    )
-                )
-
-            token = self.getPyToken()
-            if token in '({[':
-                token_stack.append(token)
-            elif token in ')}]':
-                if closurePairsRev[token_stack[-1]] != token:
-                    raise AssertionError(
-                        'Mismatched token. '
-                        'Found {} while searching for {}'.format(
-                            token, closurePairsRev[token_stack[-1]],
-                        )
-                    )
-                token_stack.pop()
-
-            contents += token
-        assert contents.startswith('(') and contents.endswith(')'), contents
-        return contents[1:-1]
-
-    def getExpressionParts(
-            self,
-            enclosed=False,
-            enclosures=None,  # list of tuples (char, pos), where char is ({ or [
-            pyTokensToBreakAt=None,  # only works if not enclosed
-    ):
-        """Get a Cheetah expression that includes $CheetahVars and break at
-        directive end tokens, the end of an enclosure, or at a specified
-        pyToken.
-        """
-        if enclosures is None:
-            enclosures = []
-
-        srcLen = len(self)
-        exprBits = []
-        while True:
-            if self.atEnd():
-                if enclosures:
-                    open = enclosures[-1][0]
-                    close = closurePairsRev[open]
-                    self.setPos(enclosures[-1][1])
-                    raise ParseError(
-                        self, msg="EOF was reached before a matching '" + close +
-                        "' was found for the '" + open + "'")
-                else:
-                    break
-
-            c = self.peek()
-            if c in "{([":
-                exprBits.append(c)
-                enclosures.append((c, self.pos()))
-                self.advance()
-            elif enclosed and not enclosures:
-                break
-            elif c in "])}":
-                assert enclosures
-                open = closurePairs[c]
-                if enclosures[-1][0] == open:
-                    enclosures.pop()
-                    exprBits.append(c)
-                else:
-                    open = enclosures[-1][0]
-                    close = closurePairsRev[open]
-                    row, col = self.getRowCol()
-                    self.setPos(enclosures[-1][1])
-                    raise ParseError(
-                        self, msg="A '" + c + "' was found at line " + str(row) +
-                        ", col " + str(col) +
-                        " before a matching '" + close +
-                        "' was found for the '" + open + "'")
-                self.advance()
-
-            elif c in " \t":
-                exprBits.append(self.getWhiteSpace())
-            elif self.matchDirectiveEndToken() and not enclosures:
-                break
-            elif c == "\\" and self.pos() + 1 < srcLen:
-                eolMatch = EOLre.match(self.src(), self.pos() + 1)
-                if not eolMatch:
-                    self.advance()
-                    raise ParseError(self, msg='Line ending expected')
-                self.setPos(eolMatch.end())
-            elif c in '\r\n':
-                if enclosures:
-                    self.advance()
-                else:
-                    break
-            elif self.matchCheetahVarInExpressionStartToken():
-                expr = self.getCheetahVar()
-                exprBits.append(expr)
-            elif self.matchCheetahVarStart():
-                # it has syntax that is only valid at the top level
-                self._raiseErrorAboutInvalidCheetahVarSyntaxInExpr()
-            else:
-                beforeTokenPos = self.pos()
-                token = self.getPyToken()
-                if (
-                        not enclosures and
-                        pyTokensToBreakAt and
-                        token in pyTokensToBreakAt
-                ):
-                    self.setPos(beforeTokenPos)
-                    break
-
-                exprBits.append(token)
-                if identRE.match(token):
-                    if token == 'for':
-                        exprBits.append(self.getWhiteSpace())
-                        expr = self.get_python_expression(
-                            'lvalue of for must not contain a `$`',
-                            pyTokensToBreakAt=['in'],
-                        )
-                        exprBits.append(expr)
-                    else:
-                        exprBits.append(self.getWhiteSpace())
-                        if not self.atEnd() and self.peek() == '(':
-                            exprBits.append(self.getCallArgString())
-        return exprBits
-
-    def getExpression(
-            self,
-            enclosed=False,
-            enclosures=None,  # list of tuples (char, pos), where # char is ({ or [
-            pyTokensToBreakAt=None,
-    ):
-        """Returns the output of self.getExpressionParts() as a concatenated
-        string rather than as a list.
-        """
-        return ''.join(self.getExpressionParts(
-            enclosed=enclosed,
-            enclosures=enclosures,
-            pyTokensToBreakAt=pyTokensToBreakAt,
-        ))
-
-    def get_python_expression(self, failure_msg, **kwargs):
-        """Get an expression that should not contain cheetah variables.
-        Raises a ParseError with `failure_msg` on failure.
-        """
-        expr_pos = self.pos()
-        expr = self.getExpression(**kwargs)
-        if 'VFFSL(' in expr:
-            self.setPos(expr_pos)
-            raise ParseError(self, failure_msg)
-        return expr
-
-    def _raiseErrorAboutInvalidCheetahVarSyntaxInExpr(self):
-        match = self.matchCheetahVarStart()
-        groupdict = match.groupdict()
-        assert 'enclosure' in groupdict, groupdict
-        raise ParseError(
-            self,
-            'Long-form placeholders - ${}, $(), $[], etc. are not valid inside expressions. '
-            'Use them in top-level $placeholders only.'
-        )
-
-    def getPlaceholder(self):
-        startPos = self.pos()
-        lineCol = self.getRowCol()
-        self.getCheetahVarStartToken()
-
-        if self.peek() in '({[':
-            pos = self.pos()
-            enclosureOpenChar = self.getc()
-            enclosures = [(enclosureOpenChar, pos)]
-            self.getWhiteSpace()
-        else:
-            enclosures = []
-
-        if self.matchIdentifier():
-            nameChunks = self.getCheetahVarNameChunks()
-            expr = self._compiler.genCheetahVar(nameChunks[:], lineCol)
-            restOfExpr = None
-            if enclosures:
-                whitespace = self.getWhiteSpace()
-                expr += whitespace
-                if self.peek() == closurePairsRev[enclosureOpenChar]:
-                    self.getc()
-                else:
-                    restOfExpr = self.getExpression(enclosed=True, enclosures=enclosures)
-                    assert restOfExpr[-1] == closurePairsRev[enclosureOpenChar]
-                    restOfExpr = restOfExpr[:-1]
-                    expr += restOfExpr
-            rawPlaceholder = self[startPos:self.pos()]
-        else:
-            expr = self.getExpression(enclosed=True, enclosures=enclosures)
-            assert expr[-1] == closurePairsRev[enclosureOpenChar]
-            expr = expr[:-1]
-            rawPlaceholder = self[startPos:self.pos()]
-
-        return expr, rawPlaceholder, lineCol
+        assert self.peek() == '('
+        expr = self._read_braced_expression(allow_cheetah_vars=False)
+        assert expr[0] == '(' and expr[-1] == ')', expr
+        return ''.join(expr[1:-1])
 
 
 class LegacyParser(_LowLevelParser):
@@ -686,9 +416,7 @@ class LegacyParser(_LowLevelParser):
         while not self.atEnd():
             if self.matchCommentStartToken():
                 self.eatComment()
-            elif self.matchVariablePlaceholderStart():
-                self.eatPlaceholder()
-            elif self.matchExpressionPlaceholderStart():
+            elif self.match_expression_start():
                 self.eatPlaceholder()
             elif self.matchDirective():
                 self.eatDirective()
@@ -718,7 +446,13 @@ class LegacyParser(_LowLevelParser):
         self._compiler.addComment(comm)
 
     def eatPlaceholder(self):
-        self._compiler.addPlaceholder(*self.getPlaceholder())
+        start = self.pos()
+        line_col = self.getRowCol()
+        assert self.getc() == VAR_START
+        expr = self.get_placeholder_expression()
+        end = self.pos()
+        original_src = self.src()[start:end]
+        self._compiler.addPlaceholder(expr, original_src, line_col)
 
     def eatDirective(self):
         directive = self.matchDirective()
@@ -783,7 +517,7 @@ class LegacyParser(_LowLevelParser):
         self.getDirectiveStartToken()
         if not include_name:
             self.advance(len(directive))
-        expr = self.getExpression().strip()
+        expr = self.get_unbraced_expression()
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         return expr
 
@@ -799,7 +533,7 @@ class LegacyParser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.getWhiteSpace()
 
-        expr = self.getExpression(pyTokensToBreakAt=[':'])
+        expr = self.get_unbraced_expression(stop_chars=':')
         if self.matchColonForSingleLineShortFormDirective():
             self.advance()  # skip over :
             self._compiler.commitStrConst()
@@ -836,7 +570,7 @@ class LegacyParser(_LowLevelParser):
             raise ParseError(self, msg='Invalid end directive')
 
         endOfFirstLinePos = self.findEOL()
-        self.getExpression()  # eat in any extra comment-like crap
+        self.get_unbraced_expression()  # eat in any extra comment-like crap
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         assert directiveName in CLOSABLE_DIRECTIVES
         self.popFromOpenDirectivesStack(directiveName)
@@ -859,17 +593,14 @@ class LegacyParser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len('attr'))
         self.getWhiteSpace()
-        if self.matchCheetahVarStart():
+        if self.peek() == VAR_START:
             raise ParseError(self, '#attr directive must not contain `$`')
         attribName = self.getIdentifier()
         self.getWhiteSpace()
         assert self.peek() == '='
         self.getc()
         self.getWhiteSpace()
-        expr = self.get_python_expression(
-            'Invalid #attr directive. '
-            'It should contain simple Python literals.'
-        )
+        expr = ''.join(self.get_unbraced_expression(allow_cheetah_vars=False))
         self._compiler.addAttribute(attribName + ' = ' + expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
 
@@ -877,7 +608,8 @@ class LegacyParser(_LowLevelParser):
         isLineClearToStartToken = self.isLineClearToStartToken()
         endOfFirstLinePos = self.findEOL()
         self.getDirectiveStartToken()
-        decorator_expr = self.getExpression()
+        expr = self.get_unbraced_expression(allow_cheetah_vars=False)
+        decorator_expr = ''.join(expr)
         if decorator_expr in ('@classmethod', '@staticmethod'):
             self.setPos(self.pos() - len(decorator_expr))
             raise ParseError(
@@ -907,7 +639,7 @@ class LegacyParser(_LowLevelParser):
         self.getDirectiveStartToken()
         self.advance(len(directiveName))
         self.getWhiteSpace()
-        if self.matchCheetahVarStart():
+        if self.peek() == VAR_START:
             raise ParseError(self, 'use #def func() instead of #def $func()')
         methodName = self.getIdentifier()
         self.getWhiteSpace()
@@ -951,7 +683,7 @@ class LegacyParser(_LowLevelParser):
             )
 
     def _eatMultiLineDef(self, methodName, argspec, startPos, isLineClearToStartToken=False):
-        self.getExpression()  # slurp up any garbage left at the end
+        self.get_unbraced_expression()  # slurp up any garbage left at the end
         signature = self[startPos:self.pos()]
         endOfFirstLinePos = self.findEOL()
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
@@ -1004,7 +736,7 @@ class LegacyParser(_LowLevelParser):
             )
         self._compiler.setMainMethodName(methodName)
 
-        self.getExpression()  # throw away and unwanted crap that got added in
+        self.get_unbraced_expression()  # throw away and unwanted crap that got added in
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
 
     def eatSuper(self):
@@ -1018,7 +750,7 @@ class LegacyParser(_LowLevelParser):
         else:
             argspec = ''
 
-        self.getExpression()  # throw away and unwanted crap that got added in
+        self.get_unbraced_expression()  # throw away and unwanted crap that got added in
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLine)
         self._compiler.addSuper(argspec)
 

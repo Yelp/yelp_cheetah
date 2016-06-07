@@ -256,37 +256,9 @@ class Placeholders(OutputTest):
         """2 placeholders, back-to-back"""
         self.verify("$aStr$anInt", "blarg1")
 
-    def test4(self):
-        """1 placeholder enclosed in ()"""
-        self.verify("$(aStr)", "blarg")
-
     def test5(self):
         """1 placeholder enclosed in {}"""
         self.verify("${aStr}", "blarg")
-
-    def test6(self):
-        """1 placeholder enclosed in []"""
-        self.verify("$[aStr]", "blarg")
-
-    def test7(self):
-        """1 placeholder enclosed in () + WS
-
-        Test to make sure that $(<WS><identifier>.. matches
-        """
-        self.verify("$( aStr   )", "blarg")
-
-    def test8(self):
-        """1 placeholder enclosed in {} + WS"""
-        self.verify("${ aStr   }", "blarg")
-
-    def test9(self):
-        """1 placeholder enclosed in [] + WS"""
-        self.verify("$[ aStr   ]", "blarg")
-
-    def test19(self):
-        """1 placeholder surrounded by single quotes and multiple newlines"""
-        self.verify("""'\n\n\n\n'$aStr'\n\n\n\n'""",
-                    """'\n\n\n\n'blarg'\n\n\n\n'""")
 
 
 class Placeholders_Vals(OutputTest):
@@ -364,11 +336,6 @@ class Placeholders_Esc(OutputTest):
         self.verify(r"\$var(\$_)",
                     "$var($_)")
 
-    def test5(self):
-        """2 escaped placeholders - nested and enclosed"""
-        self.verify(r"\$(var(\$_)",
-                    "$(var($_)")
-
 
 class Placeholders_Calls(OutputTest):
     def test2(self):
@@ -379,11 +346,6 @@ class Placeholders_Calls(OutputTest):
     def test3(self):
         r"""func placeholder - with (\n\n)"""
         self.verify("$aFunc(\n\n)",
-                    "Scooby")
-
-    def test4(self):
-        r"""func placeholder - with (\n\n) and $() enclosure"""
-        self.verify("$(aFunc(\n\n))",
                     "Scooby")
 
     def test5(self):
@@ -535,12 +497,6 @@ class NameMapper(OutputTest):
     def test19(self):
         """object method access, followed by complex slice"""
         self.verify("${anObj.meth1()[0: ((4//4*2)*2)//$anObj.meth1(2) ]}",
-                    "do")
-
-    def test20(self):
-        """object method access, followed by a very complex slice
-        If it can pass this one, it's safe to say it works!!"""
-        self.verify("$( anObj.meth1()[0:\n (\n(4//4*2)*2)//$anObj.meth1(2)\n ] )",
                     "do")
 
     def test21(self):
@@ -1107,13 +1063,11 @@ class IfDirective(OutputTest):
                         "")
 
     def test11(self):
-        """#if block using invalid top-level $(placeholder) syntax - should barf"""
+        """#if block using invalid top-level ${placeholder} syntax - should barf"""
 
         for badSyntax in (
                 "#if $*5*emptyString\n$aStr\n#end if\n",
                 "#if ${emptyString}\n$aStr\n#end if\n",
-                "#if $(emptyString)\n$aStr\n#end if\n",
-                "#if $[emptyString]\n$aStr\n#end if\n",
                 "#if $!emptyString\n$aStr\n#end if\n",
         ):
             with pytest.raises(ParseError):
@@ -1719,3 +1673,8 @@ def test_does_not_allow_autoself():
     )
     with pytest.raises(NotFound):
         cls().respond()
+
+
+def test_single_quote():
+    # Triggers a branch in code generation
+    assert compile_to_class("'")().respond() == "'"

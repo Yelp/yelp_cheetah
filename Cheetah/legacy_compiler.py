@@ -9,6 +9,7 @@
 '''
 from __future__ import unicode_literals
 
+import ast
 import contextlib
 import copy
 import re
@@ -20,7 +21,7 @@ import six
 from Cheetah.ast_utils import get_argument_names
 from Cheetah.ast_utils import get_imported_names
 from Cheetah.ast_utils import get_lvalues
-from Cheetah.legacy_parser import escapedNewlineRE
+from Cheetah.legacy_parser import CheetahVar
 from Cheetah.legacy_parser import LegacyParser
 from Cheetah.SettingsManager import SettingsManager
 
@@ -36,7 +37,6 @@ DEFAULT_COMPILER_SETTINGS = {
     'useNameMapper': True,
     # All #import statements are hoisted to the top of the module
     'useLegacyImportMode': True,
-    'gettextTokens': ['_', 'gettext', 'ngettext', 'pgettext', 'npgettext'],
     # Can $foo mean both self.foo and NS['foo']?
     'enable_auto_self': True,
 }
@@ -45,20 +45,37 @@ CLASS_NAME = 'YelpCheetahTemplate'
 BASE_CLASS_NAME = 'YelpCheetahBaseClass'
 
 
-def genPlainVar(nameChunks):
-    """Generate Python code for a Cheetah $var without using NameMapper."""
-    return '.'.join(name + rest for name, rest in nameChunks)
+UNESCAPE_NEWLINES = re.compile(r'(?<!\\)((\\\\)*)\\n')
 
 
-def genNameMapperVar(nameChunks, auto_self):
-    name, remainder = nameChunks[0]
-    namept1, dot, rest = name.partition('.')
-    if auto_self:
-        start = 'VFFSL("{}", locals(), globals(), self, NS){}{}{}'.format(namept1, dot, rest, remainder)
+def _cheetah_var_to_text(
+        var, local_vars, global_vars, auto_self, name_mapper,
+):
+    if (
+            not name_mapper or
+            var.name in local_vars or
+            var.name in global_vars or
+            var.name in BUILTIN_NAMES
+    ):
+        return var.name
     else:
-        start = 'VFFNS("{}", locals(), globals(), NS){}{}{}'.format(namept1, dot, rest, remainder)
-    tail = genPlainVar(nameChunks[1:])
-    return start + ('.' if tail else '') + tail
+        if auto_self:
+            return 'VFFSL("{}", locals(), globals(), self, NS)'.format(
+                var.name,
+            )
+        else:
+            return 'VFFNS("{}", locals(), globals(), NS)'.format(
+                var.name,
+            )
+
+
+def _expr_to_text(expr_parts, **kwargs):
+    return ''.join(
+        _cheetah_var_to_text(part, **kwargs)
+        if isinstance(part, CheetahVar) else
+        part
+        for part in expr_parts
+    )
 
 
 def _prepare_argspec(argspec):
@@ -76,6 +93,7 @@ class MethodCompiler(object):
             decorators=None,
     ):
         self._methodName = methodName
+        self._class_compiler = class_compiler
         self._initialMethodComment = initialMethodComment
         self._indentLev = 2
         self._pendingStrConstChunks = []
@@ -168,7 +186,7 @@ class MethodCompiler(object):
             return
 
         reprstr = repr(strConst).lstrip('u')
-        body = escapedNewlineRE.sub('\\1\n', reprstr[1:-1])
+        body = UNESCAPE_NEWLINES.sub('\\1\n', reprstr[1:-1])
 
         if reprstr[0] == "'":
             out = ("'''", body, "'''")
@@ -197,11 +215,23 @@ class MethodCompiler(object):
     def _update_locals(self, expr):
         self._local_vars.update(get_lvalues(expr))
 
+    def _expr_to_text(self, expr):
+        return _expr_to_text(
+            expr,
+            local_vars=self._local_vars,
+            global_vars=self._class_compiler._compiler._global_vars,
+            auto_self=self._class_compiler._compiler.setting('enable_auto_self'),
+            name_mapper=self._class_compiler._compiler.setting('useNameMapper'),
+        )
+
     def addPlaceholder(self, expr, rawPlaceholder, line_col):
+        expr = self._expr_to_text(expr).lstrip()
+        assert ast.parse(expr)
         self.addFilteredChunk(expr, rawPlaceholder, line_col)
         self._append_line_col_comment(line_col)
 
     def _add_with_line_col(self, expr, line_col):
+        expr = self._expr_to_text(expr).lstrip()
         self._update_locals(expr)
         self.addChunk(expr)
         self._append_line_col_comment(line_col)
@@ -220,6 +250,7 @@ class MethodCompiler(object):
         self._add_with_line_col(expr, line_col)
 
     def _add_indenting_directive(self, expr, line_col):
+        expr = self._expr_to_text(expr)
         assert expr[-1] != ':'
         expr = expr + ':'
         self.addChunk(expr)
@@ -229,6 +260,7 @@ class MethodCompiler(object):
     addWhile = addIf = addTry = _add_indenting_directive
 
     def _add_lvalue_indenting_directive(self, expr, line_col):
+        expr = self._expr_to_text(expr)
         self._update_locals(expr + ':\n    pass')
         self._add_indenting_directive(expr, line_col)
 
@@ -242,13 +274,17 @@ class MethodCompiler(object):
         self._append_line_col_comment(line_col)
         self.indent()
 
-    addFinally = addReIndentingDirective
+    def addFinally(self, expr, line_col):
+        expr = self._expr_to_text(expr)
+        self.addReIndentingDirective(expr, line_col)
 
     def addExcept(self, expr, line_col):
+        expr = self._expr_to_text(expr)
         self._update_locals('try:\n    pass\n' + expr + ':\n    pass')
         self.addReIndentingDirective(expr, line_col)
 
     def addElse(self, expr, line_col):
+        expr = self._expr_to_text(expr)
         expr = re.sub('else +if', 'elif', expr)
         self.addReIndentingDirective(expr, line_col)
 
@@ -300,7 +336,8 @@ class MethodCompiler(object):
 class ClassCompiler(object):
     methodCompilerClass = MethodCompiler
 
-    def __init__(self, main_method_name):
+    def __init__(self, main_method_name, compiler):
+        self._compiler = compiler
         self._mainMethodName = main_method_name
         self._decoratorsForNextMethod = []
         self._activeMethodsList = []        # stack while parsing/generating
@@ -429,8 +466,6 @@ class LegacyCompiler(SettingsManager):
         ]
         self._global_vars = {'io', 'NO_CONTENT', 'VFFNS', 'VFFSL'}
 
-        self._gettext_scannables = []
-
     def __getattr__(self, name):
         """Provide one-way access to the methods and attributes of the
         ClassCompiler, and thereby the MethodCompilers as well.
@@ -441,7 +476,9 @@ class LegacyCompiler(SettingsManager):
         self._settings = copy.deepcopy(DEFAULT_COMPILER_SETTINGS)
 
     def _spawnClassCompiler(self):
-        return self.classCompilerClass(main_method_name='respond')
+        return self.classCompilerClass(
+            main_method_name='respond', compiler=self,
+        )
 
     @contextlib.contextmanager
     def _set_class_compiler(self, class_compiler):
@@ -463,36 +500,6 @@ class LegacyCompiler(SettingsManager):
 
     # methods for adding stuff to the module and class definitions
 
-    def genCheetahVar(self, nameChunks, lineCol):
-        first_accessed_var = nameChunks[0][0].partition('.')[0]
-        plain = (
-            not self.setting('useNameMapper') or
-            first_accessed_var in self._local_vars or
-            first_accessed_var in self._global_vars or
-            first_accessed_var in BUILTIN_NAMES
-        )
-
-        # Look for gettext tokens within nameChunks (if any)
-        if any(nameChunk[0] in self.setting('gettextTokens') for nameChunk in nameChunks):
-            self.addGetTextVar(nameChunks, lineCol)
-
-        if plain:
-            return genPlainVar(nameChunks)
-        else:
-            return genNameMapperVar(
-                nameChunks, auto_self=self.setting('enable_auto_self'),
-            )
-
-    def addGetTextVar(self, nameChunks, lineCol):
-        """Output something that gettext can recognize.
-
-        This is a harmless side effect necessary to make gettext work when it
-        is scanning compiled templates for strings marked for translation.
-        """
-        scannable = genPlainVar(nameChunks[:])
-        scannable += ' # generated from line {}, col {}.'.format(*lineCol)
-        self._gettext_scannables.append(scannable)
-
     def set_extends(self, extends_name):
         self.setMainMethodName('writeBody')
 
@@ -510,7 +517,8 @@ class LegacyCompiler(SettingsManager):
         self.clearStrConst()
         self.updateSettingsFromConfigStr(settings_str)
 
-    def _add_import_statement(self, imp_statement, line_col):
+    def _add_import_statement(self, expr, line_col):
+        imp_statement = ''.join(expr)
         imported_names = get_imported_names(imp_statement)
 
         if not self._methodBodyChunks or self.setting('useLegacyImportMode'):
@@ -543,8 +551,6 @@ class LegacyCompiler(SettingsManager):
 
 
             {class_def}
-
-            {scannables}
             if __name__ == '__main__':
                 from os import environ
                 from sys import stdout
@@ -554,17 +560,7 @@ class LegacyCompiler(SettingsManager):
             imports='\n'.join(self._importStatements),
             base_import=self._base_import,
             class_def=class_compiler.class_def(),
-            scannables=self.gettext_scannables(),
             class_name=CLASS_NAME,
         ) + '\n'
 
         return moduleDef
-
-    def gettext_scannables(self):
-        scannables = tuple(INDENT + nameChunks for nameChunks in self._gettext_scannables)
-        if scannables:
-            return '\n'.join(
-                ('\ndef __CHEETAH_gettext_scannables():',) + scannables
-            ) + '\n\n'
-        else:
-            return ''
