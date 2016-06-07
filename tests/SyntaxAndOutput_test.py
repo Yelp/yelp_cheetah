@@ -27,9 +27,6 @@ class DummyClass(object):
     def meth1(self, arg="doo"):
         return arg
 
-    def methWithPercentSignDefaultArg(self, arg1="110%"):
-        return str(arg1)
-
 
 def dummyFunc(arg="Scooby"):
     return arg
@@ -50,11 +47,7 @@ defaultTestNamespace = {
     },
     'aFunc': dummyFunc,
     'anObj': DummyClass(),
-    'aMeth': DummyClass().meth1,
-    'none': None,
     'emptyString': '',
-    'numOne': 1,
-    'numTwo': 2,
     'zero': 0,
     'listOfLambdas': [lambda x: x, lambda x: x, lambda x: x],
     'letterList': ['a', 'b', 'c'],
@@ -289,11 +282,8 @@ class Placeholders_Vals(OutputTest):
         )
 
     def test7(self):
-        """None
-
-        The default output filter is ReplaceNone.
-        """
-        self.verify("$none", "")
+        """By default, None is not outputted"""
+        self.verify("$None", "")
 
     def test8(self):
         """True, False"""
@@ -307,11 +297,11 @@ class Placeholders_Vals(OutputTest):
 class UnicodeStrings(OutputTest):
     def test1(self):
         """unicode data in placeholder"""
-        self.verify(u"$unicodeData", defaultTestNamespace['unicodeData'])
+        self.verify("$unicodeData", defaultTestNamespace['unicodeData'])
 
     def test2(self):
         """unicode data in body"""
-        self.verify(u"aoeu12345\u1234", u"aoeu12345\u1234")
+        self.verify("aoeu12345\u1234", "aoeu12345\u1234")
 
 
 class Placeholders_Esc(OutputTest):
@@ -497,15 +487,6 @@ class NameMapper(OutputTest):
         """object method access, followed by complex slice"""
         self.verify("${anObj.meth1()[0: ((4//4*2)*2)//$anObj.meth1(2) ]}",
                     "do")
-
-    def test21(self):
-        """object method access with % in the default arg for the meth.
-
-        This tests a bug that Jeff Johnson found and submitted a patch to SF
-        for."""
-
-        self.verify("$anObj.methWithPercentSignDefaultArg()",
-                    "110%")
 
     def test22a(self):
         with pytest.raises(AttributeError):
@@ -751,7 +732,7 @@ class AttrDirective(OutputTest):
 
     def test_attr_with_unicode(self):
         self.verify(
-            "#attr test = u'☃'\n"
+            "#attr test = '☃'\n"
             '$test\n',
             '☃\n'
         )
@@ -1015,8 +996,7 @@ class IfDirective(OutputTest):
                     "   \nblarg\n  --\n")
 
     def test4(self):
-        """#if block using $numOne"""
-        self.verify("#if $numOne\n$aStr\n#end if\n",
+        self.verify("#if $anInt\n$aStr\n#end if\n",
                     "blarg\n")
 
     def test5(self):
@@ -1036,7 +1016,7 @@ class IfDirective(OutputTest):
 
     def test8(self):
         """#if ... #elif ... #else ... block using a $emptyString"""
-        self.verify("#if $emptyString\n$c\n#elif $numOne\n$numOne\n#else\n$c - $c\n#end if",
+        self.verify("#if $emptyString\n$c\n#elif $anInt\n$anInt\n#else\n$c - $c\n#end if",
                     "1\n")
 
     def test9(self):
@@ -1047,7 +1027,7 @@ class IfDirective(OutputTest):
     def test12(self):
         """#if ... #else if ... #else ... block using a $emptyString
         Same as test 8 but using else if instead of elif"""
-        self.verify("#if $emptyString\n$c\n#else if $numOne\n$numOne\n#else\n$c - $c\n#end if",
+        self.verify("#if $emptyString\n$c\n#else if $anInt\n$anInt\n#else\n$c - $c\n#end if",
                     "1\n")
 
     def test13(self):
