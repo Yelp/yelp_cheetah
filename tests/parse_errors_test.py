@@ -580,3 +580,18 @@ def test_junk_after_decorator():
         'junk\n'
         '#def foo(): hi\n'
     )
+
+
+@pytest.mark.parametrize('placeholder', ('$(x)', '$[x]'))
+def test_old_placeholders(placeholder):
+    assert_parse_error(
+        '\n\n'
+        'Invalid placeholder.  Valid placeholders are $x or ${{x}}.\n'
+        'Line 1, column 1\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |{}\n'
+        '     ^\n'.format(placeholder),
+
+        placeholder,
+    )
