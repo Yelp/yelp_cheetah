@@ -285,6 +285,10 @@ class _LowLevelParser(SourceReader):
                 break
         return tuple(parts)
 
+    def _read_cheetah_variable_with_dollarsign(self):
+        assert self.getc() == VAR_START
+        return self._read_cheetah_variable()
+
     def _read_braced_expression(self, allow_cheetah_vars=True, force_variable=False):
         """Returns a tuple of read parts.  The tuple is mixed strings and
         CheetahVars
@@ -314,8 +318,7 @@ class _LowLevelParser(SourceReader):
             if force_variable and self.peek() in identchars:
                 parts.extend(self._read_cheetah_variable())
             elif allow_cheetah_vars and self.peek() == VAR_START:
-                self.advance()
-                parts.extend(self._read_cheetah_variable())
+                parts.extend(self._read_cheetah_variable_with_dollarsign())
             elif force_variable and self.peek() in ' \t':
                 raise ParseError(self, 'Expected identifier')
             elif self.peek() in ' \t':
@@ -351,8 +354,7 @@ class _LowLevelParser(SourceReader):
                     allow_cheetah_vars=allow_cheetah_vars,
                 ))
             elif allow_cheetah_vars and self.peek() == VAR_START:
-                self.advance()
-                parts.extend(self._read_cheetah_variable())
+                parts.extend(self._read_cheetah_variable_with_dollarsign())
             elif self.peek() in ' \t':
                 parts.append(self.getc())
             elif self.peek() in stop_chars:
