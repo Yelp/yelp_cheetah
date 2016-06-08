@@ -19,6 +19,18 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.16.0
+- `$foo()bar` no longer compiles to `foo.bar`
+- gettext parsing was removed -- it never worked properly.  To get gettext
+  scannable compiled output, create a compiler, augment `._global_vars` with
+  the gettext functions.
+- `$()` and `$[]` are now syntax errors -- use `${}` instead
+- `${ foo }` is now a syntax error -- placeholders cannot start with whitespace
+- Escaped newlines in expressions are preserved
+- Bug with comments in a multi-line expression fixed
+- Fix several parsing issues around expressions
+- Fix several parsing issues around `#def`
+
 ## 0.15.2
 - Add an `enable_auto_self` setting (defaulted to `True`) which (when enabled)
   means `$foo` can mean either `self.foo` or `NS['foo']` (the behaviour prior
