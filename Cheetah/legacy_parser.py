@@ -297,17 +297,17 @@ class _LowLevelParser(SourceReader):
         start_pos = self.pos()
         token = self.getPyToken()
         assert token in '({[', token
-        token_stack = [token]
+        brace_stack = [token]
         parts = [token]
 
-        while token_stack:
+        while brace_stack:
             if self.atEnd():
                 self.setPos(start_pos)
                 raise ParseError(
                     self,
                     "EOF while searching for '{}' (to match '{}')".format(
-                        brace_pairs[token_stack[-1]],
-                        token_stack[-1],
+                        brace_pairs[brace_stack[-1]],
+                        brace_stack[-1],
                     )
                 )
 
@@ -323,18 +323,18 @@ class _LowLevelParser(SourceReader):
             else:
                 token = self.getPyToken()
                 if token in '({[':
-                    token_stack.append(token)
+                    brace_stack.append(token)
                 elif token in ')}]':
-                    if brace_pairs[token_stack[-1]] != token:
+                    if brace_pairs[brace_stack[-1]] != token:
                         self.setPos(start_pos)
                         raise ParseError(
                             self,
                             'Mismatched token. '
                             "Found '{}' while searching for '{}'".format(
-                                token, brace_pairs[token_stack[-1]],
+                                token, brace_pairs[brace_stack[-1]],
                             )
                         )
-                    token_stack.pop()
+                    brace_stack.pop()
                 parts.append(token)
 
             # force_variable is only true for the first identifier
