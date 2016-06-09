@@ -19,6 +19,9 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.16.1
+- Add a parsing hook for cheetah variables
+
 ## 0.16.0
 - `$foo()bar` no longer compiles to `foo.bar`
 - gettext parsing was removed -- it never worked properly.  To get gettext
