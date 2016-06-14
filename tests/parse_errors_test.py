@@ -107,19 +107,18 @@ def test_invalid_end_directive():
 
 
 def test_invalid_nesting_directives():
-    # TODO: this one is off by a bit on the exception message
     assert_parse_error(
         '\n\n'
         '#end if found, expected #end for\n'
-        'Line 4, column 1\n'
+        'Line 3, column 6\n'
         '\n'
         'Line|Cheetah Code\n'
         '----|-------------------------------------------------------------\n'
         '1   |#if True\n'
         '2   |#for i in range(5)\n'
         '3   |#end if\n'
-        '4   |#end for\n'
-        '     ^\n',
+        '          ^\n'
+        '4   |#end for\n',
 
         '#if True\n'
         '#for i in range(5)\n'

@@ -102,10 +102,10 @@ CheetahVar = collections.namedtuple('CheetahVar', ('name',))
 
 
 class ParseError(ValueError):
-    def __init__(self, stream, msg='Invalid Syntax'):
+    def __init__(self, stream, msg='Invalid Syntax', pos=None):
         self.stream = stream
-        if stream.pos() >= len(stream):
-            stream.setPos(len(stream) - 1)
+        pos = stream.pos() if pos is None else pos
+        stream.setPos(min(len(stream) - 1, pos))
         self.msg = msg
 
     def __str__(self):
@@ -306,13 +306,13 @@ class _LowLevelParser(SourceReader):
 
         while brace_stack:
             if self.atEnd():
-                self.setPos(start_pos)
                 raise ParseError(
                     self,
                     "EOF while searching for '{}' (to match '{}')".format(
                         brace_pairs[brace_stack[-1]],
                         brace_stack[-1],
-                    )
+                    ),
+                    pos=start_pos,
                 )
 
             if force_variable and self.peek() in identchars:
@@ -329,13 +329,13 @@ class _LowLevelParser(SourceReader):
                     brace_stack.append(token)
                 elif token in ')}]':
                     if brace_pairs[brace_stack[-1]] != token:
-                        self.setPos(start_pos)
                         raise ParseError(
                             self,
                             'Mismatched token. '
                             "Found '{}' while searching for '{}'".format(
                                 token, brace_pairs[brace_stack[-1]],
-                            )
+                            ),
+                            pos=start_pos,
                         )
                     brace_stack.pop()
                 parts.append(token)
@@ -586,7 +586,7 @@ class LegacyParser(_LowLevelParser):
         self.get_unbraced_expression()  # eat in any extra comment-like crap
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
         assert directiveName in CLOSABLE_DIRECTIVES
-        self.popFromOpenDirectivesStack(directiveName)
+        self.popFromOpenDirectivesStack(directiveName, error_pos=pos)
 
         if directiveName == 'def':
             self._compiler.closeDef()
@@ -624,9 +624,9 @@ class LegacyParser(_LowLevelParser):
         expr = self.get_unbraced_expression(allow_cheetah_vars=False)
         decorator_expr = ''.join(expr)
         if decorator_expr in ('@classmethod', '@staticmethod'):
-            self.setPos(self.pos() - len(decorator_expr))
             raise ParseError(
                 self, '@classmethod / @staticmethod are not supported',
+                pos=self.pos() - len(decorator_expr),
             )
         self._compiler.addDecorator(decorator_expr)
         self._eatRestOfDirectiveTag(isLineClearToStartToken, endOfFirstLinePos)
@@ -777,7 +777,7 @@ class LegacyParser(_LowLevelParser):
         assert directiveName in CLOSABLE_DIRECTIVES
         self._openDirectivesStack.append(directiveName)
 
-    def popFromOpenDirectivesStack(self, directive_name):
+    def popFromOpenDirectivesStack(self, directive_name, error_pos):
         if not self._openDirectivesStack:
             raise ParseError(self, msg="#end found, but nothing to end")
 
@@ -785,7 +785,8 @@ class LegacyParser(_LowLevelParser):
         if last != directive_name:
             raise ParseError(
                 self,
-                '#end {} found, expected #end {}'.format(directive_name, last)
+                '#end {} found, expected #end {}'.format(directive_name, last),
+                pos=error_pos,
             )
 
     def assertEmptyOpenDirectivesStack(self):
