@@ -20,7 +20,7 @@ def render_tmpl(template_source):
 def test_def_only_filter_once():
     output = render_tmpl(
         '#def print_foo(): $foo\n'
-        '$print_foo()'
+        '$self.print_foo()'
     )
     expected = '<1>bar</1>'
     assert output == expected
