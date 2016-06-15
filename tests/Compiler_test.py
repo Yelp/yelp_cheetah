@@ -41,7 +41,7 @@ def test_comments():
 
 def test_optimized_builtins():
     src = compile_source('$int("9001")')
-    # Instead of _v = VFFSL("int"...
+    # Instead of _v = VFFNS("int"...
     assert ' _v = int("9001") #' in src
 
 
@@ -57,7 +57,7 @@ def test_optimized_attributes_of_builtins_function_args():
 
 def test_non_optimized_searchlist():
     src = compile_source('$int($foo)')
-    assert ' _v = int(VFFSL("foo"' in src
+    assert ' _v = int(VFFNS("foo"' in src
 
 
 def test_optimization_still_prefers_locals():
@@ -181,7 +181,7 @@ class fooobj(object):
 def test_optimization_removes_VFN():
     src = compile_source(VFN_opt_src)
     assert 'VFN(' not in src
-    assert ' _v = VFFSL("foo", locals(), globals(), self, NS).barvar[0].upper() #' in src
+    assert ' _v = VFFNS("foo", locals(), globals(), NS).barvar[0].upper() #' in src
     cls = compile_to_class(VFN_opt_src)
     assert cls({'foo': fooobj}).respond() == 'W'
 

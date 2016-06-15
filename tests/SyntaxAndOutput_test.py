@@ -544,7 +544,7 @@ class ReturnDirective(OutputTest):
     def test1(self):
         """#return'ing an int """
         self.verify("""1
-$str($test()-6)
+$str($self.test()-6)
 3
 #def test()
 #if 1
@@ -560,7 +560,7 @@ aoeuoaeu
     def test2(self):
         """#return'ing an string """
         self.verify("""1
-$str($test()[1])
+$str($self.test()[1])
 3
 #def test()
 #if 1
@@ -575,7 +575,7 @@ aoeuoaeu
     def test3(self):
         """#return'ing an string AND streaming other output via the transaction"""
         self.verify("""1
-$str($test()[1])
+$str($self.test()[1])
 3
 #def test()
 1.5
@@ -598,7 +598,7 @@ class YieldDirective(OutputTest):
             "#def iterator()\n"
             "#for i in range(10)\n#yield i\n#end for\n"
             "#end def\n"
-            "#for i in $iterator()\n$i#end for"
+            "#for i in $self.iterator()\n$i#end for"
         )
 
         for src in (src1, src2):
@@ -705,35 +705,35 @@ class AttrDirective(OutputTest):
 
     def test1(self):
         """#attr with int"""
-        self.verify("#attr test = 1234\n$test",
+        self.verify("#attr test = 1234\n$self.test",
                     "1234")
 
     def test2(self):
         """#attr with string"""
-        self.verify("#attr test = 'blarg'\n$test",
+        self.verify("#attr test = 'blarg'\n$self.test",
                     "blarg")
 
     def test3(self):
         """#attr with expression"""
-        self.verify("#attr test = 'blarg'.upper()*2\n$test",
+        self.verify("#attr test = 'blarg'.upper()*2\n$self.test",
                     "BLARGBLARG")
 
     def test4(self):
         """#attr with string + WS
         Should gobble"""
-        self.verify("     #attr test = 'blarg'   \n$test",
+        self.verify("     #attr test = 'blarg'   \n$self.test",
                     "blarg")
 
     def test5(self):
         """#attr with string + WS + leading text
         Shouldn't gobble"""
-        self.verify("  --   #attr test = 'blarg'   \n$test",
+        self.verify("  --   #attr test = 'blarg'   \n$self.test",
                     "  --   \nblarg")
 
     def test_attr_with_unicode(self):
         self.verify(
             "#attr test = '☃'\n"
-            '$test\n',
+            '$self.test\n',
             '☃\n'
         )
 
@@ -741,89 +741,89 @@ class AttrDirective(OutputTest):
 class DefDirective(OutputTest):
 
     def test1(self):
-        self.verify("#def testMeth()\n1234\n#end def\n$testMeth()",
+        self.verify("#def testMeth()\n1234\n#end def\n$self.testMeth()",
                     "1234\n")
 
-        self.verify("#def testMeth() ## comment\n1234\n#end def\n$testMeth()",
+        self.verify("#def testMeth() ## comment\n1234\n#end def\n$self.testMeth()",
                     "1234\n")
 
-        self.verify("#def testMeth(): ## comment\n1234\n#end def\n$testMeth()",
+        self.verify("#def testMeth(): ## comment\n1234\n#end def\n$self.testMeth()",
                     "1234\n")
 
     def test2(self):
         """#def, gobble WS"""
-        self.verify("   #def testMeth()  \n1234\n    #end def   \n$testMeth()",
+        self.verify("   #def testMeth()  \n1234\n    #end def   \n$self.testMeth()",
                     "1234\n")
 
     def test3(self):
         """#def with argstring, gobble WS"""
-        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$testMeth()",
+        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$self.testMeth()",
                     "1234-999\n")
 
     def test4(self):
         """#def with argstring, gobble WS, string used in call"""
-        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$testMeth('ABC')",
+        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$self.testMeth('ABC')",
                     "1234-ABC\n")
 
     def test5(self):
         """#def with argstring, gobble WS, list used in call"""
-        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$testMeth([1,2,3])",
+        self.verify("  #def testMeth(a=999)   \n1234-$a\n  #end def\n$self.testMeth([1,2,3])",
                     "1234-[1, 2, 3]\n")
 
     def test6(self):
         """#def with 2 args, gobble WS, list used in call"""
-        self.verify("  #def testMeth(a, b='default')   \n1234-$a$b\n  #end def\n$testMeth([1,2,3])",
+        self.verify("  #def testMeth(a, b='default')   \n1234-$a$b\n  #end def\n$self.testMeth([1,2,3])",
                     "1234-[1, 2, 3]default\n")
 
     def test7(self):
         """#def with *args, gobble WS"""
-        self.verify("  #def testMeth(*args)   \n1234-$args\n  #end def\n$testMeth()",
+        self.verify("  #def testMeth(*args)   \n1234-$args\n  #end def\n$self.testMeth()",
                     "1234-()\n")
 
     def test8(self):
         """#def with **KWs, gobble WS"""
-        self.verify("  #def testMeth(**KWs)   \n1234-$KWs\n  #end def\n$testMeth()",
+        self.verify("  #def testMeth(**KWs)   \n1234-$KWs\n  #end def\n$self.testMeth()",
                     "1234-{}\n")
 
     def test9(self):
         """#def with *args + **KWs, gobble WS"""
-        self.verify("  #def testMeth(*args, **KWs)   \n1234-$args-$KWs\n  #end def\n$testMeth()",
+        self.verify("  #def testMeth(*args, **KWs)   \n1234-$args-$KWs\n  #end def\n$self.testMeth()",
                     "1234-()-{}\n")
 
     def test10(self):
         """#def with *args + **KWs, gobble WS"""
         self.verify(
-            "  #def testMeth(*args, **KWs)   \n1234-$args-$KWs['a']\n  #end def\n$testMeth(1,2, a=1)",
+            "  #def testMeth(*args, **KWs)   \n1234-$args-$KWs['a']\n  #end def\n$self.testMeth(1,2, a=1)",
             "1234-(1, 2)-1\n")
 
     def test11(self):
         """single line #def with extra WS"""
         self.verify(
-            "#def testMeth(): aoeuaoeu\n- $testMeth() -",
+            "#def testMeth(): aoeuaoeu\n- $self.testMeth() -",
             "- aoeuaoeu -")
 
     def test12(self):
         """single line #def with extra WS and nested $placeholders"""
         self.verify(
-            "#def testMeth(): $anInt $aFunc(1234)\n- $testMeth() -",
+            "#def testMeth(): $anInt $aFunc(1234)\n- $self.testMeth() -",
             "- 1 1234 -")
 
     def test13(self):
         """single line #def escaped $placeholders"""
         self.verify(
-            "#def testMeth(): \\$aFunc(\\$anInt)\n- $testMeth() -",
+            "#def testMeth(): \\$aFunc(\\$anInt)\n- $self.testMeth() -",
             "- $aFunc($anInt) -")
 
     def test14(self):
         """single line #def 1 escaped $placeholders"""
         self.verify(
-            "#def testMeth(): \\$aFunc($anInt)\n- $testMeth() -",
+            "#def testMeth(): \\$aFunc($anInt)\n- $self.testMeth() -",
             "- $aFunc(1) -")
 
     def test15(self):
         """single line #def 1 escaped $placeholders + more WS"""
         self.verify(
-            "#def testMeth    (): \\$aFunc($anInt)\n- $testMeth() -",
+            "#def testMeth    (): \\$aFunc($anInt)\n- $self.testMeth() -",
             "- $aFunc(1) -")
 
     def test19(self):
@@ -832,7 +832,7 @@ class DefDirective(OutputTest):
                     "  arg2=5678)\n" +
                     "$arg $arg2\n" +
                     "#end def\n" +
-                    "$testMeth()",
+                    "$self.testMeth()",
                     "1234 5678\n")
 
 
@@ -846,15 +846,15 @@ class DecoratorDirective(OutputTest):
 
         self.verify(
             "#from tests.SyntaxAndOutput_test import dummydecorator\n"
-            "#@dummydecorator"
-            "\n#def testMeth():1234\n$testMeth()",
+            "#@dummydecorator\n"
+            "#def testMeth():1234\n$self.testMeth()",
             "1234"
         )
 
         self.verify(
             "#from tests.SyntaxAndOutput_test import dummydecorator\n"
-            "#@dummydecorator"
-            "\n#block testMeth:1234",
+            "#@dummydecorator\n"
+            "#block testMeth:1234",
             "1234",
         )
 
@@ -867,7 +867,7 @@ class DecoratorDirective(OutputTest):
             "#def testMeth()\n"
             "1234\n"
             "#end def\n"
-            "$testMeth()",
+            "$self.testMeth()",
             "1234\n"
         )
 
@@ -938,13 +938,13 @@ inner
     def test14(self):
         """single line #block with None for content"""
         self.verify(
-            """#block testMeth: $None\ntest $testMeth()-""",
+            """#block testMeth: $None\ntest $self.testMeth()-""",
             "test -")
 
     def test15(self):
         """single line #block with nothing for content"""
         self.verify(
-            """#block testMeth: \nfoo\n#end block\ntest $testMeth()-""",
+            """#block testMeth: \nfoo\n#end block\ntest $self.testMeth()-""",
             "foo\ntest foo\n-")
 
 
@@ -1321,7 +1321,7 @@ def test_extends():
     ret = compile_to_class(
         '#extends testing.templates.extends_test_template\n'
         '#implements respond\n'
-        '$spacer()\n'
+        '$self.spacer()\n'
     )().respond()
     assert ret == '<img src="spacer.gif" width="1" height="1" alt="" />\n'
 
@@ -1331,7 +1331,7 @@ def test_extends_with_partial_baseclass_import():
         '#import testing\n'
         '#extends testing.templates.extends_test_template\n'
         '#implements respond\n'
-        '$spacer()\n'
+        '$self.spacer()\n'
     )
     assert cls().respond() == (
         '<img src="spacer.gif" width="1" height="1" alt="" />\n'
@@ -1363,33 +1363,29 @@ $sep$letter#slurp
 
 class VarExists(OutputTest):
     def test2(self):
-        self.verify("$varExists('anInt')",
+        self.verify("$self.varExists('anInt')",
                     repr(True))
 
     def test3(self):
-        self.verify("$varExists('bogus')",
+        self.verify("$self.varExists('bogus')",
                     repr(False))
 
     def test4(self):
-        self.verify("#if $varExists('bogus')\n1234\n#else\n999\n#end if",
+        self.verify("#if $self.varExists('bogus')\n1234\n#else\n999\n#end if",
                     "999\n")
 
     def test5(self):
-        self.verify("#if $varExists('anInt')\n1234\n#else\n999#end if",
+        self.verify("#if $self.varExists('anInt')\n1234\n#else\n999#end if",
                     "1234\n")
 
 
 class GetVar(OutputTest):
-    def test2(self):
-        self.verify("$getVar('anInt')",
-                    "1")
-
     def test3(self):
         self.verify("$self.getVar('anInt')",
                     "1")
 
     def test4(self):
-        self.verify("$getVar('bogus',  1234)",
+        self.verify("$self.getVar('bogus',  1234)",
                     "1234")
 
 
@@ -1427,7 +1423,7 @@ def test_default_argument_multipart_expression():
         '#def foo(bar=1 + 1)\n'
         '$bar\n'
         '#end def\n'
-        '$foo()'
+        '$self.foo()'
     )
     assert cls().respond() == '2\n'
 
@@ -1438,7 +1434,7 @@ def test_default_argument_boolean_expression():
         '#def foo(bar)\n'
         '$bar\n'
         '#end def\n'
-        '$foo("baz" if $herp == "derp" else "buz")'
+        '$self.foo("baz" if $herp == "derp" else "buz")'
     )
     assert cls().respond() == 'baz\n'
 
@@ -1448,7 +1444,7 @@ def test_default_is_dict():
         '#def foo(bar={"baz": "womp"})\n'
         "$bar['baz']\n"
         '#end def\n'
-        '$foo()'
+        '$self.foo()'
     )
     assert cls().respond() == 'womp\n'
 
@@ -1483,7 +1479,7 @@ def test_with_statement_yields_value():
         '#end def\n'
         '\n'
         'Before\n'
-        '#with $my_context_manager(1337) as val:\n'
+        '#with self.my_context_manager(1337) as val:\n'
         'Ctx Inside\n'
         '$val\n'
         '#end with\n'
@@ -1513,7 +1509,7 @@ def test_with_statement_yield_no_value():
         '#end def\n'
         '\n'
         'Before\n'
-        '#with $my_context_manager(1234)\n'
+        '#with self.my_context_manager(1234)\n'
         'Ctx inside\n'
         '#end with\n'
         'After\n'
@@ -1540,7 +1536,7 @@ def test_with_statement_short_form():
         '#end def\n'
         '\n'
         'Before\n'
-        '#with $ctx():Ctx inside\n'
+        '#with self.ctx():Ctx inside\n'
         'After\n'
     )
     assert cls().respond().strip() == (
@@ -1610,6 +1606,7 @@ def test_allows_autoself():
         'ohai\n'
         '#end def\n'
         '$foo()\n',
+        settings={'enable_auto_self': True},
     )
     assert cls().respond() == 'ohai\n\n'
 
@@ -1620,7 +1617,6 @@ def test_does_not_allow_autoself():
         'ohai\n'
         '#end def\n'
         '$foo()\n',
-        settings={'enable_auto_self': False},
     )
     with pytest.raises(NotFound):
         cls().respond()

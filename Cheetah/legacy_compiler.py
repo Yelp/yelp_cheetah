@@ -38,7 +38,7 @@ DEFAULT_COMPILER_SETTINGS = {
     # All #import statements are hoisted to the top of the module
     'useLegacyImportMode': True,
     # Can $foo mean both self.foo and NS['foo']?
-    'enable_auto_self': True,
+    'enable_auto_self': False,
 }
 
 CLASS_NAME = 'YelpCheetahTemplate'
