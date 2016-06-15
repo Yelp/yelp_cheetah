@@ -19,6 +19,11 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.17.0
+- `enable_auto_self` setting now defaults to `False`
+- Lookup involving partial templates calling partial templates is now
+  optimized.
+
 ## 0.16.1
 - Add a parsing hook for cheetah variables
 
