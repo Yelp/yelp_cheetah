@@ -236,8 +236,8 @@ class MethodCompiler(object):
         self.addChunk(expr)
         self._append_line_col_comment(line_col)
 
-    addSet = addSilent = addPy = addPass = addDel = _add_with_line_col
-    addAssert = addRaise = addBreak = addContinue = _add_with_line_col
+    addAssert = addBreak = addContinue = addDel = addPass = _add_with_line_col
+    addPy = addRaise = _add_with_line_col
 
     def addReturn(self, expr, line_col):
         assert not self._isGenerator
