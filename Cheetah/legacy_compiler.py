@@ -21,6 +21,8 @@ import six
 from Cheetah.ast_utils import get_argument_names
 from Cheetah.ast_utils import get_imported_names
 from Cheetah.ast_utils import get_lvalues
+from Cheetah.legacy_parser import brace_ends
+from Cheetah.legacy_parser import brace_starts
 from Cheetah.legacy_parser import CheetahVar
 from Cheetah.legacy_parser import LegacyParser
 from Cheetah.SettingsManager import SettingsManager
@@ -69,7 +71,155 @@ def _cheetah_var_to_text(
             )
 
 
+def _process_comprehensions(expr_parts):
+    """Comprehensions are a unique part of python's syntax which
+    references variables earlier in the source than they are declared.
+    Because of this, we need to do some pre-processing to predict local
+    variables introduced by comprehensions.
+
+    For instance, the following is "legal" cheetah syntax:
+
+        #py y = [$x for x in (1, 2, 3) if $x]
+
+    Naively, $x is compiled as a cheetah variable and attempts a lookup.
+    However, this variable is guaranteed to come from locals.
+
+    We'll use the python3 rules here for determining local variables.  That is
+    the scope of a variable that is an lvalue in a `for ... in` comprehension
+    is only the comprehension and not the rest of the function as it is in
+    python2.
+
+    The ast defines each of the comprehensions as follows:
+
+        ListComp(expr elt, comprehension* generators)
+        comprehension(expr target, expr iter, expr* ifs)
+
+    (set / dict / generator expressions are similar)
+
+    Consider:
+
+        [elt_expr for x in x_iter if x_if1 if x_if2 for y in y_iter if y_if]
+
+    Each `for ... in ...` introduces names which are available in:
+        - `elt`
+        - the `ifs` for that part
+        - Any `for ... in ...` after that
+
+    In the above, the expressions have the following local variables
+    introduced by the comprehensions:
+        - elt: [x, y]
+        - x_iter: []
+        - x_if1 / x_if2: [x]
+        - y_iter: [x]
+        - y_if: [x, y]
+
+    The approximate algorithm:
+        Search for a `for` token.
+        Search left for a brace, if there is none abandon -- this is a for
+            loop and not a comprehension.
+        While searching left, if a `for` token is encountered, record its
+            position
+        Search forward for `in`, `for`, `if` and the right boundary
+        Process `for ... in` + (): pass looking for introduced locals
+            For example, 'for (x, y) in' will look for locals in
+            `for (x, y) in (): pass` and finds `x` and `y` as lvalues
+        Process tokens in `elt` and the rest of the expression (if applicable)
+            For each CheetahVar encountered, if it is in the locals detected
+                replace it with the raw variable
+    """
+    def _search(parts, index, direction):
+        """Helper for searching forward / backward.
+        Yields (index, token, brace_depth)
+        """
+        assert direction in (1, -1), direction
+
+        def in_bounds(index):
+            return index >= 0 and index < len(parts)
+
+        if direction == 1:
+            starts = brace_starts
+            ends = brace_ends
+        else:
+            starts = brace_ends
+            ends = brace_starts
+
+        brace_depth = 0
+        index += direction
+        while in_bounds(index) and brace_depth >= 0:
+            token = parts[index]
+            if token in starts:
+                brace_depth += 1
+            elif token in ends:
+                brace_depth -= 1
+            yield index, token, brace_depth
+            index += direction
+
+    expr_parts = list(expr_parts)
+    for i in range(len(expr_parts)):
+        if expr_parts[i] != 'for':
+            continue
+
+        # A diagram of the below indices:
+        # (Considering the first `for`)
+        # [(x, y) for x in (1,) if x for y in (2,)]
+        # |       |     |       |                 |
+        # |       |     |       +- next_index     +- right_boundary
+        # |       |     +- in_index
+        # |       +- for_index + first_for_index
+        # +- left_boundary
+        #
+        #  (Considering the second `for`)
+        # [(x, y) for x in (1,) if x for y in (2,)]
+        # |       |                  |     |      |
+        # |       |                  |     |      +- right_boundary
+        # |       +- first_for_index |     +- in_index
+        # +- left_boundary           +- for_index
+        # (next_index is None)
+
+        first_for_index = for_index = i
+
+        # Search for the left boundary or abandon (if it is a for loop)
+        for i, token, depth in _search(expr_parts, for_index, direction=-1):
+            if depth == 0 and token == 'for':
+                first_for_index = i
+            elif depth == -1:
+                left_boundary = i
+                break
+        else:
+            continue
+
+        in_index = None
+        next_index = None
+        for i, token, depth in _search(expr_parts, for_index, direction=1):
+            if in_index is None and depth == 0 and token == 'in':
+                in_index = i
+            elif next_index is None and depth == 0 and token in {'if', 'for'}:
+                next_index = i
+            elif depth == -1:
+                right_boundary = i
+                break
+
+        # Defensive assertion is required, slicing with [:None] is valid
+        assert in_index is not None, in_index
+        lvalue_expr = ''.join(expr_parts[for_index:in_index]) + 'in (): pass'
+        lvalue_expr = lvalue_expr.replace('\n', ' ')
+        lvalues = get_lvalues(lvalue_expr)
+
+        replace_ranges = [range(left_boundary, first_for_index)]
+        if next_index is not None:
+            replace_ranges.append(range(next_index, right_boundary))
+
+        for replace_range in replace_ranges:
+            for i in replace_range:
+                token = expr_parts[i]
+                if isinstance(token, CheetahVar) and token.name in lvalues:
+                    expr_parts[i] = token.name
+
+    return tuple(expr_parts)
+
+
 def _expr_to_text(expr_parts, **kwargs):
+    expr_parts = _process_comprehensions(expr_parts)
     return ''.join(
         _cheetah_var_to_text(part, **kwargs)
         if isinstance(part, CheetahVar) else
