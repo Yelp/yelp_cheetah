@@ -4,12 +4,19 @@ from __future__ import unicode_literals
 import io
 import os.path
 
+import pytest
+
 from Cheetah.cheetah_compile import compile_template
 from Cheetah.compile import _create_module_from_source
 from Cheetah.compile import compile_source
 from Cheetah.compile import compile_to_class
+from Cheetah.legacy_parser import brace_pairs
 from Cheetah.Template import Template
 from testing.util import run_python
+
+
+def lookup(v):
+    return 'VFFNS("{}", locals(), globals(), NS)'.format(v)
 
 
 def test_templates_runnable_using_env(tmpdir):
@@ -57,7 +64,7 @@ def test_optimized_attributes_of_builtins_function_args():
 
 def test_non_optimized_searchlist():
     src = compile_source('$int($foo)')
-    assert ' _v = int(VFFNS("foo"' in src
+    assert ' _v = int({}) #'.format(lookup('foo')) in src
 
 
 def test_optimization_still_prefers_locals():
@@ -181,7 +188,7 @@ class fooobj(object):
 def test_optimization_removes_VFN():
     src = compile_source(VFN_opt_src)
     assert 'VFN(' not in src
-    assert ' _v = VFFNS("foo", locals(), globals(), NS).barvar[0].upper() #' in src
+    assert ' _v = {}.barvar[0].upper() #'.format(lookup('foo')) in src
     cls = compile_to_class(VFN_opt_src)
     assert cls({'foo': fooobj}).respond() == 'W'
 
@@ -229,3 +236,85 @@ def test_optimization_partial_template_functions():
     assert foo(Template()).strip() == '25'
     src = io.open('testing/templates/src/optimize_name.py').read()
     assert ' _v = bar(5) #' in src
+
+
+@pytest.mark.parametrize(('start', 'end'), tuple(brace_pairs.items()))
+def test_optimize_comprehensions(start, end):
+    src = '#py {}$x for x in (1,) if $x{}'.format(start, end)
+    src = compile_source(src)
+    expected = ' {}x for x in (1,) if x{} #'.format(start, end)
+    assert expected in src
+
+
+def test_optimize_dict_comprehension():
+    src = '#py {$x: $y for x, y in {1: 2}.items() if $x and $y}'
+    src = compile_source(src)
+    assert ' {x: y for x, y in {1: 2}.items() if x and y} #' in src
+
+
+def test_optimize_for_loop_over_comprehension():
+    src = compile_source('#for y in ($x for x in (1,)): $y')
+    assert ' for y in (x for x in (1,)): #' in src
+
+
+def test_optimize_multi_comprehension():
+    src = '#py [($x, $y) for x in (1,) for y in (2,)]'
+    src = compile_source(src)
+    assert ' [(x, y) for x in (1,) for y in (2,)] #' in src
+
+
+def test_optimize_multi_comprehension_referenced_later():
+    src = '#py [($x, $y) for x in (1,) for y in ($x,) if $x and $y]'
+    src = compile_source(src)
+    assert ' [(x, y) for x in (1,) for y in (x,) if x and y] #' in src
+
+
+def test_optimize_multi_comprehension_rename_ns_variable():
+    src = '#py [($x, $y) for x in (1,) if $x and $y for y in (2,)]'
+    src = compile_source(src)
+    expected = ' [(x, y) for x in (1,) if x and {} for y in (2,)] #'.format(
+        lookup('y'),
+    )
+    assert expected in src
+
+
+def test_optimize_comprehension_multi_if():
+    src = compile_source('#py [$x for x in (1,) if $x if $x + 1]')
+    assert ' [x for x in (1,) if x if x + 1] #' in src
+
+
+def test_optimize_comprehension_in_element():
+    src = compile_source('#py [[$y for y in ($x,)] for x in (1,)]')
+    assert ' [[y for y in (x,)] for x in (1,)] #' in src
+
+
+def test_optimize_comprehension_in_ifs():
+    src = compile_source('#py [$x for x in (1,) if [$y for y in ($x,)]]')
+    assert ' [x for x in (1,) if [y for y in (x,)]] #' in src
+
+
+def test_optimize_comprehension_rename_ns_variable():
+    src = compile_source('#py [$x for x in ($x,)]')
+    assert ' [x for x in ({},)] #'.format(lookup('x')) in src
+
+
+def test_comprehension_with_newlines():
+    src = compile_source(
+        '#py [\n'
+        '$x\n'
+        'for\n'
+        'x\n'
+        'in\n'
+        '(1,)\n'
+        ']'
+    )
+    expected = (
+        ' [\n'
+        'x\n'
+        'for\n'
+        'x\n'
+        'in\n'
+        '(1,)\n'
+        '] #'
+    )
+    assert expected in src

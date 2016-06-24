@@ -29,6 +29,8 @@ triple_quoted_res = {
 }
 
 brace_pairs = {'(': ')', '[': ']', '{': '}'}
+brace_starts = set(brace_pairs)
+brace_ends = set(brace_pairs.values())
 
 escape_lookbehind = r'(?:(?<=\A)|(?<!\\))'
 identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
@@ -325,9 +327,9 @@ class _LowLevelParser(SourceReader):
                 parts.append(self.getc())
             else:
                 token = self.getPyToken()
-                if token in '({[':
+                if token in brace_starts:
                     brace_stack.append(token)
-                elif token in ')}]':
+                elif token in brace_ends:
                     if brace_pairs[brace_stack[-1]] != token:
                         raise ParseError(
                             self,
