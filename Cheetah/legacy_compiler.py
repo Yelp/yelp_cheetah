@@ -62,13 +62,9 @@ def _cheetah_var_to_text(
         return var.name
     else:
         if auto_self:
-            return 'VFFSL("{}", locals(), globals(), self, NS)'.format(
-                var.name,
-            )
+            return 'VFSL("{}", self, NS)'.format(var.name)
         else:
-            return 'VFFNS("{}", locals(), globals(), NS)'.format(
-                var.name,
-            )
+            return 'VFNS("{}", NS)'.format(var.name)
 
 
 def _process_comprehensions(expr_parts):
@@ -611,11 +607,11 @@ class LegacyCompiler(SettingsManager):
         )
         self._importStatements = [
             'import io',
-            'from Cheetah.NameMapper import value_from_frame_or_namespace as VFFNS',
-            'from Cheetah.NameMapper import value_from_frame_or_search_list as VFFSL',
+            'from Cheetah.NameMapper import value_from_namespace as VFNS',
+            'from Cheetah.NameMapper import value_from_search_list as VFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
-        self._global_vars = {'io', 'NO_CONTENT', 'VFFNS', 'VFFSL'}
+        self._global_vars = {'io', 'NO_CONTENT', 'VFNS', 'VFSL'}
 
     def __getattr__(self, name):
         """Provide one-way access to the methods and attributes of the

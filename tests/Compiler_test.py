@@ -16,7 +16,7 @@ from testing.util import run_python
 
 
 def lookup(v):
-    return 'VFFNS("{}", locals(), globals(), NS)'.format(v)
+    return 'VFNS("{}", NS)'.format(v)
 
 
 def test_templates_runnable_using_env(tmpdir):
@@ -48,7 +48,7 @@ def test_comments():
 
 def test_optimized_builtins():
     src = compile_source('$int("9001")')
-    # Instead of _v = VFFNS("int"...
+    # Instead of _v = VFNS("int"...
     assert ' _v = int("9001") #' in src
 
 
