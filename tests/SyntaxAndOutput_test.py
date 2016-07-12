@@ -1313,7 +1313,7 @@ $os.path.exists('.')""",
         """#from math import *
         """
 
-        self.verify("#from math import *\n$pow(1,2) $log10(10)",
+        self.verify("#from math import *\n$pow(1,2) $globals()['log10'](10)",
                     "1.0 1.0")
 
 
