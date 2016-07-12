@@ -6,11 +6,9 @@ import pytest
 from Cheetah.compile import compile_to_class
 from Cheetah.NameMapper import NotFound
 from Cheetah.NameMapper import py_value_from_frame_or_namespace
-from Cheetah.NameMapper import py_value_from_frame_or_search_list
 from Cheetah.NameMapper import py_value_from_namespace
 from Cheetah.NameMapper import py_value_from_search_list
 from Cheetah.NameMapper import value_from_frame_or_namespace
-from Cheetah.NameMapper import value_from_frame_or_search_list
 from Cheetah.NameMapper import value_from_namespace
 from Cheetah.NameMapper import value_from_search_list
 
@@ -24,10 +22,6 @@ vffns_tests = pytest.mark.parametrize(
 )
 vfsl_tests = pytest.mark.parametrize(
     'vfsl', (py_value_from_search_list, value_from_search_list),
-)
-vffsl_tests = pytest.mark.parametrize(
-    'vffsl',
-    (py_value_from_frame_or_search_list, value_from_frame_or_search_list),
 )
 
 
@@ -76,43 +70,6 @@ def test_VFNS_failure(vfns):
 def test_VFNS_dict(vfns):
     ns = {'a': object()}
     assert vfns('a', ns) is ns['a']
-
-
-@vffsl_tests
-def test_VFFSL_locals_first(vffsl):
-    loc = object()
-    glob = object()
-    ns_var = object()
-    # Intentionally mask builtin `int`
-    locals().update({'int': loc})
-    with mock.patch.dict(globals(), {'int': glob}):
-        assert vffsl(
-            'int', locals(), globals(), object(), {'int': ns_var},
-        ) is loc
-
-
-@vffsl_tests
-def test_VFFSL_globals_next(vffsl):
-    glob = object()
-    ns_var = object()
-    with mock.patch.dict(globals(), {'int': glob}):
-        assert vffsl(
-            'int', locals(), globals(), object(), {'int': ns_var},
-        ) is glob
-
-
-@vffsl_tests
-def test_VFFSL_builtins_next(vffsl):
-    ns_var = object()
-    assert vffsl('int', locals(), globals(), object(), {'int': ns_var}) is int
-
-
-@vffsl_tests
-def test_VFFSL_and_finally_searchlist(vffsl):
-    ns_var = object()
-    assert vffsl(
-        'bar', locals(), globals(), object(), {'bar': ns_var},
-    ) is ns_var
 
 
 @vffns_tests

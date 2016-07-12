@@ -39,8 +39,6 @@ DEFAULT_COMPILER_SETTINGS = {
     'useNameMapper': True,
     # All #import statements are hoisted to the top of the module
     'useLegacyImportMode': True,
-    # Can $foo mean both self.foo and NS['foo']?
-    'enable_auto_self': False,
 }
 
 CLASS_NAME = 'YelpCheetahTemplate'
@@ -50,9 +48,7 @@ BASE_CLASS_NAME = 'YelpCheetahBaseClass'
 UNESCAPE_NEWLINES = re.compile(r'(?<!\\)((\\\\)*)\\n')
 
 
-def _cheetah_var_to_text(
-        var, local_vars, global_vars, auto_self, name_mapper,
-):
+def _cheetah_var_to_text(var, local_vars, global_vars, name_mapper):
     if (
             not name_mapper or
             var.name in local_vars or
@@ -61,10 +57,7 @@ def _cheetah_var_to_text(
     ):
         return var.name
     else:
-        if auto_self:
-            return 'VFSL("{}", self, NS)'.format(var.name)
-        else:
-            return 'VFNS("{}", NS)'.format(var.name)
+        return 'VFNS("{}", NS)'.format(var.name)
 
 
 def _process_comprehensions(expr_parts):
@@ -366,7 +359,6 @@ class MethodCompiler(object):
             expr,
             local_vars=self._local_vars,
             global_vars=self._class_compiler._compiler._global_vars,
-            auto_self=self._class_compiler._compiler.setting('enable_auto_self'),
             name_mapper=self._class_compiler._compiler.setting('useNameMapper'),
         )
 
@@ -608,10 +600,9 @@ class LegacyCompiler(SettingsManager):
         self._importStatements = [
             'import io',
             'from Cheetah.NameMapper import value_from_namespace as VFNS',
-            'from Cheetah.NameMapper import value_from_search_list as VFSL',
             'from Cheetah.Template import NO_CONTENT',
         ]
-        self._global_vars = {'io', 'NO_CONTENT', 'VFNS', 'VFSL'}
+        self._global_vars = {'io', 'NO_CONTENT', 'VFNS'}
 
     def __getattr__(self, name):
         """Provide one-way access to the methods and attributes of the
