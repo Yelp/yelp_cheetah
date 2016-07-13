@@ -1298,17 +1298,6 @@ class ImportDirective(OutputTest):
         self.verify("#import os.path\n$os.path.exists('.')",
                     repr(True))
 
-    def test10(self):
-        """#import os.path -- use it with NameMapper turned off
-        """
-        self.verify("""##
-#compiler-settings
-useNameMapper=False
-#end compiler-settings
-#import os.path
-$os.path.exists('.')""",
-                    repr(True))
-
     def test11(self):
         """#from math import *
         """

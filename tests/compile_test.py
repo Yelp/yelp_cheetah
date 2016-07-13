@@ -180,7 +180,7 @@ def test_compile_is_deterministic():
     # This crazy template uses all of the currently supported directives
     MEGA_TEMPLATE = """
 #compiler-settings
-useNameMapper = False
+useLegacyImportMode = False
 #end compiler-settings
 #extends testing.templates.extends_test_template
 #implements respond
