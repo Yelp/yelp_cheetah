@@ -42,10 +42,3 @@ WRITE_SRC = (
     '$x\n'
     '#end for\n'
 )
-
-
-NO_AUTO_SELF = (
-    '#compiler-settings\n'
-    'enable_auto_self = False\n'
-    '#end compiler-settings\n'
-)

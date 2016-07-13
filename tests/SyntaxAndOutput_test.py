@@ -1600,17 +1600,6 @@ def test_allow_getvar_of_underscored_things():
     assert cls({'foo_BAR1': 'baz'}).respond() == 'baz'
 
 
-def test_allows_autoself():
-    cls = compile_to_class(
-        '#def foo():\n'
-        'ohai\n'
-        '#end def\n'
-        '$foo()\n',
-        settings={'enable_auto_self': True},
-    )
-    assert cls().respond() == 'ohai\n\n'
-
-
 def test_does_not_allow_autoself():
     cls = compile_to_class(
         '#def foo():\n'

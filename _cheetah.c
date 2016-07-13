@@ -118,27 +118,6 @@ static PyObject* value_from_search_list(PyObject* _, PyObject* args) {
 }
 
 
-static PyObject* value_from_frame_or_search_list(PyObject* _, PyObject* args) {
-    char* key;
-    PyObject* locals;
-    PyObject* globals;
-    PyObject* selfobj;
-    PyObject* ns;
-    PyObject* ret;
-
-    if (!PyArg_ParseTuple(args, "sOOOO", &key, &locals, &globals, &selfobj, &ns)) {
-        return NULL;
-    }
-
-    if ((ret = _frame_lookup(key, locals, globals))) {
-        return ret;
-    } else if ((ret = _self_lookup(key, selfobj))) {
-        return ret;
-    } else {
-        return _ns_lookup(key, ns);
-    }
-}
-
 static PyObject* _setup_module(PyObject* module) {
     if (module) {
         NotFound = PyErr_NewException("_cheetah.NotFound", PyExc_LookupError, NULL);
@@ -167,11 +146,6 @@ static struct PyMethodDef methods[] = {
     {
         "value_from_search_list",
         (PyCFunction)value_from_search_list,
-        METH_VARARGS
-    },
-    {
-        "value_from_frame_or_search_list",
-        (PyCFunction)value_from_frame_or_search_list,
         METH_VARARGS
     },
     {NULL, NULL}
