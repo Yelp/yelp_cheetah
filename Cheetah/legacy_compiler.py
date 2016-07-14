@@ -35,8 +35,6 @@ BUILTIN_NAMES = frozenset(dir(six.moves.builtins))
 
 
 DEFAULT_COMPILER_SETTINGS = {
-    # Enable NameMapper for namespace support.
-    'useNameMapper': True,
     # All #import statements are hoisted to the top of the module
     'useLegacyImportMode': True,
 }
@@ -48,13 +46,8 @@ BASE_CLASS_NAME = 'YelpCheetahBaseClass'
 UNESCAPE_NEWLINES = re.compile(r'(?<!\\)((\\\\)*)\\n')
 
 
-def _cheetah_var_to_text(var, local_vars, global_vars, name_mapper):
-    if (
-            not name_mapper or
-            var.name in local_vars or
-            var.name in global_vars or
-            var.name in BUILTIN_NAMES
-    ):
+def _cheetah_var_to_text(var, local_vars, global_vars):
+    if var.name in local_vars | global_vars | BUILTIN_NAMES:
         return var.name
     else:
         return 'VFNS("{}", NS)'.format(var.name)
@@ -359,7 +352,6 @@ class MethodCompiler(object):
             expr,
             local_vars=self._local_vars,
             global_vars=self._class_compiler._compiler._global_vars,
-            name_mapper=self._class_compiler._compiler.setting('useNameMapper'),
         )
 
     def addPlaceholder(self, expr, rawPlaceholder, line_col):
