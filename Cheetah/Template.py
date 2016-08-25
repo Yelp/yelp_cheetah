@@ -9,6 +9,7 @@ import contextlib
 
 from Cheetah import filters
 from Cheetah.NameMapper import NotFound
+from Cheetah.NameMapper import value_from_namespace
 from Cheetah.NameMapper import value_from_search_list
 
 
@@ -75,25 +76,33 @@ class Template(object):
 
         self.transaction = None
 
-    def getVar(self, key, default=UNSPECIFIED):
+    def getVar(self, key, default=UNSPECIFIED, auto_self=True):
         """Get a variable from the searchList.  If the variable can't be found
         in the searchList, it returns the default value if one was given, or
         raises NameMapper.NotFound.
         """
         assert key.replace('_', '').isalnum(), key
         try:
-            return value_from_search_list(key, self, self._CHEETAH__namespace)
+            if auto_self:
+                return value_from_search_list(
+                    key, self, self._CHEETAH__namespace,
+                )
+            else:
+                return value_from_namespace(key, self._CHEETAH__namespace)
         except NotFound:
             if default is not UNSPECIFIED:
                 return default
             else:
                 raise
 
-    def varExists(self, key):
+    def varExists(self, key, auto_self=True):
         """Test if a variable name exists in the searchList."""
         assert key.replace('_', '').isalnum(), key
         try:
-            value_from_search_list(key, self, self._CHEETAH__namespace)
+            if auto_self:
+                value_from_search_list(key, self, self._CHEETAH__namespace)
+            else:
+                value_from_namespace(key, self._CHEETAH__namespace)
             return True
         except NotFound:
             return False

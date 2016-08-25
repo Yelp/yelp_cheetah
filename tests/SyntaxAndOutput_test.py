@@ -1603,3 +1603,16 @@ def test_does_not_allow_autoself():
 def test_single_quote():
     # Triggers a branch in code generation
     assert compile_to_class("'")().respond() == "'"
+
+
+def test_getVar_auto_self():
+    sentinel = object()
+    inst = compile_to_class('#attr x = 1\n')()
+    assert inst.getVar('x', sentinel) == 1
+    assert inst.getVar('x', sentinel, auto_self=False) is sentinel
+
+
+def test_varExists_auto_self():
+    inst = compile_to_class('#attr x = 1\n')()
+    assert inst.varExists('x') is True
+    assert inst.varExists('x', auto_self=False) is False
