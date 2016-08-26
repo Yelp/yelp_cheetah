@@ -51,3 +51,7 @@ else:   # pragma: no cover
     value_from_namespace = _cheetah.value_from_namespace
     value_from_frame_or_namespace = _cheetah.value_from_frame_or_namespace
     value_from_search_list = _cheetah.value_from_search_list
+
+
+# Backward compatibility with 0.17.0
+value_from_frame_or_search_list = None
