@@ -19,6 +19,14 @@ at http://cheetahtemplate.org/learn.html
 Differences
 ================================================================================
 
+## 0.18.0
+- Some optimizations of list comprehensions
+- Lookup speed improvements
+- Remove `enable_auto_self` setting (always `False`)
+- Remove `useNameMapper` setting (always `True`)
+- Add an `auto_self` kwarg to `getVar` and `varExists` defaulting to `True`
+  (will default to `False` and be removed in a future version).
+
 ## 0.17.0
 - `enable_auto_self` setting now defaults to `False`
 - Lookup involving partial templates calling partial templates is now
