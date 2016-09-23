@@ -33,9 +33,8 @@ brace_starts = set(brace_pairs)
 brace_ends = set(brace_pairs.values())
 
 escape_lookbehind = r'(?:(?<=\A)|(?<!\\))'
-identRE = re.compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
-
 IDENT = '[a-zA-Z_][a-zA-Z0-9_]*'
+IDENT_RE = re.compile(IDENT)
 
 VAR_START = '$'
 EXPRESSION_START_RE = re.compile(escape_lookbehind + r'\$[A-Za-z_{]')
@@ -213,7 +212,7 @@ class _LowLevelParser(SourceReader):
         return self.readTo(match.end())
 
     def matchIdentifier(self):
-        return identRE.match(self.src(), self.pos())
+        return IDENT_RE.match(self.src(), self.pos())
 
     def getIdentifier(self):
         match = self.matchIdentifier()
