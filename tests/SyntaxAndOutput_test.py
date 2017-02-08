@@ -31,6 +31,7 @@ class DummyClass(object):
 def dummyFunc(arg="Scooby"):
     return arg
 
+
 defaultTestNamespace = {
     'aStr': 'blarg',
     'anInt': 1,
