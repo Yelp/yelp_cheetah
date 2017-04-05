@@ -14,7 +14,6 @@ import contextlib
 import copy
 import re
 import textwrap
-import warnings
 
 import six
 
@@ -581,7 +580,9 @@ class LegacyCompiler(SettingsManager):
         assert isinstance(source, six.text_type), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == '':
-            warnings.warn('You supplied an empty string for the source!')
+            raise AssertionError(
+                'You supplied an empty string for the source!',
+            )
 
         self._original_source = source
         self._parser = self.parserClass(source, compiler=self)

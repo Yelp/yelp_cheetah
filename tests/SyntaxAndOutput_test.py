@@ -4,7 +4,6 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import unittest
-import warnings
 
 import markupsafe
 import pytest
@@ -84,24 +83,12 @@ Template output mismatch:
             })
 
 
-class EmptyTemplate(OutputTest):
-    def test1(self):
-        """an empty string for the template"""
-
-        filters_copy = warnings.filters[:]
-        warnings.filterwarnings('error',
-                                'You supplied an empty string for the source!',
-                                UserWarning)
-        with pytest.raises(UserWarning):
-            self.verify("", "")
-
-        with pytest.raises(NotImplementedError):
-            self.verify("#implements foo", "")
-
-        self.verify("#implements respond", "")
-
-        # Restore the old filters.
-        warnings.filters[:] = filters_copy
+def test_empty_template_raises():
+    with pytest.raises(AssertionError) as excinfo:
+        compile_to_class('')
+    assert excinfo.value.args == (
+        'You supplied an empty string for the source!',
+    )
 
 
 class Backslashes(OutputTest):
