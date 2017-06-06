@@ -61,6 +61,13 @@ class PartialTemplateTestCase(unittest.TestCase):
         partial_module = __import__(
             self.partial, fromlist=['__trash'], level=0,
         )
+        if not hasattr(partial_module, 'PARTIAL_TEMPLATE_CLASS'):
+            raise AssertionError(
+                'Module {} does not look like a partial template!\n'
+                'Do you have "#extends Cheetah.partial_template" at the top of your template file?'.format(
+                    partial_module,
+                )
+            )
         partial_func = getattr(partial_module, self.method)
         partial_args, partial_kwargs = self.get_partial_arguments()
         ret = self.call_partial_template(
