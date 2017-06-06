@@ -4,6 +4,7 @@
 *.so
 .*.sw[a-z]
 .coverage
+/.cache
 /.idea
 /.project
 /.pydevproject

@@ -54,6 +54,17 @@ class OptimizeNamePartialTemplateBarTest(PartialTemplateTestCase):
         assert pq.text() == '9'
 
 
+def test_it_can_fail_against_non_partial_template():
+    class Failure(PartialTemplateTestCase):
+        partial = 'testing.templates.src.uses_partial'
+        method = 'render'
+
+    with pytest.raises(AssertionError) as exc_info:
+        Failure(methodName='test_partial_template').test_partial_template()
+
+    assert 'does not look like a partial template!' in exc_info.value.args[0]
+
+
 def test_it_can_fail_wrong_args():
     class Failure(PartialTemplateTestCase):
         partial = 'testing.templates.src.partial_template'
