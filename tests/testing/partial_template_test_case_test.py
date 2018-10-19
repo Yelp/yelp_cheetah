@@ -103,4 +103,4 @@ class ContextPartialTemplateTest(ContextManagerPartialTemplateTestCase):
     def assert_partial_rendering(self, pq, partial_args, partial_kwargs):
         ids = [pyquery.PyQuery(el).attr('id') for el in pq.children()]
         assert ids == ['before', 'inside', 'after']
-        assert pq.text() == 'before inside after'
+        assert pq.text().split() == ['before', 'inside', 'after']
