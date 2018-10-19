@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 
 import pytest
 
-import Cheetah.testing
 import Cheetah.testing.all_partials_tested
 import Cheetah.testing.partial_template_test_case
 import testing.templates

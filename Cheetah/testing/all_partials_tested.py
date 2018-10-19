@@ -99,10 +99,10 @@ def get_partial_tests(test_packages, test_match_func=is_partial_test_cls):
 
 
 def get_tested_partials(*args, **kwargs):
-    return set(
+    return {
         (module, method)
         for (_, module, method) in get_partial_tests(*args, **kwargs)
-    )
+    }
 
 
 # unittest is a reasonable lowest-common-denominator for supporting other test
@@ -137,6 +137,6 @@ class TestAllPartialsTestedBase(unittest.TestCase):
         if untested_partials:
             raise AssertionError(
                 'Not all partials have tests: \n\n{}'.format(
-                    '\t' + '\n\t'.join(sorted(untested_partials))
-                )
+                    '\t' + '\n\t'.join(sorted(untested_partials)),
+                ),
             )

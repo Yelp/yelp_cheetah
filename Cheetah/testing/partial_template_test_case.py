@@ -66,7 +66,7 @@ class PartialTemplateTestCase(unittest.TestCase):
                 'Module {} does not look like a partial template!\n'
                 'Do you have "#extends Cheetah.partial_template" at the top of your template file?'.format(
                     partial_module,
-                )
+                ),
             )
         partial_func = getattr(partial_module, self.method)
         partial_args, partial_kwargs = self.get_partial_arguments()

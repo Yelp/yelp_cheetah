@@ -100,7 +100,7 @@ def test_compile_file_as_script(tmpfile):
     subprocess.check_call(['cheetah-compile', tmpfile])
     pyfile = tmpfile.replace('.tmpl', '.py')
     module = _create_module_from_source(
-        '\n'.join(io.open(pyfile).read().splitlines()[1:])
+        '\n'.join(io.open(pyfile).read().splitlines()[1:]),
     )
     result = module.YelpCheetahTemplate().respond()
     assert 'Hello, world!' == result
@@ -169,11 +169,13 @@ def test_compile_to_class_traceback():
 
     # The current implementation doesn't show the line of code which caused the exception:
     import re
-    assert re.match(r'''Traceback \(most recent call last\):
+    assert re.match(
+        r'''Traceback \(most recent call last\):
   File ".+/tests/compile_test\.py", line \d*, in test_compile_to_class_traceback
     ret\(\).respond\(\)
   File "<generated cheetah module>", line \d*, in respond
-ZeroDivisionError: (integer )?division( or modulo)? by zero''', traceback)
+ZeroDivisionError: (integer )?division( or modulo)? by zero''', traceback,
+    )
 
 
 def test_compile_is_deterministic():

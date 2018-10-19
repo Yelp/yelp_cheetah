@@ -26,7 +26,7 @@ def template_writer(tmpdir):
         def write(self, src):
             self.tmpl_number += 1
             tmpl_path = os.path.join(
-                tmpdir.strpath, 'a{}.tmpl'.format(self.tmpl_number)
+                tmpdir.strpath, 'a{}.tmpl'.format(self.tmpl_number),
             )
             with io.open(tmpl_path, 'w') as tmpl_file:
                 tmpl_file.write(src)

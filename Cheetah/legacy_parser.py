@@ -428,7 +428,7 @@ class LegacyParser(_LowLevelParser):
             elif self.match_old_expression_start():
                 raise ParseError(
                     self,
-                    'Invalid placeholder.  Valid placeholders are $x or ${x}.'
+                    'Invalid placeholder.  Valid placeholders are $x or ${x}.',
                 )
             elif self.match_expression_start():
                 self.eatPlaceholder()
@@ -731,7 +731,7 @@ class LegacyParser(_LowLevelParser):
 
         if ',' in extends_value:
             raise ParseError(
-                self, 'yelp_cheetah does not support multiple inheritance'
+                self, 'yelp_cheetah does not support multiple inheritance',
             )
 
         self._compiler.set_extends(extends_value)
@@ -794,5 +794,7 @@ class LegacyParser(_LowLevelParser):
         if self._openDirectivesStack:
             errorMsg = (
                 "Some #directives are missing their corresponding #end ___ tag: %s" % (
-                    ', '.join(self._openDirectivesStack)))
+                    ', '.join(self._openDirectivesStack)
+                )
+            )
             raise ParseError(self, msg=errorMsg)

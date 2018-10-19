@@ -16,7 +16,7 @@ def test_Chep_2_Conditionalized_Import_Behavior_InlineImport():
         #end def
     '''
     template = compile_to_class(
-        template, settings={'useLegacyImportMode': False}
+        template, settings={'useLegacyImportMode': False},
     )
     template = template()
     rc = template.funky('abcdef')

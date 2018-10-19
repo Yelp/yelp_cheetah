@@ -423,7 +423,7 @@ def test_self_in_arglist_invalid():
         '     ^\n',
 
         '#def foo(self, bar)\n'
-        '#end def\n'
+        '#end def\n',
     )
 
 
@@ -577,7 +577,7 @@ def test_junk_after_decorator():
 
         '#@dec\n'
         'junk\n'
-        '#def foo(): hi\n'
+        '#def foo(): hi\n',
     )
 
 

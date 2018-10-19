@@ -20,7 +20,7 @@ def _raise_not_called_from_template():
     raise PartialMethodNotCalledFromTemplate(
         "Couldn't find a template. "
         'Please either pass a Template as the first argument ($self), '
-        'or call this function from inside a cheetah template.'
+        'or call this function from inside a cheetah template.',
     )
 
 

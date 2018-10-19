@@ -26,7 +26,7 @@ def test_templates_runnable_using_env(tmpdir):
     with io.open(tmpl_filename, 'w') as template:
         template.write(
             '$foo\n'
-            '$bar\n'
+            '$bar\n',
         )
 
     compile_template(tmpl_filename)
@@ -71,7 +71,7 @@ def test_optimization_still_prefers_locals():
     cls = compile_to_class(
         '#def foo(int)\n'
         '$int\n'
-        '#end def\n'
+        '#end def\n',
     )
     assert cls().foo(5).strip() == '5'
 
@@ -79,7 +79,7 @@ def test_optimization_still_prefers_locals():
 def test_optimization_globals():
     src = compile_source(
         '#import os\n'
-        '$os.path.join("foo", "bar")\n'
+        '$os.path.join("foo", "bar")\n',
     )
     assert ' _v = os.path.join(' in src
 
@@ -88,7 +88,7 @@ def test_optimization_parameters():
     src = compile_source(
         '#def foo(bar)\n'
         '$bar\n'
-        '#end def\n'
+        '#end def\n',
     )
     assert ' _v = bar #' in src
 
@@ -96,7 +96,7 @@ def test_optimization_parameters():
 def test_optimization_import_dotted_name():
     src = compile_source(
         '#import os.path\n'
-        '$os.path.join("foo", "bar")\n'
+        '$os.path.join("foo", "bar")\n',
     )
     assert ' _v = os.path.join(' in src
 
@@ -104,7 +104,7 @@ def test_optimization_import_dotted_name():
 def test_optimization_import_as_name():
     src = compile_source(
         '#import os.path as herp\n'
-        '$herp.join("foo", "bar")\n'
+        '$herp.join("foo", "bar")\n',
     )
     assert ' _v = herp.join(' in src
 
@@ -112,7 +112,7 @@ def test_optimization_import_as_name():
 def test_optimization_from_imports():
     src = compile_source(
         '#from os import path\n'
-        '$path.join("foo", "bar")\n'
+        '$path.join("foo", "bar")\n',
     )
     assert ' _v = path.join(' in src
 
@@ -120,7 +120,7 @@ def test_optimization_from_imports():
 def test_optimization_assign():
     src = compile_source(
         '#py foo = "bar"\n'
-        '$foo\n'
+        '$foo\n',
     )
     assert ' _v = foo #' in src
 
@@ -129,7 +129,7 @@ def test_optimization_with():
     src = compile_source(
         '#with foo() as bar:\n'
         '    $bar\n'
-        '#end with\n'
+        '#end with\n',
     )
     assert ' _v = bar #' in src
 
@@ -138,7 +138,7 @@ def test_optimization_for():
     src = compile_source(
         '#for foo in bar:\n'
         '    $foo\n'
-        '#end for\n'
+        '#end for\n',
     )
     assert ' _v = foo #' in src
 
@@ -149,7 +149,7 @@ def test_optimization_except():
         '    #pass\n'
         '#except Exception as e\n'
         '    $e\n'
-        '#end try\n'
+        '#end try\n',
     )
     assert ' _v = e #' in src
 
@@ -159,7 +159,7 @@ def test_optimization_multiple_assign():
         '#py x = y = z = 0\n'
         '$x\n'
         '$y\n'
-        '$z\n'
+        '$z\n',
     )
     assert ' _v = x #' in src
     assert ' _v = y #' in src
@@ -171,7 +171,7 @@ def test_optimization_tuple_assign():
         '#py x, (y, z) = (1, (2, 3))\n'
         '$x\n'
         '$y\n'
-        '$z\n'
+        '$z\n',
     )
     assert ' _v = x #' in src
     assert ' _v = y #' in src
@@ -217,7 +217,7 @@ def test_optimization_args():
     src = compile_source(
         '#def foo(*args)\n'
         '$args\n'
-        '#end def\n'
+        '#end def\n',
     )
     assert ' _v = args #' in src
 
@@ -226,7 +226,7 @@ def test_optimization_kwargs():
     src = compile_source(
         '#def foo(**kwargs)\n'
         '$kwargs\n'
-        '#end def\n'
+        '#end def\n',
     )
     assert ' _v = kwargs #' in src
 
@@ -306,7 +306,7 @@ def test_comprehension_with_newlines():
         'x\n'
         'in\n'
         '(1,)\n'
-        ']'
+        ']',
     )
     expected = (
         ' [\n'

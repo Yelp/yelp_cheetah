@@ -58,9 +58,9 @@ class Template(object):
                     "Please change the key's name.".format(
                         ', '.join(
                             self.Reserved_SearchList &
-                            set(namespace)
-                        )
-                    )
+                            set(namespace),
+                        ),
+                    ),
                 )
 
         if (
@@ -68,7 +68,7 @@ class Template(object):
                 not isinstance(namespace, collections.Mapping)
         ):
             raise TypeError(
-                '`namespace` must be `Mapping` but got {0!r}'.format(namespace)
+                '`namespace` must be `Mapping` but got {!r}'.format(namespace),
             )
 
         self._CHEETAH__namespace = namespace or {}
