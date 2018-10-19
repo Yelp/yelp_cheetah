@@ -49,7 +49,7 @@ def test_compile_source_follows_settings():
         #except ImportError
             importerror
         #end try
-        '''
+        ''',
     )
 
     ret = compile_to_class(tmpl, settings={'useLegacyImportMode': False})
@@ -132,7 +132,7 @@ def test_create_module_from_source():
 
         def multiple_snowmans(i):
             return i * snowman_pls()
-        '''
+        ''',
     )
 
     module = _create_module_from_source(my_module_source)

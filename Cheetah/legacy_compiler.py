@@ -693,7 +693,7 @@ class LegacyCompiler(SettingsManager):
                 from os import environ
                 from sys import stdout
                 stdout.write({class_name}(namespace=environ).respond())
-            """
+            """,
         ).strip().format(
             imports='\n'.join(self._importStatements),
             base_import=self._base_import,
