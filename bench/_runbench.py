@@ -42,7 +42,7 @@ def run_bench(name):
 
 def get_output(*cmd):
     return subprocess.Popen(
-        cmd, stdout=subprocess.PIPE
+        cmd, stdout=subprocess.PIPE,
     ).communicate()[0].strip()
 
 

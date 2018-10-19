@@ -25,7 +25,7 @@ def _py_frame_lookup(key, locals_, globals_):
 def py_value_from_namespace(key, ns):
     value = ns.get(key, _NOTFOUND)
     if value is _NOTFOUND:
-        raise NotFound('Could not find {0!r}'.format(key))
+        raise NotFound('Could not find {!r}'.format(key))
     return value
 
 

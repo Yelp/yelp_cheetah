@@ -26,7 +26,7 @@ def compile_source(
     """
     if not isinstance(source, six.text_type):
         raise TypeError(
-            '`source` must be `text` but got {0!r}'.format(type(source))
+            '`source` must be `text` but got {!r}'.format(type(source)),
         )
 
     compiler = compiler_cls(source, settings=settings)
@@ -41,7 +41,7 @@ def compile_file(filename, target=None, **kwargs):
     """
     if not isinstance(filename, six.text_type):
         raise TypeError(
-            '`filename` must be `text` but got {0!r}'.format(type(filename))
+            '`filename` must be `text` but got {!r}'.format(type(filename)),
         )
 
     contents = io.open(filename, encoding='UTF-8').read()

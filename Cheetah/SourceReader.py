@@ -70,8 +70,8 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         if not pos <= self._breakPoint:
             raise AssertionError(
                 "pos ({}) is invalid: beyond the stream's end ({})".format(
-                    pos, self._breakPoint - 1
-                )
+                    pos, self._breakPoint - 1,
+                ),
             )
         elif not pos >= 0:
             raise AssertionError("pos (" + str(pos) + ") is invalid: less than 0")
@@ -83,11 +83,11 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         if pos > len(self._src):
             raise AssertionError(
                 "New breakpoint ({}) is invalid: beyond the end of stream's "
-                "source string ({})".format(pos, len(self._src))
+                "source string ({})".format(pos, len(self._src)),
             )
         elif not pos >= 0:
             raise AssertionError(
-                "New breakpoint (" + str(pos) + ") is invalid: less than 0"
+                "New breakpoint (" + str(pos) + ") is invalid: less than 0",
             )
 
         self._breakPoint = pos

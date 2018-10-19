@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
-import os
 import os.path
 import sys
 

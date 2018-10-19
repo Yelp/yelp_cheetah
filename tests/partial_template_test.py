@@ -125,5 +125,5 @@ def test_partial_with_same_name_retains_class_and_keeps_function():
     assert original_cls.__name__ == 'YelpCheetahTemplate'
 
     assert partial_with_same_name.partial_with_same_name(
-        Template()
+        Template(),
     ) == '    Hello world\n'

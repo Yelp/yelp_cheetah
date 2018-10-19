@@ -19,7 +19,7 @@ from Cheetah.ast_utils import get_lvalues
         ('import foo, bar', {'foo', 'bar'}),
         ('import foo.bar', {'foo'}),
         ('import foo.bar, baz', {'foo', 'baz'}),
-    )
+    ),
 )
 def test_get_imported_names(statement, expected):
     assert set(get_imported_names(statement)) == expected
@@ -58,7 +58,7 @@ def test_get_lvalues_exception_handler():
         'try:\n'
         '    pass\n'
         'except Exception as e:\n'
-        '    pass\n'
+        '    pass\n',
     ))
     assert ret == {'e'}
 
@@ -68,7 +68,7 @@ def test_get_lvalues_exception_handler_no_as():
         'try:\n'
         '    pass\n'
         'except Exception:\n'
-        '    pass\n'
+        '    pass\n',
     ))
     assert ret == set()
 

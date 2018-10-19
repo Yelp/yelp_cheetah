@@ -50,7 +50,7 @@ def test_SubclassSearchListTest():
         #extends testing.templates.subclass_searchlist
         #implements respond
         When we meet, I say "${self.greeting}"
-        """
+        """,
     )
     assert tmpl_cls().respond().strip() == 'When we meet, I say "Hola"'
 

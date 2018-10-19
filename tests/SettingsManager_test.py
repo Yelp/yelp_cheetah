@@ -11,7 +11,7 @@ from Cheetah.SettingsManager import convert_value
         ('None', None),
         ('true', True),
         ('false', False),
-    )
+    ),
 )
 def test_convert_value(input_str, expected):
     assert convert_value(input_str) == expected

@@ -79,7 +79,7 @@ def test_integration(tmpdir):
         (
             sys.executable, '-c',
             'from pkg.templates.test import YelpCheetahTemplate;'
-            'print(YelpCheetahTemplate().respond())'
+            'print(YelpCheetahTemplate().respond())',
         ),
         stdout=subprocess.PIPE,
     )

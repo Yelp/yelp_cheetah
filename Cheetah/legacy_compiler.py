@@ -459,7 +459,7 @@ class MethodCompiler(object):
             ''.join(
                 INDENT + decorator + '\n' for decorator in self._decorators
             ),
-            INDENT + 'def ' + self.methodName() + '(' + self._argspec + '):'
+            INDENT + 'def ' + self.methodName() + '(' + self._argspec + '):',
         ))
 
 
@@ -635,7 +635,7 @@ class LegacyCompiler(SettingsManager):
 
         if extends_name in self._global_vars:
             raise AssertionError(
-                'yelp_cheetah only supports extends by module name'
+                'yelp_cheetah only supports extends by module name',
             )
 
         self._base_import = 'from {} import {} as {}'.format(
@@ -693,7 +693,7 @@ class LegacyCompiler(SettingsManager):
                 from os import environ
                 from sys import stdout
                 stdout.write({class_name}(namespace=environ).respond())
-            """
+            """,
         ).strip().format(
             imports='\n'.join(self._importStatements),
             base_import=self._base_import,
