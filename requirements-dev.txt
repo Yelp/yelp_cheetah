@@ -2,7 +2,7 @@
 
 coverage
 flake8
-lxml<3.5
+lxml
 mock
 pre-commit
 pylint

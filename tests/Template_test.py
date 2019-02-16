@@ -57,7 +57,7 @@ def test_SubclassSearchListTest():
 
 def test_wrong_type_namespace():
     with pytest.raises(TypeError) as excinfo:
-        compile_to_class('')(str('bar'))
+        compile_to_class('tmpl')(str('bar'))
     assert excinfo.value.args == (
         "`namespace` must be `Mapping` but got 'bar'",
     )
