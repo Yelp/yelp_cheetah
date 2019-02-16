@@ -1525,7 +1525,7 @@ class RaiseDirective(OutputTest):
                 "#if 1\n#raise ValueError\n#end if\n",
                 "",
             )
-        self.failUnlessRaises(ValueError, test)
+        pytest.raises(ValueError, test)
 
     def test3(self):
         """#raise ValueError in #if block

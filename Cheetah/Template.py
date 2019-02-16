@@ -4,14 +4,18 @@ See the docstring in the Template class and the Users' Guide for more informatio
 """
 from __future__ import unicode_literals
 
-import collections
 import contextlib
+import sys
 
 from Cheetah import filters
 from Cheetah.NameMapper import NotFound
 from Cheetah.NameMapper import value_from_namespace
 from Cheetah.NameMapper import value_from_search_list
 
+if sys.version_info < (3,):  # pragma: no cover (PY2)
+    import collections as collections_abc
+else:  # pragma: no cover (PY3)
+    import collections.abc as collections_abc
 
 # pylint:disable=abstract-class-not-used
 
@@ -65,7 +69,7 @@ class Template(object):
 
         if (
                 namespace is not None and
-                not isinstance(namespace, collections.Mapping)
+                not isinstance(namespace, collections_abc.Mapping)
         ):
             raise TypeError(
                 '`namespace` must be `Mapping` but got {!r}'.format(namespace),
