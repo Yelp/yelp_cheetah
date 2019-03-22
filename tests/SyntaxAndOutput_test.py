@@ -76,12 +76,14 @@ Template output mismatch:
 
         output = templateObj.respond()
         if output != expectedOutput:
-            raise AssertionError(self.report % {
-                'template': input_str.replace('\n', '*eol*'),
-                'expected': expectedOutput.replace('\n', '*eol*'),
-                'actual': output.replace('\n', '*eol*'),
-                'end': '(end)',
-            })
+            raise AssertionError(
+                self.report % {
+                    'template': input_str.replace('\n', '*eol*'),
+                    'expected': expectedOutput.replace('\n', '*eol*'),
+                    'actual': output.replace('\n', '*eol*'),
+                    'end': '(end)',
+                },
+            )
 
 
 class EmptyTemplate(OutputTest):

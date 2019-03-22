@@ -35,9 +35,9 @@ def test_discover_modules():
 
 
 def test_discover_modules_with_filter():
-    ret = set(discover_modules(
-        Cheetah.testing, module_match_func=module_predicate,
-    ))
+    ret = set(
+        discover_modules(Cheetah.testing, module_match_func=module_predicate),
+    )
     assert ret == {Cheetah.testing.partial_template_test_case}
 
 
@@ -51,18 +51,18 @@ def test_discover_classes():
 
 
 def test_discover_classes_class_predicate():
-    ret = set(discover_classes(
-        Cheetah.testing, cls_match_func=class_predicate,
-    ))
+    ret = set(
+        discover_classes(Cheetah.testing, cls_match_func=class_predicate),
+    )
     assert ret == {
         PartialTemplateTestCase, ContextManagerPartialTemplateTestCase,
     }
 
 
 def test_discover_classes_module_predicate():
-    ret = set(discover_classes(
-        Cheetah.testing, module_match_func=module_predicate,
-    ))
+    ret = set(
+        discover_classes(Cheetah.testing, module_match_func=module_predicate),
+    )
     assert ret == {
         PartialTemplateTestCase, ContextManagerPartialTemplateTestCase,
     }

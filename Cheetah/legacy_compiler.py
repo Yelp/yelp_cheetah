@@ -340,9 +340,9 @@ class MethodCompiler(object):
         self.addChunk('#' + comment)
 
     def _append_line_col_comment(self, line_col):
-        self.appendToPrevChunk(' # generated from line {}, col {}.'.format(
-            *line_col
-        ))
+        self.appendToPrevChunk(
+            ' # generated from line {}, col {}.'.format(*line_col),
+        )
 
     def _update_locals(self, expr):
         self._local_vars.update(get_lvalues(expr))
@@ -646,9 +646,9 @@ class LegacyCompiler(SettingsManager):
         # Partial templates expose their functions as globals, find all the
         # defined functions and add them to known global vars.
         if extends_name == 'Cheetah.partial_template':
-            self._global_vars.update(get_defined_method_names(
-                self._original_source,
-            ))
+            self._global_vars.update(
+                get_defined_method_names(self._original_source),
+            )
 
     def add_compiler_settings(self):
         settings_str = self.getStrConst()

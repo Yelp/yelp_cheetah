@@ -351,9 +351,11 @@ class _LowLevelParser(SourceReader):
 
         while not self.atEnd():
             if self.peek() in '{([':
-                parts.extend(self._read_braced_expression(
-                    allow_cheetah_vars=allow_cheetah_vars,
-                ))
+                parts.extend(
+                    self._read_braced_expression(
+                        allow_cheetah_vars=allow_cheetah_vars,
+                    ),
+                )
             elif allow_cheetah_vars and self.peek() == VAR_START:
                 parts.extend(self._read_cheetah_variable_with_dollarsign())
             elif self.peek() in ' \t':
