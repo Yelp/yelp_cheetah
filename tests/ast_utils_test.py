@@ -54,22 +54,26 @@ def test_get_lvalues_with_no_as():
 
 
 def test_get_lvalues_exception_handler():
-    ret = set(get_lvalues(
-        'try:\n'
-        '    pass\n'
-        'except Exception as e:\n'
-        '    pass\n',
-    ))
+    ret = set(
+        get_lvalues(
+            'try:\n'
+            '    pass\n'
+            'except Exception as e:\n'
+            '    pass\n',
+        ),
+    )
     assert ret == {'e'}
 
 
 def test_get_lvalues_exception_handler_no_as():
-    ret = set(get_lvalues(
-        'try:\n'
-        '    pass\n'
-        'except Exception:\n'
-        '    pass\n',
-    ))
+    ret = set(
+        get_lvalues(
+            'try:\n'
+            '    pass\n'
+            'except Exception:\n'
+            '    pass\n',
+        ),
+    )
     assert ret == set()
 
 

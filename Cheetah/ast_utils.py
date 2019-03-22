@@ -99,7 +99,7 @@ def get_argument_names(argspec):
         name for name, count in counter.items() if count > 1
     ])
     if duplicate_arguments:
-        raise SyntaxError('Duplicate arguments: {}'.format(
-            ', '.join(duplicate_arguments),
-        ))
+        raise SyntaxError(
+            'Duplicate arguments: {}'.format(', '.join(duplicate_arguments)),
+        )
     return set(names)
