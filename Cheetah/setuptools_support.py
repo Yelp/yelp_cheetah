@@ -13,7 +13,7 @@ from Cheetah.cheetah_compile import compile_directories
 def to_native(s):
     if six.PY2 and isinstance(s, six.text_type):  # pragma: no cover
         return s.encode('UTF-8')
-    elif six.PY3 and isinstance(s, bytes):  # pragma: no cover
+    elif not six.PY2 and isinstance(s, bytes):  # pragma: no cover
         return s.decode('UTF-8')
     else:  # pragma: no cover
         return s
