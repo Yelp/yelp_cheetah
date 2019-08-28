@@ -1,7 +1,6 @@
 -e .[testing]
 
 coverage
-flake8
 lxml
 mock
 pre-commit
