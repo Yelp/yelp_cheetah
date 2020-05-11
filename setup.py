@@ -33,7 +33,7 @@ setup(
     packages=find_packages(exclude=('tests*', 'testing*')),
     ext_modules=[Extension("_cheetah", ["_cheetah.c"])],
     install_requires=[
-        'markupsafe',
+        'markupsafe==1.1.1',
         'six>=1.4.0',
     ],
     extras_require={
