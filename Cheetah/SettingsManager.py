@@ -1,6 +1,3 @@
-from __future__ import unicode_literals
-
-
 def convert_value(s):
     if s.lower() == 'none':
         return None
@@ -15,7 +12,7 @@ class UnexpectedSettingName(ValueError):
     pass
 
 
-class SettingsManager(object):
+class SettingsManager:
     def __init__(self):
         self._settings = {}
         self._initializeSettings()

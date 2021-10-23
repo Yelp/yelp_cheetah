@@ -1,11 +1,5 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import ast
 import collections
-import operator
-
-import six
 
 
 def _to_top_level_name(name):
@@ -31,10 +25,7 @@ class TargetsVisitor(ast.NodeVisitor):
 
     def visit_ExceptHandler(self, node):
         if node.name:
-            if six.PY2:  # pragma: no cover (PY2)
-                self.visit(node.name)
-            else:  # pragma: no cover (PY3)
-                self.lvalues.append(node.name)
+            self.lvalues.append(node.name)
 
     def visit_ClassDef(self, node):
         self.lvalues.append(node.name)
@@ -55,9 +46,6 @@ class TopLevelVisitor(ast.NodeVisitor):
         if node.optional_vars:
             self.targets_visitor.visit(node.optional_vars)
 
-    if six.PY2:  # pragma: no cover (PY2)
-        visit_With = visit_withitem
-
     def visit_For(self, node):
         self.targets_visitor.visit(node.target)
 
@@ -74,30 +62,20 @@ def get_lvalues(expression):
     return visitor.targets_visitor.lvalues
 
 
-_arg_to_name = operator.attrgetter('id' if six.PY2 else 'arg')
-
-if six.PY2:  # pragma: no cover (PY2)
-    def _vararg_to_name(arg):
-        return arg
-else:  # pragma: no cover (PY3)
-    def _vararg_to_name(arg):
-        return arg.arg
-
-
 def get_argument_names(argspec):
-    ast_obj = ast.parse('def _({}): pass'.format(argspec)).body[0].args
-    names = [_arg_to_name(name) for name in ast_obj.args]
+    ast_obj = ast.parse(f'def _({argspec}): pass').body[0].args
+    names = [name.arg for name in ast_obj.args]
     if ast_obj.vararg:
-        names.append(_vararg_to_name(ast_obj.vararg))
+        names.append(ast_obj.vararg.arg)
     if ast_obj.kwarg:
-        names.append(_vararg_to_name(ast_obj.kwarg))
-    if hasattr(ast_obj, 'kwonlyargs'):  # pragma: no cover: PY3
-        names.extend([arg.arg for arg in ast_obj.kwonlyargs])
+        names.append(ast_obj.kwarg.arg)
+    if ast_obj.kwonlyargs:
+        names.extend(arg.arg for arg in ast_obj.kwonlyargs)
     # Raise a nice message on duplicate arguments (since ast doesn't)
     counter = collections.Counter(names)
-    duplicate_arguments = sorted([
+    duplicate_arguments = sorted(
         name for name, count in counter.items() if count > 1
-    ])
+    )
     if duplicate_arguments:
         raise SyntaxError(
             'Duplicate arguments: {}'.format(', '.join(duplicate_arguments)),

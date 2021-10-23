@@ -1,22 +1,9 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import collections
 import os.path
 
-import six
 from setuptools.command.build_py import build_py as _build_py
 
 from Cheetah.cheetah_compile import compile_directories
-
-
-def to_native(s):
-    if six.PY2 and isinstance(s, six.text_type):  # pragma: no cover
-        return s.encode('UTF-8')
-    elif not six.PY2 and isinstance(s, bytes):  # pragma: no cover
-        return s.decode('UTF-8')
-    else:  # pragma: no cover
-        return s
 
 
 def _any_templates(filenames):
@@ -30,7 +17,7 @@ def _all_packages(pkg_path):
     """
     pkg_dotted = pkg_path.replace(os.sep, '.')
     split = pkg_dotted.split('.')
-    return [to_native('.'.join(split[:n])) for n in range(1, len(split) + 1)]
+    return ['.'.join(split[:n]) for n in range(1, len(split) + 1)]
 
 
 def _packages(directories):
@@ -69,7 +56,6 @@ def _get_build_py_cls(base, directories):
 
 def _update_many(src, dst):
     for k, v in src.items():
-        k = to_native(k)
         dst.setdefault(k, [])
         dst[k].extend(v)
 

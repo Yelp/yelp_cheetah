@@ -1,8 +1,4 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
-import six
 
 from Cheetah.ast_utils import get_argument_names
 from Cheetah.ast_utils import get_imported_names
@@ -92,7 +88,6 @@ def test_get_argument_names(input_s, expected):
     assert get_argument_names(input_s) == expected
 
 
-@pytest.mark.xfail(six.PY2, reason='tests python3 only behaviour')
 def test_kwargonly_arguments():
     assert get_argument_names('x, *, y="womp"') == {'x', 'y'}
 

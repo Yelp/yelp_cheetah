@@ -1,21 +1,12 @@
-# -*- coding: UTF-8 -*-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import argparse
 import os.path
 import sys
-
-import six
 
 from Cheetah.compile import compile_file
 
 
 def compile_template(filename, **kwargs):
-    if not isinstance(filename, six.text_type):
-        filename = filename.decode('UTF-8')
-    print('Compiling {}'.format(filename))
+    print(f'Compiling {filename}')
     return compile_file(filename, **kwargs)
 
 
@@ -23,7 +14,7 @@ def _compile_files_in_directory(
         directory,
         filenames,
         extension='.tmpl',
-        **kwargs
+        **kwargs,
 ):
     """Compiles files in a directory, returns whether there were any."""
     for filename in filenames:
@@ -39,7 +30,7 @@ def _touch_init_if_not_exists(directory):
         return
     init_py_file = os.path.join(directory, '__init__.py')
     if not os.path.exists(init_py_file):
-        print('Creating {}'.format(init_py_file))
+        print(f'Creating {init_py_file}')
         open(init_py_file, 'a').close()
 
 
@@ -57,7 +48,7 @@ def compile_directories(directories, extension='.tmpl', **kwargs):
                 dirpath,
                 filenames,
                 extension=extension,
-                **kwargs
+                **kwargs,
             )
 
             _touch_init_if_not_exists(dirpath)

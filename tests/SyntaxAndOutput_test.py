@@ -1,8 +1,3 @@
-# -*- coding: UTF-8 -*-
-# pylint:disable=no-self-use,too-many-public-methods
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import unittest
 import warnings
 
@@ -18,7 +13,7 @@ def dummydecorator(func):
     return func
 
 
-class DummyClass(object):
+class DummyClass:
     callArg = None
 
     def meth(self, arg="arff"):
@@ -36,7 +31,7 @@ defaultTestNamespace = {
     'aStr': 'blarg',
     'anInt': 1,
     'aFloat': 1.5,
-    'aList': [str('item0'), str('item1'), str('item2')],
+    'aList': ['item0', 'item1', 'item2'],
     'aDict': {
         'one': 'item1',
         'two': 'item2',
@@ -338,7 +333,7 @@ class Placeholders_Vals(OutputTest):
 
     def test8(self):
         """True, False"""
-        self.verify("$True $False", "{} {}".format(repr(True), repr(False)))
+        self.verify("$True $False", f"{repr(True)} {repr(False)}")
 
     def test9(self):
         """$_"""
@@ -1652,7 +1647,6 @@ def test_extends_with_partial_baseclass_import():
 
 
 def test_super_directive():
-    # pylint:disable=no-name-in-module,import-error
     from testing.templates.src.super_child import YelpCheetahTemplate
     ret = YelpCheetahTemplate().respond()
     assert ret.strip() == (

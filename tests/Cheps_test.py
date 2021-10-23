@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from Cheetah.compile import compile_to_class
 
 

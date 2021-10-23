@@ -1,0 +1,21 @@
+name: main
+
+on:
+  push:
+    branches: [master]
+    tags:
+  pull_request:
+
+jobs:
+  main:
+    strategy:
+      matrix:
+        python: ['3.6', '3.7', '3.8', '3.9', '3.10']
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - run: python -mpip install --upgrade setuptools pip tox virtualenv
+    - run: tox -e py

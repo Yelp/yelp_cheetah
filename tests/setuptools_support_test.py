@@ -1,12 +1,9 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import contextlib
 import os
 import subprocess
 import sys
+from unittest import mock
 
-import mock
 import pytest
 from setuptools.dist import Distribution
 
@@ -23,12 +20,10 @@ def cwd(path):
         os.chdir(orig)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def pkg_layout(tmpdir):
-    foo_tmpl = tmpdir.join('src1/lib').ensure_dir().join('foo.tmpl')
-    foo_tmpl.write_text('', 'UTF-8')
-    bar_tmpl = tmpdir.join('src2').ensure_dir().join('bar.tmpl')
-    bar_tmpl.write_text('', 'UTF-8')
+    tmpdir.join('src1/lib/foo.tmpl').ensure()
+    tmpdir.join('src2/bar.tmpl').ensure()
     tmpdir.join('empty/lib/__pycache__').ensure_dir()
     with cwd(tmpdir.strpath):
         yield ('src1', 'src2', 'empty')
@@ -58,11 +53,6 @@ def test_all_packages(path, expected):
     assert setuptools_support._all_packages(path) == expected
 
 
-@pytest.mark.parametrize('s', ('foo', b'foo'))
-def test_to_native(s):
-    assert type(setuptools_support.to_native(s)) is str
-
-
 def test_get_run_method():
     base_cls = mock.Mock()
     inst = mock.sentinel.instance
@@ -75,13 +65,9 @@ def test_integration(tmpdir):
     pip = (sys.executable, '-m', 'pip.__main__')
     subprocess.call(pip + ('uninstall', '-y', 'pkg'))
     subprocess.check_call(pip + ('install', 'testing/pkg'))
-    proc = subprocess.Popen(
-        (
-            sys.executable, '-c',
-            'from pkg.templates.test import YelpCheetahTemplate;'
-            'print(YelpCheetahTemplate().respond())',
-        ),
-        stdout=subprocess.PIPE,
-    )
-    out = proc.communicate()[0].decode('UTF-8').strip()
+    out = subprocess.check_output((
+        sys.executable, '-c',
+        'from pkg.templates.test import YelpCheetahTemplate;'
+        'print(YelpCheetahTemplate().respond())',
+    )).decode().strip()
     assert out == 'Hello world!'

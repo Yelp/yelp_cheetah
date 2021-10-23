@@ -1,8 +1,8 @@
 -e .[testing]
 
+covdefaults
 coverage
 lxml
-mock
 pre-commit
 pylint
 pytest

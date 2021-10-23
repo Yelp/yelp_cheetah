@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 from Cheetah.legacy_compiler import get_defined_method_names
 
 

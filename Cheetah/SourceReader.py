@@ -1,6 +1,4 @@
 """SourceReader class for Cheetah's LegacyParser and CodeGenerator"""
-from __future__ import unicode_literals
-
 import re
 
 EOLre = re.compile(r'[ \f\t]*(?:\r\n|\r|\n)')
@@ -10,7 +8,7 @@ EOLZre = re.compile(r'(?:\r\n|\r|\n|\Z)')
 WS_CHARS = ' \t'
 
 
-class SourceReader(object):  # pylint:disable=too-many-public-methods
+class SourceReader:
     def __init__(self, src):
         self._src = src
         self._srcLines = src.splitlines()
@@ -43,7 +41,7 @@ class SourceReader(object):  # pylint:disable=too-many-public-methods
         for i in range(len(self._BOLs)):
             if pos >= self._BOLs[i] and pos <= self._EOLs[i]:
                 return i
-        raise AssertionError('unknown position: {}'.format(pos))
+        raise AssertionError(f'unknown position: {pos}')
 
     def getRowCol(self, pos=None):
         if pos is None:

@@ -1,13 +1,22 @@
-# -*- coding: UTF-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
+import contextlib
+import sys
 
 import pytest
 
 from Cheetah.compile import compile_source
 from Cheetah.legacy_parser import ParseError
 from Cheetah.legacy_parser import UnknownDirectiveError
-from testing.util import assert_raises_exactly
+
+
+@contextlib.contextmanager
+def assert_raises_exactly(cls, text):
+    try:
+        yield
+    except Exception as e:
+        assert type(e) is cls
+        assert str(e) == text, (str(e), text)
+    else:
+        raise AssertionError('expected to raise')
 
 
 def assert_parse_error(error, source, cls=ParseError):
@@ -428,15 +437,24 @@ def test_self_in_arglist_invalid():
 
 
 def test_set_with_dollar_signs_raises():
+    if sys.version_info < (3, 8):  # pragma: no cover (<py38)
+        msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
+    elif sys.version_info < (3, 10):  # pragma: no cover (<py310)
+        msg = "SyntaxError: cannot assign to function call (<unknown>, line 1)"
+    else:  # pragma: no cover (py38+)
+        msg = (
+            "SyntaxError: cannot assign to function call here. "
+            "Maybe you meant '==' instead of '='? (<unknown>, line 1)"
+        )
     assert_parse_error(
-        '\n\n'
-        "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
-        'Line 1, column 13\n'
-        '\n'
-        'Line|Cheetah Code\n'
-        '----|-------------------------------------------------------------\n'
-        '1   |#py $foo = 1\n'
-        '                 ^\n',
+        f'\n\n'
+        f'{msg}\n\n'
+        f'Line 1, column 13\n'
+        f'\n'
+        f'Line|Cheetah Code\n'
+        f'----|-------------------------------------------------------------\n'
+        f'1   |#py $foo = 1\n'
+        f'                 ^\n',
 
         '#py $foo = 1\n',
     )
@@ -465,17 +483,22 @@ def test_classmethod_staticmethod_not_allowed(decorator):
 
 
 def test_lvalue_for():
+    if sys.version_info < (3, 8):  # pragma: no cover (<py38)
+        msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
+    else:  # pragma: no cover (py38+)
+        msg = 'SyntaxError: cannot assign to function call (<unknown>, line 1)'
+
     assert_parse_error(
-        '\n\n'
-        "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
-        'Line 2, column 1\n'
-        '\n'
-        'Line|Cheetah Code\n'
-        '----|-------------------------------------------------------------\n'
-        '1   |#for $foo in bar\n'
-        '2   |$foo\n'
-        '     ^\n'
-        '3   |#end for\n',
+        f'\n\n'
+        f'{msg}\n\n'
+        f'Line 2, column 1\n'
+        f'\n'
+        f'Line|Cheetah Code\n'
+        f'----|-------------------------------------------------------------\n'
+        f'1   |#for $foo in bar\n'
+        f'2   |$foo\n'
+        f'     ^\n'
+        f'3   |#end for\n',
 
         '#for $foo in bar\n'
         '$foo\n'
@@ -484,16 +507,21 @@ def test_lvalue_for():
 
 
 def test_uncaught_syntax_error():
+    if sys.version_info < (3, 8):  # pragma: no cover (<py38)
+        msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
+    else:  # pragma: no cover (py38+)
+        msg = 'SyntaxError: cannot assign to function call (<unknown>, line 1)'
+
     assert_parse_error(
-        '\n\n'
-        "SyntaxError: can't assign to function call (<unknown>, line 1)\n\n"
-        'Line 3, column 15\n\n'
-        'Line|Cheetah Code\n'
-        '----|-------------------------------------------------------------\n'
-        '1   |Hello\n'
-        '2   |World\n'
-        '3   |#py x = $y = 1\n'
-        '                   ^\n',
+        f'\n\n'
+        f'{msg}\n\n'
+        f'Line 3, column 15\n\n'
+        f'Line|Cheetah Code\n'
+        f'----|-------------------------------------------------------------\n'
+        f'1   |Hello\n'
+        f'2   |World\n'
+        f'3   |#py x = $y = 1\n'
+        f'                   ^\n',
 
         'Hello\nWorld\n#py x = $y = 1\n',
     )
@@ -518,14 +546,22 @@ def test_errors_on_invalid_setting():
 
 
 def test_errors_on_blinged_kwarg():
+    if sys.version_info < (3, 8):  # pragma: no cover (<py38)
+        msg = "SyntaxError: keyword can't be an expression (<unknown>, line 1)"
+    else:  # pragma: no cover (py38+)
+        msg = (
+            'SyntaxError: expression cannot contain assignment, perhaps you '
+            'meant "=="? (<unknown>, line 1)'
+        )
+
     assert_parse_error(
-        '\n\n'
-        "SyntaxError: keyword can't be an expression (<unknown>, line 1)\n\n"
-        'Line 1, column 15\n\n'
-        'Line|Cheetah Code\n'
-        '----|-------------------------------------------------------------\n'
-        '1   |$foo($bar=$baz)\n'
-        '                   ^\n',
+        f'\n\n'
+        f'{msg}\n\n'
+        f'Line 1, column 15\n\n'
+        f'Line|Cheetah Code\n'
+        f'----|-------------------------------------------------------------\n'
+        f'1   |$foo($bar=$baz)\n'
+        f'                   ^\n',
 
         '$foo($bar=$baz)',
     )

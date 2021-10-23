@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.1.0
+    rev: v4.0.1
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
@@ -8,24 +8,30 @@ repos:
     -   id: check-yaml
     -   id: debug-statements
     -   id: name-tests-test
--   repo: https://gitlab.com/pycqa/flake8
-    rev: 3.7.7
+-   repo: https://github.com/pycqa/flake8
+    rev: 4.0.1
     hooks:
     -   id: flake8
 -   repo: https://github.com/pre-commit/mirrors-autopep8
-    rev: v1.4.3
+    rev: v1.5.7
     hooks:
     -   id: autopep8
 -   repo: https://github.com/asottile/reorder_python_imports
-    rev: v1.4.0
+    rev: v2.6.0
     hooks:
     -   id: reorder-python-imports
-        args: ['--application-directories', '.:bench']
+        args: ['--application-directories', '.:bench', --py36-plus]
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v1.12.0
+    rev: v2.29.0
     hooks:
     -   id: pyupgrade
+        args: [--py36-plus]
 -   repo: https://github.com/asottile/add-trailing-comma
-    rev: v1.0.0
+    rev: v2.2.0
     hooks:
     -   id: add-trailing-comma
+        args: [--py36-plus]
+-   repo: https://github.com/asottile/setup-cfg-fmt
+    rev: v1.18.0
+    hooks:
+    -   id: setup-cfg-fmt
