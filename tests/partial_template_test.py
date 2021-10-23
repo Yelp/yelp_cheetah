@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
 from Cheetah.partial_template import default_self
@@ -14,7 +11,7 @@ def decorated_function(self, *args):
     return (self,) + args
 
 
-class TestCallMixin(object):
+class TestCallMixin:
     """Mixin defining the methods that will be called in the test to validate
     the instances.
     """

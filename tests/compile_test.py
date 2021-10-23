@@ -1,14 +1,9 @@
-# -*- coding: UTF-8 -*-
-from __future__ import unicode_literals
-
-import io
 import os.path
 import subprocess
 import sys
 import textwrap
 
 import pytest
-import six
 
 from Cheetah.compile import _create_module_from_source
 from Cheetah.compile import compile_file
@@ -18,9 +13,6 @@ from Cheetah.legacy_parser import directiveNamesAndParsers
 from Cheetah.Template import Template
 
 
-# pylint:disable=redefined-outer-name
-
-
 def test_compile_source_requires_text():
     with pytest.raises(TypeError):
         compile_source(b'not text')
@@ -28,17 +20,14 @@ def test_compile_source_requires_text():
 
 def test_compile_source_returns_text():
     ret = compile_source('Hello, world!')
-    assert type(ret) is six.text_type
+    assert type(ret) is str
     assert "write('''Hello, world!''')" in ret
 
 
 def test_compile_source_with_encoding_returns_text():
     ret = compile_source('Hello, world! ☃')
-    assert type(ret) is six.text_type
-    if six.PY2:
-        assert "write('''Hello, world! \\u2603''')" in ret
-    else:
-        assert "write('''Hello, world! ☃''')" in ret
+    assert type(ret) is str
+    assert "write('''Hello, world! ☃''')" in ret
 
 
 def test_compile_source_follows_settings():
@@ -64,10 +53,10 @@ def test_compile_file_filename_requires_text():
         compile_file(b'not_text.tmpl')
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def tmpfile(tmpdir):
     tmpfile_path = os.path.join(tmpdir.strpath, 'temp.tmpl')
-    with io.open(tmpfile_path, 'w') as tmpfile:
+    with open(tmpfile_path, 'w') as tmpfile:
         tmpfile.write('Hello, world!')
 
     yield tmpfile_path
@@ -77,8 +66,8 @@ def test_compile_file(tmpfile):
     compiled_python_file = compile_file(tmpfile)
 
     assert os.path.exists(compiled_python_file)
-    python_file_contents = io.open(compiled_python_file).read()
-    assert python_file_contents.splitlines()[0] == '# -*- coding: UTF-8 -*-'
+    with open(compiled_python_file) as f:
+        python_file_contents = f.read()
     assert 'class YelpCheetahTemplate(' in python_file_contents
 
 
@@ -91,7 +80,7 @@ def test_compile_file_destination(tmpfile, tmpdir):
     output_file = os.path.join(tmpdir.strpath, 'out.py')
     compile_file(tmpfile, target=output_file)
     assert os.path.exists(output_file)
-    python_file_contents = io.open(output_file).read()
+    python_file_contents = open(output_file).read()
     assert 'class YelpCheetahTemplate(' in python_file_contents
     assert "write('''Hello, world!''')" in python_file_contents
 
@@ -100,7 +89,7 @@ def test_compile_file_as_script(tmpfile):
     subprocess.check_call(['cheetah-compile', tmpfile])
     pyfile = tmpfile.replace('.tmpl', '.py')
     module = _create_module_from_source(
-        '\n'.join(io.open(pyfile).read().splitlines()[1:]),
+        '\n'.join(open(pyfile).read().splitlines()[1:]),
     )
     result = module.YelpCheetahTemplate().respond()
     assert 'Hello, world!' == result
@@ -111,10 +100,10 @@ def test_non_utf8_raises_error(tmpfile):
 
     # Try and decode it
     with pytest.raises(UnicodeDecodeError):
-        non_utf8_string.decode('UTF-8')
+        non_utf8_string.decode()
 
-    with io.open(tmpfile, 'wb') as file_obj:
-        file_obj.write(b'\x97\n')
+    with open(tmpfile, 'wb') as file_obj:
+        file_obj.write(non_utf8_string)
 
     with pytest.raises(UnicodeDecodeError):
         compile_file(tmpfile)
@@ -280,7 +269,7 @@ $arr
 
     # Make sure we got all of the directives
     for directive_name in directiveNamesAndParsers:
-        assert '#{}'.format(directive_name) in MEGA_TEMPLATE
+        assert f'#{directive_name}' in MEGA_TEMPLATE
 
     # also make sure MEGA_TEMPLATE renders
     assert compile_to_class(MEGA_TEMPLATE)().respond()

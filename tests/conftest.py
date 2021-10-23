@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
 from Cheetah.cheetah_compile import compile_directories

@@ -7,16 +7,13 @@
     If you are trying to grok this code start with Compiler.__init__,
     Compiler.compile, and Compiler.__getattr__.
 '''
-from __future__ import unicode_literals
-
 import ast
+import builtins
 import contextlib
 import copy
 import re
 import textwrap
 import warnings
-
-import six
 
 from Cheetah.ast_utils import get_argument_names
 from Cheetah.ast_utils import get_imported_names
@@ -31,7 +28,7 @@ from Cheetah.SettingsManager import SettingsManager
 INDENT = 4 * ' '
 
 
-BUILTIN_NAMES = frozenset(dir(six.moves.builtins))
+BUILTIN_NAMES = frozenset(dir(builtins))
 
 
 DEFAULT_COMPILER_SETTINGS = {
@@ -50,7 +47,7 @@ def _cheetah_var_to_text(var, local_vars, global_vars):
     if var.name in local_vars | global_vars | BUILTIN_NAMES:
         return var.name
     else:
-        return 'VFNS("{}", NS)'.format(var.name)
+        return f'VFNS("{var.name}", NS)'
 
 
 def _process_comprehensions(expr_parts):
@@ -180,6 +177,8 @@ def _process_comprehensions(expr_parts):
             elif depth == -1:
                 right_boundary = i
                 break
+        else:
+            raise AssertionError('unreachable')
 
         # Defensive assertion is required, slicing with [:None] is valid
         assert in_index is not None, in_index
@@ -215,7 +214,7 @@ def _prepare_argspec(argspec):
     return argspec, get_argument_names(argspec)
 
 
-class MethodCompiler(object):
+class MethodCompiler:
     def __init__(
             self,
             methodName,
@@ -285,11 +284,11 @@ class MethodCompiler(object):
         self._methodBodyChunks[-1] += appendage
 
     def addWriteChunk(self, chunk):
-        self.addChunk('self.transaction.write({})'.format(chunk))
+        self.addChunk(f'self.transaction.write({chunk})')
 
     def addFilteredChunk(self, chunk, rawExpr=None, lineCol=None):
         if rawExpr and rawExpr.find('\n') == -1 and rawExpr.find('\r') == -1:
-            self.addChunk('_v = {} # {!r}'.format(chunk, rawExpr))
+            self.addChunk(f'_v = {chunk} # {rawExpr!r}')
             self.appendToPrevChunk(' on line %s, col %s' % lineCol)
         else:
             self.addChunk('_v = %s' % chunk)
@@ -463,7 +462,7 @@ class MethodCompiler(object):
         ))
 
 
-class ClassCompiler(object):
+class ClassCompiler:
     methodCompilerClass = MethodCompiler
 
     def __init__(self, main_method_name, compiler):
@@ -533,7 +532,7 @@ class ClassCompiler(object):
     def addSuper(self, argspec):
         methodName = self._getActiveMethodCompiler().methodName()
         self.addFilteredChunk(
-            'super({}, self).{}({})'.format(CLASS_NAME, methodName, argspec),
+            f'super({CLASS_NAME}, self).{methodName}({argspec})',
         )
 
     def closeDef(self):
@@ -548,11 +547,11 @@ class ClassCompiler(object):
         self._swallowMethodCompiler(methCompiler)
 
         # insert the code to call the block
-        self.addChunk('self.{}()'.format(methodName))
+        self.addChunk(f'self.{methodName}()')
 
     def class_def(self):
         return '\n'.join((
-            'class {}({}):\n'.format(CLASS_NAME, BASE_CLASS_NAME),
+            f'class {CLASS_NAME}({BASE_CLASS_NAME}):\n',
             self.attributes(),
             self.methodDefs(),
         ))
@@ -574,11 +573,11 @@ class LegacyCompiler(SettingsManager):
     classCompilerClass = ClassCompiler
 
     def __init__(self, source, settings=None):
-        super(LegacyCompiler, self).__init__()
+        super().__init__()
         if settings:
             self.updateSettings(settings)
 
-        assert isinstance(source, six.text_type), 'the yelp-cheetah compiler requires text, not bytes.'
+        assert isinstance(source, str), 'the yelp-cheetah compiler requires text, not bytes.'
 
         if source == '':
             warnings.warn('You supplied an empty string for the source!')
@@ -705,7 +704,7 @@ class LegacyCompiler(SettingsManager):
 
 
 def get_defined_method_names(original_source):
-    class CollectsMethodNamesCompiler(object):
+    class CollectsMethodNamesCompiler:
         def __init__(self):
             self.method_names = set()
 

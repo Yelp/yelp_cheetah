@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import functools
 import inspect
 import sys
@@ -84,7 +81,7 @@ class PartialTemplateType(type):
 
     def __new__(mcs, name, bases, attrs):
         # The purpose of any metaclass is to instantiate a class.
-        result = cls = super(PartialTemplateType, mcs).__new__(mcs, name, bases, attrs)
+        result = cls = super().__new__(mcs, name, bases, attrs)
         module = sys.modules[attrs['__module__']]
         module.PARTIAL_TEMPLATE_CLASS = cls
 
@@ -101,7 +98,5 @@ class PartialTemplateType(type):
         return result
 
 
-# Roughly stolen from six.with_metaclass
-YelpCheetahTemplate = type.__new__(
-    PartialTemplateType, str('partial_template'), (Template,), {},
-)
+class YelpCheetahTemplate(Template, metaclass=PartialTemplateType):
+    pass

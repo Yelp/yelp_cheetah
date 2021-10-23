@@ -2,22 +2,13 @@
 
 See the docstring in the Template class and the Users' Guide for more information
 """
-from __future__ import unicode_literals
-
+import collections.abc
 import contextlib
-import sys
 
 from Cheetah import filters
 from Cheetah.NameMapper import NotFound
 from Cheetah.NameMapper import value_from_namespace
 from Cheetah.NameMapper import value_from_search_list
-
-if sys.version_info < (3,):  # pragma: no cover (PY2)
-    import collections as collections_abc
-else:  # pragma: no cover (PY3)
-    import collections.abc as collections_abc
-
-# pylint:disable=abstract-class-not-used
 
 
 # Singleton object, representing no data to be written.
@@ -26,7 +17,7 @@ NO_CONTENT = object()
 UNSPECIFIED = object()
 
 
-class Template(object):
+class Template:
     """This class provides methods used by templates at runtime
 
     Note about instance attribute names:
@@ -69,10 +60,10 @@ class Template(object):
 
         if (
                 namespace is not None and
-                not isinstance(namespace, collections_abc.Mapping)
+                not isinstance(namespace, collections.abc.Mapping)
         ):
             raise TypeError(
-                '`namespace` must be `Mapping` but got {!r}'.format(namespace),
+                f'`namespace` must be `Mapping` but got {namespace!r}',
             )
 
         self._CHEETAH__namespace = namespace or {}

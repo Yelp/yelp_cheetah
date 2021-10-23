@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import pytest
 
 import Cheetah.testing.all_partials_tested
@@ -89,7 +86,7 @@ def test_get_partial_methods():
 
 
 def test_is_partial_test_cls():
-    class NotAPartialTemplateTest(object):
+    class NotAPartialTemplateTest:
         pass
 
     class NotAPartialTemplateTest2(PartialTemplateTestCase):

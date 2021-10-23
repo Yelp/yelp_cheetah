@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import collections
 import inspect
 import pkgutil
@@ -29,7 +26,7 @@ def discover_modules(package, module_match_func=trivial):
             package.__path__,
             prefix=package.__name__ + '.',
     ):
-        module = __import__(module_name, fromlist=[str('__trash')], level=0)
+        module = __import__(module_name, fromlist=['__trash'], level=0)
         if module_match_func(module):
             yield module
 
@@ -131,7 +128,7 @@ class TestAllPartialsTestedBase(unittest.TestCase):
             for method in methods:
                 if (module_name, method) not in tested_partials:
                     untested_partials.add(
-                        '{} {}'.format(module_name, method),
+                        f'{module_name} {method}',
                     )
 
         if untested_partials:

@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-import io
 import os.path
 
 import pytest
@@ -16,14 +12,14 @@ from testing.util import run_python
 
 
 def lookup(v):
-    return 'VFNS("{}", NS)'.format(v)
+    return f'VFNS("{v}", NS)'
 
 
 def test_templates_runnable_using_env(tmpdir):
     tmpl_filename = os.path.join(tmpdir.strpath, 'my_template.tmpl')
     tmpl_py_filename = os.path.join(tmpdir.strpath, 'my_template.py')
 
-    with io.open(tmpl_filename, 'w') as template:
+    with open(tmpl_filename, 'w') as template:
         template.write(
             '$foo\n'
             '$bar\n',
@@ -181,7 +177,7 @@ def test_optimization_tuple_assign():
 VFN_opt_src = '$foo.barvar[0].upper()'
 
 
-class fooobj(object):
+class fooobj:
     barvar = 'womp'
 
 
@@ -234,15 +230,15 @@ def test_optimization_kwargs():
 def test_optimization_partial_template_functions():
     from testing.templates.src.optimize_name import foo
     assert foo(Template()).strip() == '25'
-    src = io.open('testing/templates/src/optimize_name.py').read()
+    src = open('testing/templates/src/optimize_name.py').read()
     assert ' _v = bar(5) #' in src
 
 
 @pytest.mark.parametrize(('start', 'end'), tuple(brace_pairs.items()))
 def test_optimize_comprehensions(start, end):
-    src = '#py {}$x for x in (1,) if $x{}'.format(start, end)
+    src = f'#py {start}$x for x in (1,) if $x{end}'
     src = compile_source(src)
-    expected = ' {}x for x in (1,) if x{} #'.format(start, end)
+    expected = f' {start}x for x in (1,) if x{end} #'
     assert expected in src
 
 

@@ -1,5 +1,4 @@
-[![Build Status](https://travis-ci.org/Yelp/yelp_cheetah.svg?branch=master)](https://travis-ci.org/Yelp/yelp_cheetah)
-[![Coverage Status](https://img.shields.io/coveralls/Yelp/yelp_cheetah.svg?branch=master)](https://coveralls.io/r/Yelp/yelp_cheetah)
+[![Build Status](https://github.com/Yelp/yelp_cheetah/workflows/main/badge.svg)](https://github.com/Yelp/yelp_cheetah/actions)
 
 yelp_cheetah
 ============

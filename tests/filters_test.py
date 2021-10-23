@@ -1,16 +1,13 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 from Cheetah.compile import compile_to_class
 
 
 def render_tmpl(template_source):
-    class notlocal(object):
+    class notlocal:
         count = 0
 
     def unique_filter(val):
         notlocal.count += 1
-        return '<{}>{}</{}>'.format(notlocal.count, val, notlocal.count)
+        return f'<{notlocal.count}>{val}</{notlocal.count}>'
 
     template_cls = compile_to_class(template_source)
     template = template_cls({'foo': 'bar'}, filter_fn=unique_filter)

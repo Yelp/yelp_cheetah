@@ -1,10 +1,5 @@
-from __future__ import unicode_literals
-
-import imp
-import io
 import os.path
-
-import six
+import types
 
 from Cheetah.legacy_compiler import CLASS_NAME
 from Cheetah.legacy_compiler import LegacyCompiler
@@ -24,10 +19,8 @@ def compile_source(
     :rtype: text
     :raises TypeError: if source is not text.
     """
-    if not isinstance(source, six.text_type):
-        raise TypeError(
-            '`source` must be `text` but got {!r}'.format(type(source)),
-        )
+    if not isinstance(source, str):
+        raise TypeError(f'`source` must be `str` but got {type(source)!r}')
 
     compiler = compiler_cls(source, settings=settings)
     return compiler.getModuleCode()
@@ -39,12 +32,11 @@ def compile_file(filename, target=None, **kwargs):
     :param text filename: Filename of the file to open
     :param kwargs: Keyword args passed to `compile`
     """
-    if not isinstance(filename, six.text_type):
-        raise TypeError(
-            '`filename` must be `text` but got {!r}'.format(type(filename)),
-        )
+    if not isinstance(filename, str):
+        raise TypeError(f'`filename` must be `str` but got {type(filename)!r}')
 
-    contents = io.open(filename, encoding='UTF-8').read()
+    with open(filename, encoding='UTF-8') as f:
+        contents = f.read()
 
     py_file = os.path.basename(filename).split('.', 1)[0] + '.py'
     compiled_source = compile_source(contents, **kwargs)
@@ -53,8 +45,7 @@ def compile_file(filename, target=None, **kwargs):
         dirname = os.path.dirname(filename)
         target = os.path.join(dirname, py_file)
 
-    with io.open(target, 'w', encoding='UTF-8') as target_file:
-        target_file.write('# -*- coding: UTF-8 -*-\n')
+    with open(target, 'w', encoding='UTF-8') as target_file:
         target_file.write(compiled_source)
 
     return target
@@ -66,12 +57,12 @@ def _create_module_from_source(source, filename='<generated cheetah module>'):
     :param text source: Sourcecode to put into new module.
     :return: A Module object.
     """
-    assert type(source) is six.text_type
+    assert type(source) is str
 
-    module = imp.new_module('created_module')
+    module = types.ModuleType('created_module')
     module.__file__ = filename
     code = compile(source, filename, 'exec', dont_inherit=True)
-    exec(code, module.__dict__)  # pylint:disable=exec-used
+    exec(code, module.__dict__)
     return module
 
 

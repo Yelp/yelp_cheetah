@@ -1,6 +1,3 @@
-from __future__ import unicode_literals
-
-
 ITERATIONS = 10
 
 LOCAL_SRC = (

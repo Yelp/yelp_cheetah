@@ -1,19 +1,15 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import markupsafe
-import six
 
 
 def unicode_filter(val):
     if val is None:
         return ''
-    elif isinstance(val, six.text_type):
+    elif isinstance(val, str):
         return val
     elif isinstance(val, bytes):
-        return val.decode('UTF-8')
+        return val.decode()
     else:
-        return six.text_type(val)
+        return str(val)
 
 
 def markup_filter(val):

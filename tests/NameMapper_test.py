@@ -1,6 +1,5 @@
-from __future__ import unicode_literals
+from unittest import mock
 
-import mock
 import pytest
 
 from Cheetah.compile import compile_to_class
@@ -27,7 +26,7 @@ vfsl_tests = pytest.mark.parametrize(
 
 @vfsl_tests
 def test_VFSL_failure_typeerror(vfsl):
-    class C(object):
+    class C:
         attr = object()
 
     with pytest.raises((AttributeError, NotFound)):
@@ -48,7 +47,7 @@ def test_VFSL_dictionaries(vfsl):
 
 @vfsl_tests
 def test_VFSL_objects(vfsl):
-    class C(object):
+    class C:
         attr = object()
 
     assert vfsl('attr', C, {}) is C.attr

@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import pytest
 
 from Cheetah.compile import compile_to_class
@@ -10,7 +7,7 @@ class GetAttrException(Exception):
     pass
 
 
-class CustomGetAttrClass(object):
+class CustomGetAttrClass:
     def __getattr__(self, name):
         raise GetAttrException('FAIL, %s' % name)
 

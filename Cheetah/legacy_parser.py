@@ -6,16 +6,12 @@ Classes:
   _LowLevelParser(Cheetah.SourceReader.SourceReader), basically a lexer
   LegacyParser(_LowLevelParser)
 """
-from __future__ import unicode_literals
-
 import collections
 import functools
 import re
 import string
 import sys
 import tokenize
-
-import six
 
 from Cheetah.SourceReader import SourceReader
 
@@ -24,7 +20,7 @@ identchars = string.ascii_letters + '_'
 
 triple_quoted_pairs = {k: k[-3:] for k in tokenize.triple_quoted}
 triple_quoted_res = {
-    k: re.compile('(?:{}).*?(?:{})'.format(k, v), re.DOTALL)
+    k: re.compile(f'(?:{k}).*?(?:{v})', re.DOTALL)
     for k, v in triple_quoted_pairs.items()
 }
 
@@ -40,10 +36,10 @@ VAR_START = '$'
 EXPRESSION_START_RE = re.compile(escape_lookbehind + r'\$[A-Za-z_{]')
 OLD_EXPRESSION_START_RE = re.compile(escape_lookbehind + r'\$[([]')
 
-ATTRIBUTE_RE = re.compile(r'\.{}'.format(IDENT))
+ATTRIBUTE_RE = re.compile(fr'\.{IDENT}')
 
 COMMENT_START_RE = re.compile(escape_lookbehind + re.escape('##'))
-DIRECTIVE_RE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_-]*|@{})'.format(IDENT))
+DIRECTIVE_RE = re.compile(fr'([a-zA-Z_][a-zA-Z0-9_-]*|@{IDENT})')
 DIRECTIVE_START_RE = re.compile(
     escape_lookbehind + re.escape('#') + r'(?=([A-Za-z_]|@[A-Za-z_]))',
 )
@@ -155,11 +151,7 @@ def fail_with_our_parse_error(func):
         except ParseError:
             raise
         except Exception as e:
-            six.reraise(
-                ParseError,
-                ParseError(self, '{}: {}\n'.format(type(e).__name__, e)),
-                sys.exc_info()[2],
-            )
+            raise ParseError(self, f'{type(e).__name__}: {e}\n').with_traceback(sys.exc_info()[2])
     return inner
 
 
@@ -282,7 +274,7 @@ class _LowLevelParser(SourceReader):
                 parts.append(self.readTo(attr_match.end()))
             elif self.peek() in '([':
                 parts.extend(self._read_braced_expression())
-            else:
+            else:  # pragma: no cover (bug in py38,py39)
                 break
         return tuple(parts)
 
@@ -408,7 +400,7 @@ class LegacyParser(_LowLevelParser):
     """
 
     def __init__(self, src, compiler):
-        super(LegacyParser, self).__init__(src)
+        super().__init__(src)
         self._compiler = compiler
         self._openDirectivesStack = []
 
@@ -706,7 +698,7 @@ class LegacyParser(_LowLevelParser):
         signature = ' '.join([line.strip() for line in signature.splitlines()])
         parserComment = (
             '## CHEETAH: generated from {} at line {}, col {}.'.format(
-                signature, *self.getRowCol(startPos)
+                signature, *self.getRowCol(startPos),
             )
         )
         self._compiler.startMethodDef(methodName, argspec, parserComment)
@@ -715,7 +707,7 @@ class LegacyParser(_LowLevelParser):
         fullSignature = self[startPos:endPos]
         parserComment = (
             '## Generated from {} at line {}, col {}.'.format(
-                fullSignature, *self.getRowCol(startPos)
+                fullSignature, *self.getRowCol(startPos),
             )
         )
         self._compiler.startMethodDef(methodName, argspec, parserComment)
@@ -788,7 +780,7 @@ class LegacyParser(_LowLevelParser):
         if last != directive_name:
             raise ParseError(
                 self,
-                '#end {} found, expected #end {}'.format(directive_name, last),
+                f'#end {directive_name} found, expected #end {last}',
                 pos=error_pos,
             )
 

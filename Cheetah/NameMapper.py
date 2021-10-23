@@ -2,10 +2,10 @@
 
 NameMapper is what looks up variables in cheetah's "searchList".
 """
+import builtins
 import sys
 
 import _cheetah
-import six
 
 NotFound = _cheetah.NotFound
 
@@ -18,14 +18,14 @@ def _py_frame_lookup(key, locals_, globals_):
     if value is _NOTFOUND:
         value = globals_.get(key, _NOTFOUND)
         if value is _NOTFOUND:
-            value = getattr(six.moves.builtins, key, _NOTFOUND)
+            value = getattr(builtins, key, _NOTFOUND)
     return value
 
 
 def py_value_from_namespace(key, ns):
     value = ns.get(key, _NOTFOUND)
     if value is _NOTFOUND:
-        raise NotFound('Could not find {!r}'.format(key))
+        raise NotFound(f'Could not find {key!r}')
     return value
 
 

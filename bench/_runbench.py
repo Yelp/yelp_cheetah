@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import os
 import re
 import subprocess
@@ -23,7 +21,7 @@ def list_benchmarks():
 
 
 def run_bench(name):
-    sys.stdout.write('{:40}'.format(name))
+    sys.stdout.write(f'{name:40}')
     sys.stdout.flush()
 
     bench = __import__('bench_' + name).run
@@ -37,13 +35,11 @@ def run_bench(name):
         return iterations
 
     best_iterations = max(get_iterations() for _ in range(BEST_OF))
-    sys.stdout.write('{:4} iterations\n'.format(best_iterations))
+    sys.stdout.write(f'{best_iterations:4} iterations\n')
 
 
 def get_output(*cmd):
-    return subprocess.Popen(
-        cmd, stdout=subprocess.PIPE,
-    ).communicate()[0].strip()
+    return subprocess.check_output(cmd).decode()
 
 
 def main():
@@ -52,10 +48,10 @@ def main():
 
     print('=' * 80)
     sha = get_output('git', 'rev-parse', 'HEAD')
-    print('SHA = {}'.format(sha))
-    print('BEST_OF = {}'.format(BEST_OF))
-    print('ITERATIONS = {}'.format(ITERATIONS))
-    print('TIME_PER_TEST = {}'.format(TIME_PER_TEST))
+    print(f'SHA = {sha}')
+    print(f'BEST_OF = {BEST_OF}')
+    print(f'ITERATIONS = {ITERATIONS}')
+    print(f'TIME_PER_TEST = {TIME_PER_TEST}')
     print(get_output('sh', '-c', 'cat /proc/cpuinfo | grep ^bogomips'))
     print('-' * 80)
     os.chdir(bench_directory)
