@@ -10,6 +10,12 @@ yelp_cheetah is cheetah with everything we don't / shouldn't use removed.
 Differences
 ================================================================================
 
+## 0.19.0
+- Add error message for missing partial template `#extends` under test.
+- Fix warnings in python3+.
+- Drop support for python 2.
+- Build abi3 wheels.
+
 ## 0.18.0
 - Some optimizations of list comprehensions
 - Lookup speed improvements
