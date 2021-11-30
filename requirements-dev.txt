@@ -1,6 +1,6 @@
 -e .[testing]
 
-covdefaults
+covdefaults>=2.1
 coverage
 lxml
 pre-commit

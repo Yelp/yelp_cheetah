@@ -16,6 +16,8 @@ if sys.version_info >= (3,) and platform.python_implementation() == 'CPython':
                 super().finalize_options()
 
         cmdclass = {'bdist_wheel': bdist_wheel}
+else:
+    cmdclass = {}
 
 setup(
     ext_modules=[
