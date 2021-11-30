@@ -437,11 +437,11 @@ def test_self_in_arglist_invalid():
 
 
 def test_set_with_dollar_signs_raises():
-    if sys.version_info < (3, 8):  # pragma: no cover (<py38)
+    if sys.version_info < (3, 8):  # pragma: <3.8 cover
         msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
-    elif sys.version_info < (3, 10):  # pragma: no cover (<py310)
+    elif sys.version_info < (3, 10):  # pragma: no cover
         msg = "SyntaxError: cannot assign to function call (<unknown>, line 1)"
-    else:  # pragma: no cover (py38+)
+    else:  # pragma: >=3.10 cover
         msg = (
             "SyntaxError: cannot assign to function call here. "
             "Maybe you meant '==' instead of '='? (<unknown>, line 1)"
@@ -483,9 +483,9 @@ def test_classmethod_staticmethod_not_allowed(decorator):
 
 
 def test_lvalue_for():
-    if sys.version_info < (3, 8):  # pragma: no cover (<py38)
+    if sys.version_info < (3, 8):  # pragma: <3.8 cover
         msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
-    else:  # pragma: no cover (py38+)
+    else:  # pragma: >=3.8 cover
         msg = 'SyntaxError: cannot assign to function call (<unknown>, line 1)'
 
     assert_parse_error(
@@ -507,9 +507,9 @@ def test_lvalue_for():
 
 
 def test_uncaught_syntax_error():
-    if sys.version_info < (3, 8):  # pragma: no cover (<py38)
+    if sys.version_info < (3, 8):  # pragma: <3.8 cover
         msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
-    else:  # pragma: no cover (py38+)
+    else:  # pragma: >=3.8 cover
         msg = 'SyntaxError: cannot assign to function call (<unknown>, line 1)'
 
     assert_parse_error(
@@ -546,9 +546,9 @@ def test_errors_on_invalid_setting():
 
 
 def test_errors_on_blinged_kwarg():
-    if sys.version_info < (3, 8):  # pragma: no cover (<py38)
+    if sys.version_info < (3, 8):  # pragma: <3.8 cover
         msg = "SyntaxError: keyword can't be an expression (<unknown>, line 1)"
-    else:  # pragma: no cover (py38+)
+    else:  # pragma: >=3.8 cover
         msg = (
             'SyntaxError: expression cannot contain assignment, perhaps you '
             'meant "=="? (<unknown>, line 1)'

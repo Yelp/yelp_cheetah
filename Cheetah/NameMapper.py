@@ -43,11 +43,11 @@ def py_value_from_search_list(key, self, ns):
     return value
 
 
-if '__pypy__' in sys.builtin_module_names:  # pragma: no cover
+if '__pypy__' in sys.builtin_module_names:  # pragma: pypy cover
     value_from_namespace = py_value_from_namespace
     value_from_frame_or_namespace = py_value_from_frame_or_namespace
     value_from_search_list = py_value_from_search_list
-else:   # pragma: no cover
+else:   # pragma: pypy no cover
     value_from_namespace = _cheetah.value_from_namespace
     value_from_frame_or_namespace = _cheetah.value_from_frame_or_namespace
     value_from_search_list = _cheetah.value_from_search_list
