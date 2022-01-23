@@ -4,9 +4,9 @@ import pytest
 
 from Cheetah.cheetah_compile import _compile_files_in_directory
 from Cheetah.cheetah_compile import _touch_init_if_not_exists
-from Cheetah.cheetah_compile import compile_all
 from Cheetah.cheetah_compile import compile_directories
 from Cheetah.cheetah_compile import compile_template
+from Cheetah.cheetah_compile import main
 from testing.util import run_python
 
 
@@ -43,7 +43,7 @@ def test_compile_template(template_writer):
 def test_compile_multiple_files(template_writer):
     tmpl1 = template_writer.write('foo')
     tmpl2 = template_writer.write('bar')
-    compile_all([tmpl1, tmpl2])
+    main([tmpl1, tmpl2])
     assert run_python(tmpl1.replace('.tmpl', '.py')) == 'foo'
     assert run_python(tmpl2.replace('.tmpl', '.py')) == 'bar'
 
@@ -51,7 +51,7 @@ def test_compile_multiple_files(template_writer):
 def test_compile_multiple_files_by_directory(template_writer, tmpdir):
     tmpl1 = template_writer.write('foo')
     tmpl2 = template_writer.write('bar')
-    compile_all([tmpdir.strpath])
+    main([tmpdir.strpath])
     assert run_python(tmpl1.replace('.tmpl', '.py')) == 'foo'
     assert run_python(tmpl2.replace('.tmpl', '.py')) == 'bar'
 

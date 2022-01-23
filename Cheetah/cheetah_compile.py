@@ -1,6 +1,5 @@
 import argparse
 import os.path
-import sys
 
 from Cheetah.compile import compile_file
 
@@ -54,7 +53,7 @@ def compile_directories(directories, extension='.tmpl', **kwargs):
             _touch_init_if_not_exists(dirpath)
 
 
-def compile_all(argv):
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'filenames', nargs='*',
@@ -77,9 +76,5 @@ def compile_all(argv):
         compile_template(filename)
 
 
-def main():  # pragma: no cover (called by commandline only)
-    compile_all(sys.argv[1:])
-
-
 if __name__ == '__main__':
-    exit(main())
+    raise SystemExit(main())
