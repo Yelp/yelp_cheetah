@@ -437,9 +437,7 @@ def test_self_in_arglist_invalid():
 
 
 def test_set_with_dollar_signs_raises():
-    if sys.version_info < (3, 8):  # pragma: <3.8 cover
-        msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
-    elif sys.version_info < (3, 10):  # pragma: no cover
+    if sys.version_info < (3, 10):  # pragma: no cover
         msg = "SyntaxError: cannot assign to function call (<unknown>, line 1)"
     else:  # pragma: >=3.10 cover
         msg = (
@@ -483,22 +481,17 @@ def test_classmethod_staticmethod_not_allowed(decorator):
 
 
 def test_lvalue_for():
-    if sys.version_info < (3, 8):  # pragma: <3.8 cover
-        msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
-    else:  # pragma: >=3.8 cover
-        msg = 'SyntaxError: cannot assign to function call (<unknown>, line 1)'
-
     assert_parse_error(
-        f'\n\n'
-        f'{msg}\n\n'
-        f'Line 2, column 1\n'
-        f'\n'
-        f'Line|Cheetah Code\n'
-        f'----|-------------------------------------------------------------\n'
-        f'1   |#for $foo in bar\n'
-        f'2   |$foo\n'
-        f'     ^\n'
-        f'3   |#end for\n',
+        '\n\n'
+        'SyntaxError: cannot assign to function call (<unknown>, line 1)\n\n'
+        'Line 2, column 1\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#for $foo in bar\n'
+        '2   |$foo\n'
+        '     ^\n'
+        '3   |#end for\n',
 
         '#for $foo in bar\n'
         '$foo\n'
@@ -507,21 +500,16 @@ def test_lvalue_for():
 
 
 def test_uncaught_syntax_error():
-    if sys.version_info < (3, 8):  # pragma: <3.8 cover
-        msg = "SyntaxError: can't assign to function call (<unknown>, line 1)"
-    else:  # pragma: >=3.8 cover
-        msg = 'SyntaxError: cannot assign to function call (<unknown>, line 1)'
-
     assert_parse_error(
-        f'\n\n'
-        f'{msg}\n\n'
-        f'Line 3, column 15\n\n'
-        f'Line|Cheetah Code\n'
-        f'----|-------------------------------------------------------------\n'
-        f'1   |Hello\n'
-        f'2   |World\n'
-        f'3   |#py x = $y = 1\n'
-        f'                   ^\n',
+        '\n\n'
+        'SyntaxError: cannot assign to function call (<unknown>, line 1)\n\n'
+        'Line 3, column 15\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |Hello\n'
+        '2   |World\n'
+        '3   |#py x = $y = 1\n'
+        '                   ^\n',
 
         'Hello\nWorld\n#py x = $y = 1\n',
     )
@@ -546,22 +534,15 @@ def test_errors_on_invalid_setting():
 
 
 def test_errors_on_blinged_kwarg():
-    if sys.version_info < (3, 8):  # pragma: <3.8 cover
-        msg = "SyntaxError: keyword can't be an expression (<unknown>, line 1)"
-    else:  # pragma: >=3.8 cover
-        msg = (
-            'SyntaxError: expression cannot contain assignment, perhaps you '
-            'meant "=="? (<unknown>, line 1)'
-        )
-
     assert_parse_error(
-        f'\n\n'
-        f'{msg}\n\n'
-        f'Line 1, column 15\n\n'
-        f'Line|Cheetah Code\n'
-        f'----|-------------------------------------------------------------\n'
-        f'1   |$foo($bar=$baz)\n'
-        f'                   ^\n',
+        '\n\n'
+        'SyntaxError: expression cannot contain assignment, perhaps you '
+        'meant "=="? (<unknown>, line 1)\n\n'
+        'Line 1, column 15\n\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |$foo($bar=$baz)\n'
+        '                   ^\n',
 
         '$foo($bar=$baz)',
     )
