@@ -9,7 +9,7 @@ repos:
     -   id: debug-statements
     -   id: name-tests-test
 -   repo: https://github.com/pycqa/flake8
-    rev: 7.1.2
+    rev: 7.2.0
     hooks:
     -   id: flake8
 -   repo: https://github.com/hhatto/autopep8
@@ -31,6 +31,6 @@ repos:
     hooks:
     -   id: add-trailing-comma
 -   repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v2.7.0
+    rev: v2.8.0
     hooks:
     -   id: setup-cfg-fmt
