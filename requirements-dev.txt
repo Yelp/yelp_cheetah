@@ -6,3 +6,5 @@ lxml
 pre-commit
 pylint
 pytest
+setuptools
+wheel

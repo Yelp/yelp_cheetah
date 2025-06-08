@@ -64,7 +64,7 @@ def test_get_run_method():
 def test_integration(tmpdir):
     pip = (sys.executable, '-m', 'pip.__main__')
     subprocess.call(pip + ('uninstall', '-y', 'pkg'))
-    subprocess.check_call(pip + ('install', 'testing/pkg'))
+    subprocess.check_call(pip + ('install', 'testing/pkg', '--no-use-pep517'))
     out = subprocess.check_output((
         sys.executable, '-c',
         'from pkg.templates.test import YelpCheetahTemplate;'
