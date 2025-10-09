@@ -1,5 +1,4 @@
 import contextlib
-import sys
 
 import pytest
 
@@ -437,22 +436,16 @@ def test_self_in_arglist_invalid():
 
 
 def test_set_with_dollar_signs_raises():
-    if sys.version_info < (3, 10):  # pragma: no cover
-        msg = "SyntaxError: cannot assign to function call (<unknown>, line 1)"
-    else:  # pragma: >=3.10 cover
-        msg = (
-            "SyntaxError: cannot assign to function call here. "
-            "Maybe you meant '==' instead of '='? (<unknown>, line 1)"
-        )
     assert_parse_error(
-        f'\n\n'
-        f'{msg}\n\n'
-        f'Line 1, column 13\n'
-        f'\n'
-        f'Line|Cheetah Code\n'
-        f'----|-------------------------------------------------------------\n'
-        f'1   |#py $foo = 1\n'
-        f'                 ^\n',
+        '\n\n'
+        "SyntaxError: cannot assign to function call here. "
+        "Maybe you meant '==' instead of '='? (<unknown>, line 1)\n\n"
+        'Line 1, column 13\n'
+        '\n'
+        'Line|Cheetah Code\n'
+        '----|-------------------------------------------------------------\n'
+        '1   |#py $foo = 1\n'
+        '                 ^\n',
 
         '#py $foo = 1\n',
     )
