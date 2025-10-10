@@ -73,11 +73,11 @@ def test_VFNS_dict(vfns):
 
 @vffns_tests
 def test_VFFNS_locals_first(vffns):
-    loc = object()
-    glob = object()
-    ns_var = object()
+    loc = mock.sentinel.loc
+    glob = mock.sentinel.glob
+    ns_var = mock.sentinel.ns_var
     # Intentionally mask builtin `int`
-    locals().update({'int': loc})
+    int = loc
     with mock.patch.dict(globals(), {'int': glob}):
         assert vffns('int', locals(), globals(), {'int': ns_var}) is loc
 
