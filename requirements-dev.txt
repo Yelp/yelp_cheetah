@@ -2,9 +2,7 @@
 
 covdefaults>=2.1
 coverage
-lxml
-pre-commit
-pylint
 pytest
+re-assert
 setuptools
 wheel

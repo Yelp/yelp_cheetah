@@ -4,6 +4,7 @@ import sys
 import textwrap
 
 import pytest
+import re_assert
 
 from Cheetah.compile import _create_module_from_source
 from Cheetah.compile import compile_file
@@ -157,14 +158,14 @@ def test_compile_to_class_traceback():
         raise AssertionError("Should raise ZeroDivision")
 
     # The current implementation doesn't show the line of code which caused the exception:
-    import re
-    assert re.match(
+    re_assert.Matches(
         r'''Traceback \(most recent call last\):
   File ".+/tests/compile_test\.py", line \d*, in test_compile_to_class_traceback
-    ret\(\).respond\(\)
+    ret\(\).respond\(\)(?:
+ +~+\^+)?
   File "<generated cheetah module>", line \d*, in respond
-ZeroDivisionError: (integer )?division( or modulo)? by zero''', traceback,
-    )
+ZeroDivisionError: division by zero''',
+    ).assert_matches(traceback)
 
 
 def test_compile_is_deterministic():
