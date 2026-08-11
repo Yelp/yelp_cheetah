@@ -1,21 +1,21 @@
 import platform
 import sys
+import sysconfig
 
 from setuptools import Extension
 from setuptools import setup
+from setuptools.command.bdist_wheel import bdist_wheel
 
-if sys.version_info >= (3,) and platform.python_implementation() == 'CPython':
-    try:
-        import wheel.bdist_wheel
-    except ImportError:
-        cmdclass = {}
-    else:
-        class bdist_wheel(wheel.bdist_wheel.bdist_wheel):
-            def finalize_options(self):
-                self.py_limited_api = f'cp3{sys.version_info[1]}'
-                super().finalize_options()
+if (
+        platform.python_implementation() == 'CPython' and
+        sysconfig.get_config_var('Py_GIL_DISABLED') != 1
+):
+    class _bdist_wheel(bdist_wheel):
+        def finalize_options(self) -> None:
+            self.py_limited_api = f'cp3{sys.version_info[1]}'
+            super().finalize_options()
 
-        cmdclass = {'bdist_wheel': bdist_wheel}
+    cmdclass = {'bdist_wheel': _bdist_wheel}
 else:
     cmdclass = {}
 
