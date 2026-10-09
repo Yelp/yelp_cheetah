@@ -1,5 +1,4 @@
 import contextlib
-import os
 import subprocess
 import sys
 from unittest import mock
@@ -10,22 +9,12 @@ from setuptools.dist import Distribution
 from Cheetah import setuptools_support
 
 
-@contextlib.contextmanager
-def cwd(path):
-    orig = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(orig)
-
-
 @pytest.fixture
 def pkg_layout(tmpdir):
     tmpdir.join('src1/lib/foo.tmpl').ensure()
     tmpdir.join('src2/bar.tmpl').ensure()
     tmpdir.join('empty/lib/__pycache__').ensure_dir()
-    with cwd(tmpdir.strpath):
+    with contextlib.chdir(tmpdir.strpath):
         yield ('src1', 'src2', 'empty')
 
 
