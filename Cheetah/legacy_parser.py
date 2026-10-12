@@ -10,7 +10,6 @@ import collections
 import functools
 import re
 import string
-import sys
 import tokenize
 
 from Cheetah.SourceReader import SourceReader
@@ -151,7 +150,7 @@ def fail_with_our_parse_error(func):
         except ParseError:
             raise
         except Exception as e:
-            raise ParseError(self, f'{type(e).__name__}: {e}\n').with_traceback(sys.exc_info()[2])
+            raise ParseError(self, f'{type(e).__name__}: {e}\n').with_traceback(e.__traceback__)
     return inner
 
 
